@@ -1,4 +1,6 @@
 import React from "react";
+import { createRoot } from "react-dom/client";
+import "./styles.css";
 
 function Button({ children, className = "", variant = "default", ...props }) {
   const base =
@@ -235,7 +237,7 @@ function Hero() {
             <Button className="rounded-full bg-black px-7 py-6 text-white hover:bg-slate-800">
               Choose Business Template <Icon name="arrow" className="ml-2 h-4 w-4" />
             </Button>
-            <Button variant="outline" className="rounded-full border-black px-7 py-6">
+            <Button variant="outline" className="rounded-full border-black px-7 py-6 text-slate-950 hover:bg-slate-950 hover:text-white">
               Build My Own System
             </Button>
           </div>
@@ -387,7 +389,7 @@ function FinalCTA() {
   );
 }
 
-export default function VulaTradeLandingPage() {
+function VulaTradeLandingPage() {
   return (
     <div className="min-h-screen bg-[#f8f8f5] text-slate-950">
       <Hero />
@@ -398,7 +400,6 @@ export default function VulaTradeLandingPage() {
     </div>
   );
 }
-import { createRoot } from "react-dom/client";
 
 const root = createRoot(document.getElementById("root"));
 root.render(<VulaTradeLandingPage />);
