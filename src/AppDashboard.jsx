@@ -2,7 +2,6 @@ import { supabase } from "./lib/supabase";
 import React, { useEffect, useState } from "react";
 import "./styles.css";
 
-// ── CONSTANTS ──────────────────────────────────────────────
 const TABS = ["Dashboard", "Templates", "Setup", "Page", "Customers", "Messages", "Growth", "Money", "Vuke", "Plans"];
 const LIME = "#a3e635";
 const DARK = "#0d0d0d";
@@ -15,139 +14,24 @@ const CATEGORIES = [
 
 const PAYMENT_METHODS = ["Cash", "EFT / Bank Transfer", "SnapScan", "Zapper", "Yoco", "PayFast", "Other"];
 
-// ── TEMPLATES DATA ─────────────────────────────────────────
 const TEMPLATES = [
-  {
-    id: "nail", name: "Nail Salon", category: "Nail Tech", icon: "💅",
-    description: "Home or mobile nail tech offering gel, acrylic, and nail art services.",
-    starter: "I'm a professional nail technician offering gel overlays, acrylic sets, nail art and soak-offs. I work from home and offer mobile appointments. Book via WhatsApp.",
-    products: [
-      { name: "Gel overlay", price: 220, description: "Full gel overlay on natural nails" },
-      { name: "Acrylic set", price: 350, description: "Full acrylic nail set" },
-      { name: "Soak off", price: 80, description: "Gel or acrylic soak off removal" },
-      { name: "Nail art", price: 50, description: "Custom nail art per nail" },
-    ],
-  },
-  {
-    id: "hair", name: "Hair & Extensions", category: "Hair & Extensions", icon: "💇",
-    description: "Hair styling, braiding, weaves and extension services.",
-    starter: "I offer professional hair styling including braids, weaves, relaxers and extensions. Available for home visits and salon appointments. Book via WhatsApp.",
-    products: [
-      { name: "Box braids", price: 350, description: "Full box braids install" },
-      { name: "Weave install", price: 450, description: "Weave sew-in with closure" },
-      { name: "Relaxer", price: 200, description: "Relaxer treatment and blow dry" },
-      { name: "Hair extensions", price: 500, description: "Hair extension install" },
-    ],
-  },
-  {
-    id: "barber", name: "Barber", category: "Barber", icon: "✂️",
-    description: "Men's cuts, fades, lineups and beard grooming.",
-    starter: "Professional barber offering fades, lineups, beard trims and full grooms. Home visits available. Book your slot via WhatsApp.",
-    products: [
-      { name: "Haircut", price: 80, description: "Standard haircut and style" },
-      { name: "Fade", price: 100, description: "Skin or low fade" },
-      { name: "Beard trim", price: 50, description: "Beard shape and trim" },
-      { name: "Full groom", price: 140, description: "Haircut plus beard trim" },
-    ],
-  },
-  {
-    id: "food", name: "Food Seller", category: "Food Seller", icon: "🍱",
-    description: "Home-cooked meals, lunches and daily specials.",
-    starter: "I cook and sell freshly prepared home meals daily. Available for collection or local delivery. Order via WhatsApp before 10am.",
-    products: [
-      { name: "Lunch special", price: 45, description: "Daily cooked lunch special" },
-      { name: "Full meal", price: 65, description: "Full plate with sides" },
-      { name: "Family pot", price: 180, description: "Large family-size portion" },
-      { name: "Snacks", price: 15, description: "Vetkoek, pies and light snacks" },
-    ],
-  },
-  {
-    id: "produce", name: "Fresh Produce", category: "Fresh Produce", icon: "🥬",
-    description: "Fresh fruit and vegetables sold from home or delivered locally.",
-    starter: "I sell fresh, affordable fruit and vegetables. Order weekly specials and get delivery to your door. WhatsApp me your order.",
-    products: [
-      { name: "Veggie bag", price: 60, description: "Seasonal mixed vegetables" },
-      { name: "Fruit bag", price: 70, description: "Seasonal mixed fruit" },
-      { name: "Mixed box", price: 120, description: "Fruit and veg combo box" },
-      { name: "Single item", price: 5, description: "Individual fruit or veg item" },
-    ],
-  },
-  {
-    id: "cleaning", name: "Cleaning Service", category: "Cleaning", icon: "🧹",
-    description: "Home, office and post-construction cleaning.",
-    starter: "Professional cleaning service for homes and offices. Reliable, thorough and affordable. Book your clean via WhatsApp.",
-    products: [
-      { name: "1-bedroom flat", price: 250, description: "Full clean of 1-bedroom flat" },
-      { name: "3-bedroom house", price: 450, description: "Full clean of 3-bedroom house" },
-      { name: "Office clean", price: 350, description: "Office or business premises clean" },
-      { name: "Post-construction", price: 600, description: "Post-construction deep clean" },
-    ],
-  },
-  {
-    id: "tutor", name: "Tutor", category: "Tutoring", icon: "📚",
-    description: "Academic tutoring for school and university students.",
-    starter: "I offer private tutoring for Grade 8–12 and university students. Maths, Science, English and more. Book your session via WhatsApp.",
-    products: [
-      { name: "1hr session", price: 150, description: "One-on-one tutoring session" },
-      { name: "Group session", price: 80, description: "Group tutoring per person" },
-      { name: "Exam prep package", price: 500, description: "5-session exam preparation package" },
-      { name: "Online session", price: 120, description: "Online video tutoring session" },
-    ],
-  },
-  {
-    id: "delivery", name: "Local Delivery", category: "Delivery", icon: "🛵",
-    description: "Fast local delivery for businesses and individuals.",
-    starter: "I offer reliable same-day local delivery. Food, parcels, documents and more. WhatsApp me your pickup and drop-off.",
-    products: [
-      { name: "Local drop", price: 40, description: "Single local delivery drop" },
-      { name: "Extended zone", price: 70, description: "Delivery to extended area" },
-      { name: "Bulk delivery", price: 150, description: "Multiple drops in one run" },
-      { name: "Monthly package", price: 800, description: "Unlimited local deliveries per month" },
-    ],
-  },
-  {
-    id: "photography", name: "Photography", category: "Photography", icon: "📸",
-    description: "Portrait, event and product photography.",
-    starter: "Professional photographer available for portraits, events, maternity shoots and product photos. Book your session via WhatsApp.",
-    products: [
-      { name: "Portrait session", price: 500, description: "1hr portrait shoot with edited photos" },
-      { name: "Event coverage", price: 1500, description: "Full event photography coverage" },
-      { name: "Product shoot", price: 800, description: "Product photography for online selling" },
-      { name: "Maternity shoot", price: 700, description: "Maternity portrait session" },
-    ],
-  },
-  {
-    id: "catering", name: "Catering", category: "Catering", icon: "🍽️",
-    description: "Event catering for parties, funerals and celebrations.",
-    starter: "I provide full catering services for events of all sizes — funerals, parties, corporate functions and celebrations. WhatsApp for a quote.",
-    products: [
-      { name: "Basic package (per head)", price: 85, description: "Standard catering per person" },
-      { name: "Full package (per head)", price: 150, description: "Premium catering per person" },
-      { name: "Dessert table", price: 500, description: "Dessert table setup for events" },
-      { name: "Drinks package", price: 300, description: "Cold drinks and juice package" },
-    ],
-  },
-  {
-    id: "phonerepairs", name: "Phone Repairs", category: "Phone Repairs", icon: "📱",
-    description: "Screen replacements, battery swaps and phone fixes.",
-    starter: "I fix phones fast and at fair prices. Screen repairs, battery replacements, charging ports and more. WhatsApp for a quote.",
-    products: [
-      { name: "Screen repair", price: 350, description: "Screen replacement (price varies by model)" },
-      { name: "Battery swap", price: 200, description: "Battery replacement" },
-      { name: "Charging port", price: 150, description: "Charging port repair or replacement" },
-      { name: "Water damage", price: 250, description: "Water damage assessment and repair" },
-    ],
-  },
+  { id: "nail", name: "Nail Salon", category: "Nail Tech", icon: "💅", description: "Home or mobile nail tech offering gel, acrylic, and nail art services.", starter: "I'm a professional nail technician offering gel overlays, acrylic sets, nail art and soak-offs. I work from home and offer mobile appointments. Book via WhatsApp.", products: [{ name: "Gel overlay", price: 220, description: "Full gel overlay on natural nails" }, { name: "Acrylic set", price: 350, description: "Full acrylic nail set" }, { name: "Soak off", price: 80, description: "Gel or acrylic soak off removal" }, { name: "Nail art", price: 50, description: "Custom nail art per nail" }] },
+  { id: "hair", name: "Hair & Extensions", category: "Hair & Extensions", icon: "💇", description: "Hair styling, braiding, weaves and extension services.", starter: "I offer professional hair styling including braids, weaves, relaxers and extensions. Available for home visits and salon appointments. Book via WhatsApp.", products: [{ name: "Box braids", price: 350, description: "Full box braids install" }, { name: "Weave install", price: 450, description: "Weave sew-in with closure" }, { name: "Relaxer", price: 200, description: "Relaxer treatment and blow dry" }, { name: "Hair extensions", price: 500, description: "Hair extension install" }] },
+  { id: "barber", name: "Barber", category: "Barber", icon: "✂️", description: "Men's cuts, fades, lineups and beard grooming.", starter: "Professional barber offering fades, lineups, beard trims and full grooms. Home visits available. Book your slot via WhatsApp.", products: [{ name: "Haircut", price: 80, description: "Standard haircut and style" }, { name: "Fade", price: 100, description: "Skin or low fade" }, { name: "Beard trim", price: 50, description: "Beard shape and trim" }, { name: "Full groom", price: 140, description: "Haircut plus beard trim" }] },
+  { id: "food", name: "Food Seller", category: "Food Seller", icon: "🍱", description: "Home-cooked meals, lunches and daily specials.", starter: "I cook and sell freshly prepared home meals daily. Available for collection or local delivery. Order via WhatsApp before 10am.", products: [{ name: "Lunch special", price: 45, description: "Daily cooked lunch special" }, { name: "Full meal", price: 65, description: "Full plate with sides" }, { name: "Family pot", price: 180, description: "Large family-size portion" }, { name: "Snacks", price: 15, description: "Vetkoek, pies and light snacks" }] },
+  { id: "produce", name: "Fresh Produce", category: "Fresh Produce", icon: "🥬", description: "Fresh fruit and vegetables sold from home or delivered locally.", starter: "I sell fresh, affordable fruit and vegetables. Order weekly specials and get delivery to your door. WhatsApp me your order.", products: [{ name: "Veggie bag", price: 60, description: "Seasonal mixed vegetables" }, { name: "Fruit bag", price: 70, description: "Seasonal mixed fruit" }, { name: "Mixed box", price: 120, description: "Fruit and veg combo box" }, { name: "Single item", price: 5, description: "Individual fruit or veg item" }] },
+  { id: "cleaning", name: "Cleaning Service", category: "Cleaning", icon: "🧹", description: "Home, office and post-construction cleaning.", starter: "Professional cleaning service for homes and offices. Reliable, thorough and affordable. Book your clean via WhatsApp.", products: [{ name: "1-bedroom flat", price: 250, description: "Full clean of 1-bedroom flat" }, { name: "3-bedroom house", price: 450, description: "Full clean of 3-bedroom house" }, { name: "Office clean", price: 350, description: "Office or business premises clean" }, { name: "Post-construction", price: 600, description: "Post-construction deep clean" }] },
+  { id: "tutor", name: "Tutor", category: "Tutoring", icon: "📚", description: "Academic tutoring for school and university students.", starter: "I offer private tutoring for Grade 8–12 and university students. Maths, Science, English and more. Book your session via WhatsApp.", products: [{ name: "1hr session", price: 150, description: "One-on-one tutoring session" }, { name: "Group session", price: 80, description: "Group tutoring per person" }, { name: "Exam prep package", price: 500, description: "5-session exam preparation package" }, { name: "Online session", price: 120, description: "Online video tutoring session" }] },
+  { id: "delivery", name: "Local Delivery", category: "Delivery", icon: "🛵", description: "Fast local delivery for businesses and individuals.", starter: "I offer reliable same-day local delivery. Food, parcels, documents and more. WhatsApp me your pickup and drop-off.", products: [{ name: "Local drop", price: 40, description: "Single local delivery drop" }, { name: "Extended zone", price: 70, description: "Delivery to extended area" }, { name: "Bulk delivery", price: 150, description: "Multiple drops in one run" }, { name: "Monthly package", price: 800, description: "Unlimited local deliveries per month" }] },
+  { id: "photography", name: "Photography", category: "Photography", icon: "📸", description: "Portrait, event and product photography.", starter: "Professional photographer available for portraits, events, maternity shoots and product photos. Book your session via WhatsApp.", products: [{ name: "Portrait session", price: 500, description: "1hr portrait shoot with edited photos" }, { name: "Event coverage", price: 1500, description: "Full event photography coverage" }, { name: "Product shoot", price: 800, description: "Product photography for online selling" }, { name: "Maternity shoot", price: 700, description: "Maternity portrait session" }] },
+  { id: "catering", name: "Catering", category: "Catering", icon: "🍽️", description: "Event catering for parties, funerals and celebrations.", starter: "I provide full catering services for events of all sizes — funerals, parties, corporate functions and celebrations. WhatsApp for a quote.", products: [{ name: "Basic package (per head)", price: 85, description: "Standard catering per person" }, { name: "Full package (per head)", price: 150, description: "Premium catering per person" }, { name: "Dessert table", price: 500, description: "Dessert table setup for events" }, { name: "Drinks package", price: 300, description: "Cold drinks and juice package" }] },
+  { id: "phonerepairs", name: "Phone Repairs", category: "Phone Repairs", icon: "📱", description: "Screen replacements, battery swaps and phone fixes.", starter: "I fix phones fast and at fair prices. Screen repairs, battery replacements, charging ports and more. WhatsApp for a quote.", products: [{ name: "Screen repair", price: 350, description: "Screen replacement (price varies by model)" }, { name: "Battery swap", price: 200, description: "Battery replacement" }, { name: "Charging port", price: 150, description: "Charging port repair or replacement" }, { name: "Water damage", price: 250, description: "Water damage assessment and repair" }] },
 ];
 
-// ── SHARED STYLES ──────────────────────────────────────────
-const inputStyle = {
-  border: "1.5px solid #e8e8e8", borderRadius: "12px", padding: "13px 16px",
-  fontSize: "14px", outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit",
-};
+const inputStyle = { border: "1.5px solid #e8e8e8", borderRadius: "12px", padding: "12px 14px", fontSize: "14px", outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" };
 const labelStyle = { fontSize: "12px", fontWeight: 600, color: "#555", marginBottom: "6px", display: "block" };
 
-// ── AUTH SCREEN ────────────────────────────────────────────
+// ── AUTH ───────────────────────────────────────────────────
 function AuthScreen() {
   const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
@@ -161,7 +45,6 @@ function AuthScreen() {
     if (error) setMessage(error.message);
     setLoading(false);
   }
-
   async function handleSignUp() {
     setLoading(true); setMessage("");
     const { error } = await supabase.auth.signUp({ email, password });
@@ -174,10 +57,7 @@ function AuthScreen() {
       <div style={{ width: "100%", maxWidth: "400px", background: "#fff", borderRadius: "24px", padding: "36px", boxShadow: "0 4px 32px rgba(0,0,0,0.08)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "28px" }}>
           <div style={{ width: "40px", height: "40px", background: DARK, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 900, color: LIME }}>VT</div>
-          <div>
-            <div style={{ fontSize: "16px", fontWeight: 900, color: DARK }}>VulaTrade</div>
-            <div style={{ fontSize: "11px", color: "#aaa" }}>Start local. Sell smarter. Grow stronger.</div>
-          </div>
+          <div><div style={{ fontSize: "16px", fontWeight: 900, color: DARK }}>VulaTrade</div><div style={{ fontSize: "11px", color: "#aaa" }}>Start local. Sell smarter. Grow stronger.</div></div>
         </div>
         <h2 style={{ fontSize: "22px", fontWeight: 800, color: DARK, marginBottom: "6px" }}>{mode === "signin" ? "Sign in to your account" : "Create your account"}</h2>
         <p style={{ fontSize: "13px", color: "#888", marginBottom: "24px" }}>{mode === "signin" ? "Welcome back." : "Start building your business today."}</p>
@@ -197,7 +77,7 @@ function AuthScreen() {
   );
 }
 
-// ── TAB: DASHBOARD HOME ────────────────────────────────────
+// ── DASHBOARD HOME ─────────────────────────────────────────
 function DashboardHome({ user, business, setTab }) {
   return (
     <div>
@@ -211,12 +91,7 @@ function DashboardHome({ user, business, setTab }) {
         </div>
       )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "14px" }}>
-        {[
-          { label: "Customers", value: "0", sub: "Total tracked" },
-          { label: "Messages", value: "0", sub: "Templates ready" },
-          { label: "Payments", value: "R0", sub: "This month" },
-          { label: "Follow-ups", value: "0", sub: "Due today" },
-        ].map((stat) => (
+        {[{ label: "Customers", value: "0", sub: "Total tracked" }, { label: "Messages", value: "0", sub: "Templates ready" }, { label: "Payments", value: "R0", sub: "This month" }, { label: "Follow-ups", value: "0", sub: "Due today" }].map((stat) => (
           <div key={stat.label} style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "16px", padding: "20px" }}>
             <div style={{ fontSize: "11px", color: "#aaa", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>{stat.label}</div>
             <div style={{ fontSize: "28px", fontWeight: 900, color: DARK, lineHeight: 1 }}>{stat.value}</div>
@@ -228,10 +103,9 @@ function DashboardHome({ user, business, setTab }) {
   );
 }
 
-// ── TAB: TEMPLATES ─────────────────────────────────────────
+// ── TEMPLATES TAB ──────────────────────────────────────────
 function TemplatesTab({ business, setTab, setPrefilledTemplate }) {
   const [selected, setSelected] = useState(null);
-
   function handleUse(template) {
     if (business?.name) {
       const ok = window.confirm(`You already have a business set up (${business.name}). This template will pre-fill your Setup form. Continue?`);
@@ -240,24 +114,21 @@ function TemplatesTab({ business, setTab, setPrefilledTemplate }) {
     setPrefilledTemplate(template);
     setTab("Setup");
   }
-
   return (
     <div>
       <h2 style={{ fontSize: "22px", fontWeight: 800, color: DARK, marginBottom: "6px" }}>Business Templates</h2>
-      <p style={{ fontSize: "14px", color: "#888", marginBottom: "28px" }}>Pick your business type and launch in minutes. Each template comes with a starter description and sample products.</p>
+      <p style={{ fontSize: "14px", color: "#888", marginBottom: "28px" }}>Pick your business type and launch in minutes. Each template includes starter products.</p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "16px" }}>
         {TEMPLATES.map((t) => (
           <div key={t.id} onClick={() => setSelected(selected === t.id ? null : t.id)}
-            style={{ background: selected === t.id ? DARK : "#fff", border: `1.5px solid ${selected === t.id ? DARK : "#eeeeea"}`, borderRadius: "20px", padding: "24px", cursor: "pointer", transition: "all 0.15s" }}>
+            style={{ background: selected === t.id ? DARK : "#fff", border: `1.5px solid ${selected === t.id ? DARK : "#eeeeea"}`, borderRadius: "20px", padding: "24px", cursor: "pointer" }}>
             <div style={{ fontSize: "32px", marginBottom: "12px" }}>{t.icon}</div>
             <div style={{ fontSize: "17px", fontWeight: 800, color: selected === t.id ? "#fff" : DARK, marginBottom: "6px" }}>{t.name}</div>
             <div style={{ fontSize: "13px", color: selected === t.id ? "#aaa" : "#888", lineHeight: 1.6, marginBottom: "16px" }}>{t.description}</div>
             {selected === t.id && (
               <div style={{ marginBottom: "16px" }}>
                 <div style={{ fontSize: "11px", fontWeight: 700, color: LIME, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>Starter products</div>
-                {t.products.map((p) => (
-                  <div key={p.name} style={{ fontSize: "12px", color: "#ccc", marginBottom: "4px" }}>· {p.name} — R{p.price}</div>
-                ))}
+                {t.products.map((p) => <div key={p.name} style={{ fontSize: "12px", color: "#ccc", marginBottom: "4px" }}>· {p.name} — R{p.price}</div>)}
               </div>
             )}
             <button onClick={(e) => { e.stopPropagation(); handleUse(t); }}
@@ -275,32 +146,23 @@ function TemplatesTab({ business, setTab, setPrefilledTemplate }) {
 function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled }) {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState(null);
-  const [newProduct, setNewProduct] = useState({ name: "", price: "", description: "" });
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [newProduct, setNewProduct] = useState({ name: "", price: "", description: "" });
 
-  // Load products from Supabase
   useEffect(() => {
     if (!businessId) { setLoading(false); return; }
     supabase.from("products").select("*").eq("business_id", businessId).order("created_at")
       .then(({ data }) => { if (data) setProducts(data); setLoading(false); });
   }, [businessId]);
 
-  // Apply prefilled products from template
   useEffect(() => {
     if (!prefilledProducts || !businessId || prefilledProducts.length === 0) return;
     async function applyTemplate() {
-      // Delete existing products first
       await supabase.from("products").delete().eq("business_id", businessId);
-      // Insert template products
-      const rows = prefilledProducts.map((p) => ({
-        business_id: businessId,
-        name: p.name,
-        price: p.price,
-        description: p.description,
-        is_active: true,
-      }));
+      const rows = prefilledProducts.map((p) => ({ business_id: businessId, name: p.name, price: p.price, description: p.description, is_active: true }));
       const { data } = await supabase.from("products").insert(rows).select();
       if (data) setProducts(data);
       onProductsPrefilled();
@@ -311,18 +173,13 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled })
   async function handleAdd() {
     if (!newProduct.name.trim() || !newProduct.price) return;
     setSaving(true);
-    const { data } = await supabase.from("products").insert([{
-      business_id: businessId,
-      name: newProduct.name.trim(),
-      price: parseFloat(newProduct.price),
-      description: newProduct.description.trim(),
-      is_active: true,
-    }]).select().single();
+    const { data } = await supabase.from("products").insert([{ business_id: businessId, name: newProduct.name.trim(), price: parseFloat(newProduct.price), description: newProduct.description.trim(), is_active: true }]).select().single();
     if (data) { setProducts((prev) => [...prev, data]); setNewProduct({ name: "", price: "", description: "" }); setAdding(false); }
     setSaving(false);
   }
 
   async function handleDelete(id) {
+    if (!window.confirm("Delete this product?")) return;
     await supabase.from("products").delete().eq("id", id);
     setProducts((prev) => prev.filter((p) => p.id !== id));
   }
@@ -330,6 +187,17 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled })
   async function handleToggleActive(product) {
     const { data } = await supabase.from("products").update({ is_active: !product.is_active }).eq("id", product.id).select().single();
     if (data) setProducts((prev) => prev.map((p) => p.id === data.id ? data : p));
+  }
+
+  function startEdit(product) {
+    setEditingId(product.id);
+    setEditForm({ name: product.name, price: product.price, description: product.description || "" });
+  }
+
+  async function handleSaveEdit(id) {
+    if (!editForm.name.trim() || !editForm.price) return;
+    const { data } = await supabase.from("products").update({ name: editForm.name.trim(), price: parseFloat(editForm.price), description: editForm.description.trim() }).eq("id", id).select().single();
+    if (data) { setProducts((prev) => prev.map((p) => p.id === data.id ? data : p)); setEditingId(null); }
   }
 
   if (!businessId) return (
@@ -350,7 +218,6 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled })
         </button>
       </div>
 
-      {/* Add product form */}
       {adding && (
         <div style={{ background: "#f8f8f6", border: "1.5px solid #e0e0dc", borderRadius: "14px", padding: "18px", marginBottom: "14px" }}>
           <div style={{ fontSize: "14px", fontWeight: 700, color: DARK, marginBottom: "14px" }}>New product or service</div>
@@ -370,7 +237,6 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled })
         </div>
       )}
 
-      {/* Product list */}
       {loading ? (
         <div style={{ fontSize: "13px", color: "#aaa", padding: "20px 0" }}>Loading products...</div>
       ) : products.length === 0 ? (
@@ -382,18 +248,33 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled })
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {products.map((p) => (
-            <div key={p.id} style={{ background: "#fff", border: `1.5px solid ${p.is_active ? "#e8e8e4" : "#f5f5f3"}`, borderRadius: "14px", padding: "14px 18px", display: "flex", alignItems: "center", gap: "14px", opacity: p.is_active ? 1 : 0.55 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: "14px", fontWeight: 700, color: DARK }}>{p.name}</div>
-                {p.description && <div style={{ fontSize: "12px", color: "#aaa", marginTop: "2px" }}>{p.description}</div>}
-              </div>
-              <div style={{ fontSize: "16px", fontWeight: 900, color: DARK, minWidth: "60px", textAlign: "right" }}>R{p.price}</div>
-              <button onClick={() => handleToggleActive(p)} style={{ fontSize: "11px", padding: "5px 10px", borderRadius: "8px", border: "1px solid #e0e0e0", background: p.is_active ? "#f0ffe0" : "#f5f5f5", color: p.is_active ? "#3a6b00" : "#aaa", cursor: "pointer", fontWeight: 600, whiteSpace: "nowrap" }}>
-                {p.is_active ? "Active" : "Hidden"}
-              </button>
-              <button onClick={() => handleDelete(p.id)} style={{ fontSize: "11px", padding: "5px 10px", borderRadius: "8px", border: "1px solid #ffd0d0", background: "#fff5f5", color: "#cc3300", cursor: "pointer", fontWeight: 600 }}>
-                Delete
-              </button>
+            <div key={p.id} style={{ background: "#fff", border: `1.5px solid ${editingId === p.id ? LIME : "#e8e8e4"}`, borderRadius: "14px", padding: "14px 18px", opacity: p.is_active ? 1 : 0.55 }}>
+              {editingId === p.id ? (
+                // EDIT MODE
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <input style={inputStyle} value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} placeholder="Product name" />
+                  <input style={inputStyle} type="number" value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} placeholder="Price" />
+                  <input style={inputStyle} value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} placeholder="Description (optional)" />
+                  <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+                    <button onClick={() => handleSaveEdit(p.id)} style={{ backgroundColor: LIME, color: DARK, border: "none", borderRadius: "10px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer", flex: 1 }}>Save changes</button>
+                    <button onClick={() => setEditingId(null)} style={{ background: "#fff", color: "#888", border: "1.5px solid #e0e0e0", borderRadius: "10px", padding: "9px 14px", fontSize: "13px", cursor: "pointer" }}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                // VIEW MODE
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "14px", fontWeight: 700, color: DARK }}>{p.name}</div>
+                    {p.description && <div style={{ fontSize: "12px", color: "#aaa", marginTop: "2px" }}>{p.description}</div>}
+                  </div>
+                  <div style={{ fontSize: "16px", fontWeight: 900, color: DARK, minWidth: "55px", textAlign: "right" }}>R{p.price}</div>
+                  <button onClick={() => startEdit(p)} style={{ fontSize: "11px", padding: "5px 10px", borderRadius: "8px", border: "1px solid #e0e0e0", background: "#f8f8f6", color: "#555", cursor: "pointer", fontWeight: 600 }}>Edit</button>
+                  <button onClick={() => handleToggleActive(p)} style={{ fontSize: "11px", padding: "5px 10px", borderRadius: "8px", border: "1px solid #e0e0e0", background: p.is_active ? "#f0ffe0" : "#f5f5f5", color: p.is_active ? "#3a6b00" : "#aaa", cursor: "pointer", fontWeight: 600, whiteSpace: "nowrap" }}>
+                    {p.is_active ? "Active" : "Hidden"}
+                  </button>
+                  <button onClick={() => handleDelete(p.id)} style={{ fontSize: "11px", padding: "5px 10px", borderRadius: "8px", border: "1px solid #ffd0d0", background: "#fff5f5", color: "#cc3300", cursor: "pointer", fontWeight: 600 }}>Delete</button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -402,17 +283,9 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled })
   );
 }
 
-// ── TAB: SETUP ─────────────────────────────────────────────
+// ── SETUP TAB ──────────────────────────────────────────────
 function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilledTemplate }) {
-  const [form, setForm] = useState({
-    name: business?.name || "",
-    owner: business?.owner || "",
-    category: business?.category || "",
-    area: business?.area || "",
-    description: business?.description || "",
-    whatsapp: business?.whatsapp || "",
-    payment: business?.payment || "",
-  });
+  const [form, setForm] = useState({ name: business?.name || "", owner: business?.owner || "", category: business?.category || "", area: business?.area || "", description: business?.description || "", whatsapp: business?.whatsapp || "", payment: business?.payment || "" });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -428,9 +301,7 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
     }
   }, [prefilledTemplate]);
 
-  useEffect(() => {
-    if (business?.id) setSavedBusinessId(business.id);
-  }, [business]);
+  useEffect(() => { if (business?.id) setSavedBusinessId(business.id); }, [business]);
 
   function update(field, value) { setForm((prev) => ({ ...prev, [field]: value })); setSaved(false); }
 
@@ -440,24 +311,31 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
     const slug = form.name.toLowerCase().trim().replaceAll(" ", "-").replace(/[^a-z0-9-]/g, "");
     const payload = { name: form.name.trim(), slug, owner: form.owner.trim(), category: form.category, area: form.area.trim(), description: form.description.trim(), whatsapp: form.whatsapp.trim(), payment: form.payment, user_id: user.id };
     const { data, error: err } = await supabase.from("businesses").upsert([payload], { onConflict: "user_id" }).select().single();
-    if (err) { setError(err.message); } else {
-      setSaved(true);
-      setBusiness(data);
-      setSavedBusinessId(data.id);
-    }
+    if (err) { setError(err.message); } else { setSaved(true); setBusiness(data); setSavedBusinessId(data.id); }
     setSaving(false);
   }
 
   return (
     <div style={{ maxWidth: "640px" }}>
-      <h2 style={{ fontSize: "22px", fontWeight: 800, color: DARK, marginBottom: "6px" }}>Business Setup</h2>
-      <p style={{ fontSize: "14px", color: "#888", marginBottom: "28px" }}>Tell us about your business. AI will help with the rest.</p>
 
-      {form.category && (
-        <div style={{ background: "#f0ffe0", border: "1.5px solid #c8f080", borderRadius: "12px", padding: "12px 16px", marginBottom: "20px", fontSize: "13px", color: "#3a6b00", fontWeight: 600 }}>
-          Template applied: {form.category} — review and customise below.
+      {/* Sticky save bar */}
+      <div style={{ position: "sticky", top: 0, background: "#f5f5f3", zIndex: 10, paddingBottom: "16px", paddingTop: "4px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <h2 style={{ fontSize: "22px", fontWeight: 800, color: DARK, marginBottom: "2px" }}>Business Setup</h2>
+            <p style={{ fontSize: "13px", color: "#888" }}>Tell us about your business.</p>
+          </div>
+          <button onClick={handleSave} disabled={saving} style={{ backgroundColor: saving ? "#ccc" : saved ? "#e8f5d0" : LIME, color: saving ? "#fff" : saved ? "#3a6b00" : DARK, border: saved ? "1.5px solid #a3e635" : "none", borderRadius: "12px", padding: "12px 24px", fontSize: "14px", fontWeight: 800, cursor: saving ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}>
+            {saving ? "Saving..." : saved ? "✓ Saved" : "Save Business"}
+          </button>
         </div>
-      )}
+        {error && <div style={{ fontSize: "13px", color: "#cc3300", background: "#fff0ee", padding: "10px 14px", borderRadius: "10px", marginTop: "8px" }}>{error}</div>}
+        {form.category && (
+          <div style={{ background: "#f0ffe0", border: "1.5px solid #c8f080", borderRadius: "10px", padding: "10px 14px", marginTop: "8px", fontSize: "13px", color: "#3a6b00", fontWeight: 600 }}>
+            Template applied: {form.category}
+          </div>
+        )}
+      </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "18px", marginBottom: "36px" }}>
         <div><label style={labelStyle}>Business name *</label><input style={inputStyle} placeholder="e.g. Nomsa's Nails" value={form.name} onChange={(e) => update("name", e.target.value)} /></div>
@@ -481,26 +359,16 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
             ))}
           </div>
         </div>
-        {error && <div style={{ fontSize: "13px", color: "#cc3300", background: "#fff0ee", padding: "10px 14px", borderRadius: "10px" }}>{error}</div>}
-        <button onClick={handleSave} disabled={saving} style={{ backgroundColor: saving ? "#ccc" : LIME, color: DARK, border: "none", borderRadius: "12px", padding: "15px", fontSize: "15px", fontWeight: 800, cursor: saving ? "not-allowed" : "pointer" }}>
-          {saving ? "Saving..." : saved ? "✓ Saved" : "Save Business"}
-        </button>
       </div>
 
-      {/* Divider */}
       <div style={{ borderTop: "1.5px solid #eeeeea", marginBottom: "32px" }} />
 
-      {/* Products section */}
-      <ProductsSection
-        businessId={savedBusinessId}
-        prefilledProducts={prefilledProducts}
-        onProductsPrefilled={() => setPrefilledProducts(null)}
-      />
+      <ProductsSection businessId={savedBusinessId} prefilledProducts={prefilledProducts} onProductsPrefilled={() => setPrefilledProducts(null)} />
     </div>
   );
 }
 
-// ── PLACEHOLDER TAB ────────────────────────────────────────
+// ── PLACEHOLDER ────────────────────────────────────────────
 function ComingSoon({ tab }) {
   return (
     <div style={{ textAlign: "center", padding: "80px 24px" }}>
@@ -511,7 +379,7 @@ function ComingSoon({ tab }) {
   );
 }
 
-// ── MAIN DASHBOARD ─────────────────────────────────────────
+// ── MAIN ───────────────────────────────────────────────────
 export default function AppDashboard({ onBack }) {
   const [user, setUser] = useState(null);
   const [tab, setTab] = useState("Dashboard");
