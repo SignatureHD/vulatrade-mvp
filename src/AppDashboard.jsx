@@ -803,7 +803,7 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
 }
 
 // ── SETUP TAB ──────────────────────────────────────────────
-function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilledTemplate, setTab }) {
+function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilledTemplate, setTab, setGlobalProducts, setGlobalLogoUrl }) {
   const [form, setForm] = useState({
     name:        business?.name         || "",
     owner:       business?.owner        || "",
@@ -824,6 +824,9 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
   const [products, setProducts]       = useState([]);
   const [logoUrl, setLogoUrl]         = useState(business?.catalogue || null);
   const [uploading, setUploading]     = useState(false);
+  const [deleting, setDeleting]       = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
   const fileRef = useRef();
 
   // Inject all unlocked fonts on mount
@@ -862,6 +865,36 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
     const { data, error:err } = await supabase.from("businesses").upsert([payload],{ onConflict:"user_id" }).select().single();
     if (err) { setError(err.message); } else { setSaved(true); setBusiness(data); setSavedBusinessId(data.id); }
     setSaving(false);
+  }
+
+  async function handleDelete() {
+    if (!savedBusinessId) return;
+    setDeleting(true);
+    try {
+      // 1. Delete all products for this business
+      await supabase.from("products").delete().eq("business_id", savedBusinessId);
+      // 2. Delete product images from storage
+      const { data: files } = await supabase.storage
+        .from("business-images")
+        .list(`product-images/${user.id}`);
+      if (files && files.length > 0) {
+        const paths = files
+          .filter((f) => f.name && f.name !== ".emptyFolderPlaceholder")
+          .map((f) => `product-images/${user.id}/${f.name}`);
+        if (paths.length > 0) await supabase.storage.from("business-images").remove(paths);
+      }
+      // 3. Delete logo from storage
+      await supabase.storage.from("business-images").remove([`logos/${user.id}.jpg`]);
+      // 4. Delete the business record
+      await supabase.from("businesses").delete().eq("id", savedBusinessId);
+      // 5. Reset all local state
+      setBusiness(null);
+      setGlobalProducts([]);
+      setGlobalLogoUrl(null);
+    } catch (err) {
+      console.error("Delete error:", err);
+    }
+    setDeleting(false);
   }
 
   const iconOptions = ICON_TEMPLATES[form.category] || ICON_TEMPLATES["Other"];
@@ -947,6 +980,60 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
         <div style={{ borderTop:"1.5px solid #eeeeea", marginBottom:"32px" }} />
 
         <ProductsSection businessId={savedBusinessId} prefilledProducts={prefilledProducts} onProductsPrefilled={() => setPrefilledProducts(null)} onProductsChange={setProducts} userId={user.id} />
+
+        {/* ── DANGER ZONE ── */}
+        {savedBusinessId && (
+          <div style={{ marginTop:"48px", border:"1.5px solid #ffd0d0", borderRadius:"16px", padding:"24px", background:"#fffafa" }}>
+            <div style={{ fontSize:"13px", fontWeight:700, color:"#cc3300", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"4px" }}>⚠️ Danger Zone</div>
+            <div style={{ fontSize:"13px", color:"#888", marginBottom:"16px" }}>
+              Deleting your business is permanent. All products, images and your business page will be removed. Your account stays active.
+            </div>
+
+            {!showDeleteConfirm ? (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                style={{ background:"#fff", color:"#cc3300", border:"1.5px solid #ffd0d0", borderRadius:"10px", padding:"10px 20px", fontSize:"13px", fontWeight:700, cursor:"pointer" }}
+              >
+                Delete this business…
+              </button>
+            ) : (
+              <div style={{ background:"#fff", border:"1.5px solid #ffb0b0", borderRadius:"12px", padding:"18px" }}>
+                <div style={{ fontSize:"13px", fontWeight:700, color:DARK, marginBottom:"6px" }}>
+                  Type <span style={{ fontFamily:"monospace", background:"#f5f5f5", padding:"2px 6px", borderRadius:"4px" }}>{business?.name}</span> to confirm
+                </div>
+                <div style={{ fontSize:"12px", color:"#aaa", marginBottom:"12px" }}>This cannot be undone.</div>
+                <input
+                  style={{ ...inputStyle, marginBottom:"12px", borderColor: confirmText === business?.name ? "#cc3300" : "#e8e8e8" }}
+                  placeholder={`Type "${business?.name}" to confirm`}
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                />
+                <div style={{ display:"flex", gap:"8px" }}>
+                  <button
+                    onClick={handleDelete}
+                    disabled={confirmText !== business?.name || deleting}
+                    style={{
+                      background: confirmText === business?.name ? "#cc3300" : "#f5f5f5",
+                      color: confirmText === business?.name ? "#fff" : "#bbb",
+                      border:"none", borderRadius:"10px", padding:"10px 20px",
+                      fontSize:"13px", fontWeight:700,
+                      cursor: confirmText === business?.name && !deleting ? "pointer" : "not-allowed",
+                      flex:1,
+                    }}
+                  >
+                    {deleting ? "Deleting…" : "Yes, delete everything"}
+                  </button>
+                  <button
+                    onClick={() => { setShowDeleteConfirm(false); setConfirmText(""); }}
+                    style={{ background:"#fff", color:"#888", border:"1.5px solid #e0e0e0", borderRadius:"10px", padding:"10px 16px", fontSize:"13px", cursor:"pointer" }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* RIGHT — Live preview */}
@@ -1037,7 +1124,7 @@ export default function AppDashboard({ onBack }) {
     switch(tab) {
       case "Dashboard": return <DashboardHome user={user} business={business} setTab={setTab} />;
       case "Templates": return <TemplatesTab business={business} setTab={setTab} setPrefilledTemplate={setPrefilledTemplate} />;
-      case "Setup":     return <SetupTab user={user} business={business} setBusiness={setBusiness} prefilledTemplate={prefilledTemplate} setPrefilledTemplate={setPrefilledTemplate} setTab={setTab} />;
+      case "Setup":     return <SetupTab user={user} business={business} setBusiness={setBusiness} prefilledTemplate={prefilledTemplate} setPrefilledTemplate={setPrefilledTemplate} setTab={setTab} setGlobalProducts={setProducts} setGlobalLogoUrl={setLogoUrl} />;
       case "Page":      return <PageTab business={business} products={products} logoUrl={logoUrl} />;
       default:          return <ComingSoon tab={tab} />;
     }
