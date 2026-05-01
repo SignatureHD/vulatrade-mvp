@@ -850,7 +850,7 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
     const compressed = await compressImage(file);
     const path = `logos/${user.id}.jpg`;
     const { error:upErr } = await supabase.storage.from("business-images").upload(path, compressed, { upsert:true });
-    if (!upErr) { const { data } = supabase.storage.from("business-images").getPublicUrl(path); setLogoUrl(data.publicUrl); }
+    if (!upErr) { const { data } = supabase.storage.from("business-images").getPublicUrl(path); setLogoUrl(data.publicUrl + "?t=" + Date.now()); }
     setUploading(false);
   }
 
