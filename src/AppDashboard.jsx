@@ -40,18 +40,21 @@ const ICON_TEMPLATES = {
   "Other": ["⭐", "💫", "✨", "🌟", "💎"],
 };
 
+// Product icon options — generic set for any business type
+const PRODUCT_ICONS = ["🛍️", "⭐", "✨", "💎", "🔥", "💅", "✂️", "🍱", "🧹", "📚", "🛵", "📸", "🍽️", "📱", "🥬", "💆", "💪", "🎁", "🧴", "💊"];
+
 const TEMPLATES = [
-  { id: "nail", name: "Nail Salon", category: "Nail Tech", icon: "💅", description: "Home or mobile nail tech offering gel, acrylic, and nail art services.", starter: "I'm a professional nail technician offering gel overlays, acrylic sets, nail art and soak-offs. I work from home and offer mobile appointments. Book via WhatsApp.", products: [{ name: "Gel overlay", price: 220, description: "Full gel overlay on natural nails" }, { name: "Acrylic set", price: 350, description: "Full acrylic nail set" }, { name: "Soak off", price: 80, description: "Gel or acrylic soak off removal" }, { name: "Nail art", price: 50, description: "Custom nail art per nail" }] },
-  { id: "hair", name: "Hair & Extensions", category: "Hair & Extensions", icon: "💇", description: "Hair styling, braiding, weaves and extension services.", starter: "I offer professional hair styling including braids, weaves, relaxers and extensions. Available for home visits and salon appointments. Book via WhatsApp.", products: [{ name: "Box braids", price: 350, description: "Full box braids install" }, { name: "Weave install", price: 450, description: "Weave sew-in with closure" }, { name: "Relaxer", price: 200, description: "Relaxer treatment and blow dry" }, { name: "Hair extensions", price: 500, description: "Hair extension install" }] },
-  { id: "barber", name: "Barber", category: "Barber", icon: "✂️", description: "Men's cuts, fades, lineups and beard grooming.", starter: "Professional barber offering fades, lineups, beard trims and full grooms. Home visits available. Book your slot via WhatsApp.", products: [{ name: "Haircut", price: 80, description: "Standard haircut and style" }, { name: "Fade", price: 100, description: "Skin or low fade" }, { name: "Beard trim", price: 50, description: "Beard shape and trim" }, { name: "Full groom", price: 140, description: "Haircut plus beard trim" }] },
-  { id: "food", name: "Food Seller", category: "Food Seller", icon: "🍱", description: "Home-cooked meals, lunches and daily specials.", starter: "I cook and sell freshly prepared home meals daily. Available for collection or local delivery. Order via WhatsApp before 10am.", products: [{ name: "Lunch special", price: 45, description: "Daily cooked lunch special" }, { name: "Full meal", price: 65, description: "Full plate with sides" }, { name: "Family pot", price: 180, description: "Large family-size portion" }, { name: "Snacks", price: 15, description: "Vetkoek, pies and light snacks" }] },
-  { id: "produce", name: "Fresh Produce", category: "Fresh Produce", icon: "🥬", description: "Fresh fruit and vegetables sold from home or delivered locally.", starter: "I sell fresh, affordable fruit and vegetables. Order weekly specials and get delivery to your door. WhatsApp me your order.", products: [{ name: "Veggie bag", price: 60, description: "Seasonal mixed vegetables" }, { name: "Fruit bag", price: 70, description: "Seasonal mixed fruit" }, { name: "Mixed box", price: 120, description: "Fruit and veg combo box" }, { name: "Single item", price: 5, description: "Individual fruit or veg item" }] },
-  { id: "cleaning", name: "Cleaning Service", category: "Cleaning", icon: "🧹", description: "Home, office and post-construction cleaning.", starter: "Professional cleaning service for homes and offices. Reliable, thorough and affordable. Book your clean via WhatsApp.", products: [{ name: "1-bedroom flat", price: 250, description: "Full clean of 1-bedroom flat" }, { name: "3-bedroom house", price: 450, description: "Full clean of 3-bedroom house" }, { name: "Office clean", price: 350, description: "Office or business premises clean" }, { name: "Post-construction", price: 600, description: "Post-construction deep clean" }] },
-  { id: "tutor", name: "Tutor", category: "Tutoring", icon: "📚", description: "Academic tutoring for school and university students.", starter: "I offer private tutoring for Grade 8–12 and university students. Maths, Science, English and more. Book your session via WhatsApp.", products: [{ name: "1hr session", price: 150, description: "One-on-one tutoring session" }, { name: "Group session", price: 80, description: "Group tutoring per person" }, { name: "Exam prep package", price: 500, description: "5-session exam preparation package" }, { name: "Online session", price: 120, description: "Online video tutoring session" }] },
-  { id: "delivery", name: "Local Delivery", category: "Delivery", icon: "🛵", description: "Fast local delivery for businesses and individuals.", starter: "I offer reliable same-day local delivery. Food, parcels, documents and more. WhatsApp me your pickup and drop-off.", products: [{ name: "Local drop", price: 40, description: "Single local delivery drop" }, { name: "Extended zone", price: 70, description: "Delivery to extended area" }, { name: "Bulk delivery", price: 150, description: "Multiple drops in one run" }, { name: "Monthly package", price: 800, description: "Unlimited local deliveries per month" }] },
-  { id: "photography", name: "Photography", category: "Photography", icon: "📸", description: "Portrait, event and product photography.", starter: "Professional photographer available for portraits, events, maternity shoots and product photos. Book your session via WhatsApp.", products: [{ name: "Portrait session", price: 500, description: "1hr portrait shoot with edited photos" }, { name: "Event coverage", price: 1500, description: "Full event photography coverage" }, { name: "Product shoot", price: 800, description: "Product photography for online selling" }, { name: "Maternity shoot", price: 700, description: "Maternity portrait session" }] },
-  { id: "catering", name: "Catering", category: "Catering", icon: "🍽️", description: "Event catering for parties, funerals and celebrations.", starter: "I provide full catering services for events of all sizes — funerals, parties, corporate functions and celebrations. WhatsApp for a quote.", products: [{ name: "Basic package (per head)", price: 85, description: "Standard catering per person" }, { name: "Full package (per head)", price: 150, description: "Premium catering per person" }, { name: "Dessert table", price: 500, description: "Dessert table setup for events" }, { name: "Drinks package", price: 300, description: "Cold drinks and juice package" }] },
-  { id: "phonerepairs", name: "Phone Repairs", category: "Phone Repairs", icon: "📱", description: "Screen replacements, battery swaps and phone fixes.", starter: "I fix phones fast and at fair prices. Screen repairs, battery replacements, charging ports and more. WhatsApp for a quote.", products: [{ name: "Screen repair", price: 350, description: "Screen replacement (price varies by model)" }, { name: "Battery swap", price: 200, description: "Battery replacement" }, { name: "Charging port", price: 150, description: "Charging port repair or replacement" }, { name: "Water damage", price: 250, description: "Water damage assessment and repair" }] },
+  { id: "nail", name: "Nail Salon", category: "Nail Tech", icon: "💅", description: "Home or mobile nail tech offering gel, acrylic, and nail art services.", starter: "I'm a professional nail technician offering gel overlays, acrylic sets, nail art and soak-offs. I work from home and offer mobile appointments. Book via WhatsApp.", products: [{ name: "Gel overlay", price: 220, description: "Full gel overlay on natural nails", icon: "💅" }, { name: "Acrylic set", price: 350, description: "Full acrylic nail set", icon: "✨" }, { name: "Soak off", price: 80, description: "Gel or acrylic soak off removal", icon: "🛍️" }, { name: "Nail art", price: 50, description: "Custom nail art per nail", icon: "🎨" }] },
+  { id: "hair", name: "Hair & Extensions", category: "Hair & Extensions", icon: "💇", description: "Hair styling, braiding, weaves and extension services.", starter: "I offer professional hair styling including braids, weaves, relaxers and extensions. Available for home visits and salon appointments. Book via WhatsApp.", products: [{ name: "Box braids", price: 350, description: "Full box braids install", icon: "💇" }, { name: "Weave install", price: 450, description: "Weave sew-in with closure", icon: "👑" }, { name: "Relaxer", price: 200, description: "Relaxer treatment and blow dry", icon: "✨" }, { name: "Hair extensions", price: 500, description: "Hair extension install", icon: "🎀" }] },
+  { id: "barber", name: "Barber", category: "Barber", icon: "✂️", description: "Men's cuts, fades, lineups and beard grooming.", starter: "Professional barber offering fades, lineups, beard trims and full grooms. Home visits available. Book your slot via WhatsApp.", products: [{ name: "Haircut", price: 80, description: "Standard haircut and style", icon: "✂️" }, { name: "Fade", price: 100, description: "Skin or low fade", icon: "💈" }, { name: "Beard trim", price: 50, description: "Beard shape and trim", icon: "🪒" }, { name: "Full groom", price: 140, description: "Haircut plus beard trim", icon: "⭐" }] },
+  { id: "food", name: "Food Seller", category: "Food Seller", icon: "🍱", description: "Home-cooked meals, lunches and daily specials.", starter: "I cook and sell freshly prepared home meals daily. Available for collection or local delivery. Order via WhatsApp before 10am.", products: [{ name: "Lunch special", price: 45, description: "Daily cooked lunch special", icon: "🍱" }, { name: "Full meal", price: 65, description: "Full plate with sides", icon: "🍳" }, { name: "Family pot", price: 180, description: "Large family-size portion", icon: "🥘" }, { name: "Snacks", price: 15, description: "Vetkoek, pies and light snacks", icon: "🔥" }] },
+  { id: "produce", name: "Fresh Produce", category: "Fresh Produce", icon: "🥬", description: "Fresh fruit and vegetables sold from home or delivered locally.", starter: "I sell fresh, affordable fruit and vegetables. Order weekly specials and get delivery to your door. WhatsApp me your order.", products: [{ name: "Veggie bag", price: 60, description: "Seasonal mixed vegetables", icon: "🥬" }, { name: "Fruit bag", price: 70, description: "Seasonal mixed fruit", icon: "🍅" }, { name: "Mixed box", price: 120, description: "Fruit and veg combo box", icon: "🌿" }, { name: "Single item", price: 5, description: "Individual fruit or veg item", icon: "🌱" }] },
+  { id: "cleaning", name: "Cleaning Service", category: "Cleaning", icon: "🧹", description: "Home, office and post-construction cleaning.", starter: "Professional cleaning service for homes and offices. Reliable, thorough and affordable. Book your clean via WhatsApp.", products: [{ name: "1-bedroom flat", price: 250, description: "Full clean of 1-bedroom flat", icon: "🧹" }, { name: "3-bedroom house", price: 450, description: "Full clean of 3-bedroom house", icon: "🏠" }, { name: "Office clean", price: 350, description: "Office or business premises clean", icon: "✨" }, { name: "Post-construction", price: 600, description: "Post-construction deep clean", icon: "💎" }] },
+  { id: "tutor", name: "Tutor", category: "Tutoring", icon: "📚", description: "Academic tutoring for school and university students.", starter: "I offer private tutoring for Grade 8–12 and university students. Maths, Science, English and more. Book your session via WhatsApp.", products: [{ name: "1hr session", price: 150, description: "One-on-one tutoring session", icon: "📚" }, { name: "Group session", price: 80, description: "Group tutoring per person", icon: "🎓" }, { name: "Exam prep package", price: 500, description: "5-session exam preparation package", icon: "⭐" }, { name: "Online session", price: 120, description: "Online video tutoring session", icon: "💡" }] },
+  { id: "delivery", name: "Local Delivery", category: "Delivery", icon: "🛵", description: "Fast local delivery for businesses and individuals.", starter: "I offer reliable same-day local delivery. Food, parcels, documents and more. WhatsApp me your pickup and drop-off.", products: [{ name: "Local drop", price: 40, description: "Single local delivery drop", icon: "🛵" }, { name: "Extended zone", price: 70, description: "Delivery to extended area", icon: "⚡" }, { name: "Bulk delivery", price: 150, description: "Multiple drops in one run", icon: "📦" }, { name: "Monthly package", price: 800, description: "Unlimited local deliveries per month", icon: "🚀" }] },
+  { id: "photography", name: "Photography", category: "Photography", icon: "📸", description: "Portrait, event and product photography.", starter: "Professional photographer available for portraits, events, maternity shoots and product photos. Book your session via WhatsApp.", products: [{ name: "Portrait session", price: 500, description: "1hr portrait shoot with edited photos", icon: "📸" }, { name: "Event coverage", price: 1500, description: "Full event photography coverage", icon: "🎭" }, { name: "Product shoot", price: 800, description: "Product photography for online selling", icon: "🎨" }, { name: "Maternity shoot", price: 700, description: "Maternity portrait session", icon: "🌟" }] },
+  { id: "catering", name: "Catering", category: "Catering", icon: "🍽️", description: "Event catering for parties, funerals and celebrations.", starter: "I provide full catering services for events of all sizes — funerals, parties, corporate functions and celebrations. WhatsApp for a quote.", products: [{ name: "Basic package (per head)", price: 85, description: "Standard catering per person", icon: "🍽️" }, { name: "Full package (per head)", price: 150, description: "Premium catering per person", icon: "👨‍🍳" }, { name: "Dessert table", price: 500, description: "Dessert table setup for events", icon: "🎉" }, { name: "Drinks package", price: 300, description: "Cold drinks and juice package", icon: "🥂" }] },
+  { id: "phonerepairs", name: "Phone Repairs", category: "Phone Repairs", icon: "📱", description: "Screen replacements, battery swaps and phone fixes.", starter: "I fix phones fast and at fair prices. Screen repairs, battery replacements, charging ports and more. WhatsApp for a quote.", products: [{ name: "Screen repair", price: 350, description: "Screen replacement (price varies by model)", icon: "📱" }, { name: "Battery swap", price: 200, description: "Battery replacement", icon: "⚡" }, { name: "Charging port", price: 150, description: "Charging port repair or replacement", icon: "🔧" }, { name: "Water damage", price: 250, description: "Water damage assessment and repair", icon: "🛠️" }] },
 ];
 
 const inputStyle = { border: "1.5px solid #e8e8e8", borderRadius: "12px", padding: "12px 14px", fontSize: "14px", outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" };
@@ -72,6 +75,7 @@ function BusinessPagePreview({ form, products, logoUrl, isFullPage }) {
             <img src={logoUrl} alt="logo" style={{ width: "56px", height: "56px", borderRadius: "16px", objectFit: "cover", border: `2px solid ${bg.accent}` }} />
           ) : (
             <div style={{ width: "56px", height: "56px", borderRadius: "16px", background: "rgba(255,255,255,0.1)", border: `2px solid ${bg.accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px" }}>
+              {/* BUG 1 FIX: header icon uses form.icon (business icon only) */}
               {form.icon || "⭐"}
             </div>
           )}
@@ -82,8 +86,8 @@ function BusinessPagePreview({ form, products, logoUrl, isFullPage }) {
           </div>
         </div>
         {form.description && <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.65)", lineHeight: 1.6, marginBottom: "14px" }}>{form.description}</div>}
-        <div style={{ display: "inline-flex", alignItems: "center", gap: "5px", background: bg.accent, color: bg.value === "#fdfcf7" ? "#0d0d0d" : "#0d0d0d", fontSize: "9px", fontWeight: 700, padding: "4px 10px", borderRadius: "8px" }}>
-          <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: bg.value === "#fdfcf7" ? "#0d0d0d" : "#0d0d0d" }} /> Live
+        <div style={{ display: "inline-flex", alignItems: "center", gap: "5px", background: bg.accent, color: "#0d0d0d", fontSize: "9px", fontWeight: 700, padding: "4px 10px", borderRadius: "8px" }}>
+          <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#0d0d0d" }} /> Live
         </div>
       </div>
 
@@ -97,8 +101,9 @@ function BusinessPagePreview({ form, products, logoUrl, isFullPage }) {
         <div style={{ padding: "8px 0 16px" }}>
           {activeProducts.map((p) => (
             <div key={p.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 16px", borderBottom: "1px solid #f5f5f5" }}>
+              {/* BUG 1 & 2 FIX: product rows use their own icon, not the business icon */}
               <div style={{ width: "36px", height: "36px", background: "#f5f5f5", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 0 }}>
-                {form.icon || "⭐"}
+                {p.icon || "🛍️"}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: "13px", fontWeight: 700, color: "#0d0d0d" }}>{p.name}</div>
@@ -242,7 +247,7 @@ function TemplatesTab({ business, setTab, setPrefilledTemplate }) {
             {selected === t.id && (
               <div style={{ marginBottom: "16px" }}>
                 <div style={{ fontSize: "11px", fontWeight: 700, color: LIME, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>Starter products</div>
-                {t.products.map((p) => <div key={p.name} style={{ fontSize: "12px", color: "#ccc", marginBottom: "4px" }}>· {p.name} — R{p.price}</div>)}
+                {t.products.map((p) => <div key={p.name} style={{ fontSize: "12px", color: "#ccc", marginBottom: "4px" }}>{p.icon} {p.name} — R{p.price}</div>)}
               </div>
             )}
             <button onClick={(e) => { e.stopPropagation(); handleUse(t); }}
@@ -264,7 +269,9 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
-  const [newProduct, setNewProduct] = useState({ name: "", price: "", description: "" });
+  const [newProduct, setNewProduct] = useState({ name: "", price: "", description: "", icon: "🛍️" });
+  const [showNewIconPicker, setShowNewIconPicker] = useState(false);
+  const [showEditIconPicker, setShowEditIconPicker] = useState(false);
 
   useEffect(() => {
     if (!businessId) { setLoading(false); return; }
@@ -276,9 +283,22 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
     if (!prefilledProducts || !businessId || prefilledProducts.length === 0) return;
     async function applyTemplate() {
       await supabase.from("products").delete().eq("business_id", businessId);
-      const rows = prefilledProducts.map((p) => ({ business_id: businessId, name: p.name, price: p.price, description: p.description, is_active: true }));
+      const rows = prefilledProducts.map((p) => ({
+        business_id: businessId,
+        name: p.name,
+        price: p.price,
+        description: p.description,
+        // BUG 2 FIX: save icon from template into products table
+        image: p.icon || "🛍️",
+        is_active: true,
+      }));
       const { data } = await supabase.from("products").insert(rows).select();
-      if (data) { setProducts(data); onProductsChange && onProductsChange(data); }
+      if (data) {
+        // Map image column → icon for local use
+        const mapped = data.map((p) => ({ ...p, icon: p.image }));
+        setProducts(mapped);
+        onProductsChange && onProductsChange(mapped);
+      }
       onProductsPrefilled();
     }
     applyTemplate();
@@ -289,8 +309,22 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
   async function handleAdd() {
     if (!newProduct.name.trim() || !newProduct.price) return;
     setSaving(true);
-    const { data } = await supabase.from("products").insert([{ business_id: businessId, name: newProduct.name.trim(), price: parseFloat(newProduct.price), description: newProduct.description.trim(), is_active: true }]).select().single();
-    if (data) { updateProducts([...products, data]); setNewProduct({ name: "", price: "", description: "" }); setAdding(false); }
+    const { data } = await supabase.from("products").insert([{
+      business_id: businessId,
+      name: newProduct.name.trim(),
+      price: parseFloat(newProduct.price),
+      description: newProduct.description.trim(),
+      // BUG 2 FIX: save icon into the image column
+      image: newProduct.icon || "🛍️",
+      is_active: true,
+    }]).select().single();
+    if (data) {
+      const withIcon = { ...data, icon: data.image };
+      updateProducts([...products, withIcon]);
+      setNewProduct({ name: "", price: "", description: "", icon: "🛍️" });
+      setAdding(false);
+      setShowNewIconPicker(false);
+    }
     setSaving(false);
   }
 
@@ -302,13 +336,23 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
 
   async function handleToggleActive(product) {
     const { data } = await supabase.from("products").update({ is_active: !product.is_active }).eq("id", product.id).select().single();
-    if (data) updateProducts(products.map((p) => p.id === data.id ? data : p));
+    if (data) updateProducts(products.map((p) => p.id === data.id ? { ...data, icon: data.image } : p));
   }
 
   async function handleSaveEdit(id) {
     if (!editForm.name.trim() || !editForm.price) return;
-    const { data } = await supabase.from("products").update({ name: editForm.name.trim(), price: parseFloat(editForm.price), description: editForm.description.trim() }).eq("id", id).select().single();
-    if (data) { updateProducts(products.map((p) => p.id === data.id ? data : p)); setEditingId(null); }
+    const { data } = await supabase.from("products").update({
+      name: editForm.name.trim(),
+      price: parseFloat(editForm.price),
+      description: editForm.description.trim(),
+      // BUG 2 FIX: save updated icon
+      image: editForm.icon || "🛍️",
+    }).eq("id", id).select().single();
+    if (data) {
+      updateProducts(products.map((p) => p.id === data.id ? { ...data, icon: data.image } : p));
+      setEditingId(null);
+      setShowEditIconPicker(false);
+    }
   }
 
   if (!businessId) return (
@@ -324,8 +368,9 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
           <div style={{ fontSize: "16px", fontWeight: 700, color: DARK }}>Products & Services</div>
           <div style={{ fontSize: "13px", color: "#aaa", marginTop: "2px" }}>{products.length} item{products.length !== 1 ? "s" : ""}</div>
         </div>
-        <button onClick={() => setAdding(true)} style={{ backgroundColor: DARK, color: LIME, border: "none", borderRadius: "10px", padding: "9px 16px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>+ Add product</button>
+        <button onClick={() => { setAdding(true); setShowNewIconPicker(false); }} style={{ backgroundColor: DARK, color: LIME, border: "none", borderRadius: "10px", padding: "9px 16px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>+ Add product</button>
       </div>
+
       {adding && (
         <div style={{ background: "#f8f8f6", border: "1.5px solid #e0e0dc", borderRadius: "14px", padding: "18px", marginBottom: "14px" }}>
           <div style={{ fontSize: "14px", fontWeight: 700, color: DARK, marginBottom: "14px" }}>New product or service</div>
@@ -333,13 +378,34 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
             <input style={inputStyle} placeholder="Name e.g. Gel overlay" value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} />
             <input style={inputStyle} type="number" placeholder="Price e.g. 220" value={newProduct.price} onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })} />
             <input style={inputStyle} placeholder="Description (optional)" value={newProduct.description} onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })} />
+
+            {/* BUG 2 FIX: Product icon picker for new product */}
+            <div>
+              <label style={labelStyle}>Product icon</label>
+              <button onClick={() => setShowNewIconPicker(!showNewIconPicker)}
+                style={{ width: "44px", height: "44px", borderRadius: "12px", background: "#fff", border: `1.5px solid ${LIME}`, fontSize: "22px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {newProduct.icon}
+              </button>
+              {showNewIconPicker && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "8px", background: "#fff", border: "1.5px solid #e0e0dc", borderRadius: "12px", padding: "10px" }}>
+                  {PRODUCT_ICONS.map((ic) => (
+                    <button key={ic} onClick={() => { setNewProduct({ ...newProduct, icon: ic }); setShowNewIconPicker(false); }}
+                      style={{ width: "38px", height: "38px", borderRadius: "8px", background: newProduct.icon === ic ? DARK : "#f5f5f5", border: "none", fontSize: "20px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {ic}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div style={{ display: "flex", gap: "8px" }}>
               <button onClick={handleAdd} disabled={saving} style={{ backgroundColor: LIME, color: DARK, border: "none", borderRadius: "10px", padding: "10px 20px", fontSize: "13px", fontWeight: 700, cursor: "pointer", flex: 1 }}>{saving ? "Saving..." : "Save product"}</button>
-              <button onClick={() => { setAdding(false); setNewProduct({ name: "", price: "", description: "" }); }} style={{ background: "#fff", color: "#888", border: "1.5px solid #e0e0e0", borderRadius: "10px", padding: "10px 16px", fontSize: "13px", cursor: "pointer" }}>Cancel</button>
+              <button onClick={() => { setAdding(false); setNewProduct({ name: "", price: "", description: "", icon: "🛍️" }); setShowNewIconPicker(false); }} style={{ background: "#fff", color: "#888", border: "1.5px solid #e0e0e0", borderRadius: "10px", padding: "10px 16px", fontSize: "13px", cursor: "pointer" }}>Cancel</button>
             </div>
           </div>
         </div>
       )}
+
       {loading ? <div style={{ fontSize: "13px", color: "#aaa", padding: "20px 0" }}>Loading...</div> :
         products.length === 0 ? (
           <div style={{ background: "#f8f8f6", border: "1.5px dashed #ddd", borderRadius: "14px", padding: "32px", textAlign: "center" }}>
@@ -355,19 +421,43 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
                     <input style={inputStyle} value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} placeholder="Product name" />
                     <input style={inputStyle} type="number" value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} placeholder="Price" />
                     <input style={inputStyle} value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} placeholder="Description" />
+
+                    {/* BUG 2 FIX: Product icon picker for edit */}
+                    <div>
+                      <label style={labelStyle}>Product icon</label>
+                      <button onClick={() => setShowEditIconPicker(!showEditIconPicker)}
+                        style={{ width: "44px", height: "44px", borderRadius: "12px", background: "#fff", border: `1.5px solid ${LIME}`, fontSize: "22px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {editForm.icon || "🛍️"}
+                      </button>
+                      {showEditIconPicker && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "8px", background: "#fff", border: "1.5px solid #e0e0dc", borderRadius: "12px", padding: "10px" }}>
+                          {PRODUCT_ICONS.map((ic) => (
+                            <button key={ic} onClick={() => { setEditForm({ ...editForm, icon: ic }); setShowEditIconPicker(false); }}
+                              style={{ width: "38px", height: "38px", borderRadius: "8px", background: editForm.icon === ic ? DARK : "#f5f5f5", border: "none", fontSize: "20px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              {ic}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     <div style={{ display: "flex", gap: "8px" }}>
                       <button onClick={() => handleSaveEdit(p.id)} style={{ backgroundColor: LIME, color: DARK, border: "none", borderRadius: "10px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer", flex: 1 }}>Save</button>
-                      <button onClick={() => setEditingId(null)} style={{ background: "#fff", color: "#888", border: "1.5px solid #e0e0e0", borderRadius: "10px", padding: "9px 14px", fontSize: "13px", cursor: "pointer" }}>Cancel</button>
+                      <button onClick={() => { setEditingId(null); setShowEditIconPicker(false); }} style={{ background: "#fff", color: "#888", border: "1.5px solid #e0e0e0", borderRadius: "10px", padding: "9px 14px", fontSize: "13px", cursor: "pointer" }}>Cancel</button>
                     </div>
                   </div>
                 ) : (
                   <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    {/* BUG 2 FIX: show each product's own icon in the list */}
+                    <div style={{ width: "36px", height: "36px", background: "#f5f5f5", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 0 }}>
+                      {p.icon || p.image || "🛍️"}
+                    </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: "14px", fontWeight: 700, color: DARK }}>{p.name}</div>
                       {p.description && <div style={{ fontSize: "12px", color: "#aaa", marginTop: "2px" }}>{p.description}</div>}
                     </div>
                     <div style={{ fontSize: "16px", fontWeight: 900, color: DARK, minWidth: "55px", textAlign: "right" }}>R{p.price}</div>
-                    <button onClick={() => { setEditingId(p.id); setEditForm({ name: p.name, price: p.price, description: p.description || "" }); }} style={{ fontSize: "11px", padding: "5px 10px", borderRadius: "8px", border: "1px solid #e0e0e0", background: "#f8f8f6", color: "#555", cursor: "pointer", fontWeight: 600 }}>Edit</button>
+                    <button onClick={() => { setEditingId(p.id); setEditForm({ name: p.name, price: p.price, description: p.description || "", icon: p.icon || p.image || "🛍️" }); setShowEditIconPicker(false); }} style={{ fontSize: "11px", padding: "5px 10px", borderRadius: "8px", border: "1px solid #e0e0e0", background: "#f8f8f6", color: "#555", cursor: "pointer", fontWeight: 600 }}>Edit</button>
                     <button onClick={() => handleToggleActive(p)} style={{ fontSize: "11px", padding: "5px 10px", borderRadius: "8px", border: "1px solid #e0e0e0", background: p.is_active ? "#f0ffe0" : "#f5f5f5", color: p.is_active ? "#3a6b00" : "#aaa", cursor: "pointer", fontWeight: 600, whiteSpace: "nowrap" }}>{p.is_active ? "Active" : "Hidden"}</button>
                     <button onClick={() => handleDelete(p.id)} style={{ fontSize: "11px", padding: "5px 10px", borderRadius: "8px", border: "1px solid #ffd0d0", background: "#fff5f5", color: "#cc3300", cursor: "pointer", fontWeight: 600 }}>Delete</button>
                   </div>
@@ -383,9 +473,16 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
 // ── SETUP TAB ──────────────────────────────────────────────
 function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilledTemplate }) {
   const [form, setForm] = useState({
-    name: business?.name || "", owner: business?.owner || "", category: business?.category || "",
-    area: business?.area || "", description: business?.description || "", whatsapp: business?.whatsapp || "",
-    payment: business?.payment || "", bgColour: business?.theme || "#0d0d0d", icon: "⭐",
+    name: business?.name || "",
+    owner: business?.owner || "",
+    category: business?.category || "",
+    area: business?.area || "",
+    description: business?.description || "",
+    whatsapp: business?.whatsapp || "",
+    payment: business?.payment || "",
+    bgColour: business?.theme || "#0d0d0d",
+    // BUG 3 FIX: load saved icon from background_style column
+    icon: business?.background_style || "⭐",
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -429,7 +526,21 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
     if (!form.name.trim()) { setError("Business name is required."); return; }
     setSaving(true); setError("");
     const slug = form.name.toLowerCase().trim().replaceAll(" ", "-").replace(/[^a-z0-9-]/g, "");
-    const payload = { name: form.name.trim(), slug, owner: form.owner.trim(), category: form.category, area: form.area.trim(), description: form.description.trim(), whatsapp: form.whatsapp.trim(), payment: form.payment, user_id: user.id, theme: form.bgColour, catalogue: logoUrl || "" };
+    const payload = {
+      name: form.name.trim(),
+      slug,
+      owner: form.owner.trim(),
+      category: form.category,
+      area: form.area.trim(),
+      description: form.description.trim(),
+      whatsapp: form.whatsapp.trim(),
+      payment: form.payment,
+      user_id: user.id,
+      theme: form.bgColour,
+      // BUG 3 FIX: save icon into background_style column
+      background_style: form.icon,
+      catalogue: logoUrl || "",
+    };
     const { data, error: err } = await supabase.from("businesses").upsert([payload], { onConflict: "user_id" }).select().single();
     if (err) { setError(err.message); } else { setSaved(true); setBusiness(data); setSavedBusinessId(data.id); }
     setSaving(false);
@@ -486,9 +597,10 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
             </div>
           </div>
 
-          {/* Icon */}
+          {/* BUG 1 FIX: Icon picker — clearly labelled as header/business icon only */}
           <div>
-            <label style={labelStyle}>Business icon</label>
+            <label style={labelStyle}>Business header icon</label>
+            <div style={{ fontSize: "11px", color: "#aaa", marginBottom: "8px" }}>This appears in your page header only — products have their own icons.</div>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
               {iconOptions.map((ic) => (
                 <button key={ic} onClick={() => update("icon", ic)}
@@ -559,8 +671,17 @@ function PageTab({ business, products, logoUrl }) {
         🔗 <span style={{ fontWeight: 600 }}>{shareUrl}</span>
       </div>
 
+      {/* BUG 3 FIX: use saved icon from background_style column, not hardcoded "⭐" */}
       <BusinessPagePreview
-        form={{ name: business.name, category: business.category, area: business.area, description: business.description, whatsapp: business.whatsapp, bgColour: business.theme || "#0d0d0d", icon: "⭐" }}
+        form={{
+          name: business.name,
+          category: business.category,
+          area: business.area,
+          description: business.description,
+          whatsapp: business.whatsapp,
+          bgColour: business.theme || "#0d0d0d",
+          icon: business.background_style || "⭐",
+        }}
         products={products}
         logoUrl={logoUrl}
         isFullPage={false}
@@ -601,7 +722,12 @@ export default function AppDashboard({ onBack }) {
       if (data) {
         setBusiness(data);
         setLogoUrl(data.catalogue || null);
-        supabase.from("products").select("*").eq("business_id", data.id).then(({ data: prods }) => { if (prods) setProducts(prods); });
+        supabase.from("products").select("*").eq("business_id", data.id).then(({ data: prods }) => {
+          if (prods) {
+            // BUG 2 FIX: map image column → icon when loading products
+            setProducts(prods.map((p) => ({ ...p, icon: p.image })));
+          }
+        });
       }
     });
   }, [user]);
