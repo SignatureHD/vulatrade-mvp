@@ -5,6 +5,7 @@ import "./styles.css";
 const TABS = ["Dashboard", "Templates", "Setup", "Page", "Customers", "Messages", "Growth", "Money", "Vuke", "Plans"];
 const LIME = "#a3e635";
 const DARK = "#0d0d0d";
+const MAX_IMAGES = 6;
 
 const CATEGORIES = [
   "Nail Tech", "Hair & Extensions", "Barber", "Food Seller",
@@ -40,7 +41,6 @@ const ICON_TEMPLATES = {
   "Other": ["⭐", "💫", "✨", "🌟", "💎"],
 };
 
-// Product icon options — generic set for any business type
 const PRODUCT_ICONS = ["🛍️", "⭐", "✨", "💎", "🔥", "💅", "✂️", "🍱", "🧹", "📚", "🛵", "📸", "🍽️", "📱", "🥬", "💆", "💪", "🎁", "🧴", "💊"];
 
 const TEMPLATES = [
@@ -60,22 +60,46 @@ const TEMPLATES = [
 const inputStyle = { border: "1.5px solid #e8e8e8", borderRadius: "12px", padding: "12px 14px", fontSize: "14px", outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit" };
 const labelStyle = { fontSize: "12px", fontWeight: 600, color: "#555", marginBottom: "6px", display: "block" };
 
+// ── IMAGE COMPRESSION ──────────────────────────────────────
+async function compressImage(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 800;
+      let { width, height } = img;
+      if (width > MAX || height > MAX) {
+        if (width > height) { height = Math.round((height * MAX) / width); width = MAX; }
+        else { width = Math.round((width * MAX) / height); height = MAX; }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(url);
+        resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
+      }, "image/jpeg", 0.8);
+    };
+    img.src = url;
+  });
+}
+
 // ── BUSINESS PAGE PREVIEW ──────────────────────────────────
 function BusinessPagePreview({ form, products, logoUrl, isFullPage }) {
   const bg = BG_COLOURS.find((c) => c.value === form.bgColour) || BG_COLOURS[0];
-  const whatsappUrl = form.whatsapp ? `https://wa.me/${form.whatsapp.replace(/\D/g, "")}?text=Hi! I found you on VulaTrade and would like to enquire.` : "#";
+  const whatsappUrl = form.whatsapp
+    ? `https://wa.me/${form.whatsapp.replace(/\D/g, "")}?text=Hi! I found you on VulaTrade and would like to enquire.`
+    : "#";
   const activeProducts = products.filter((p) => p.is_active);
 
   const card = (
     <div style={{ background: "#fff", borderRadius: isFullPage ? "0" : "32px", overflow: "hidden", width: isFullPage ? "100%" : "280px", maxWidth: isFullPage ? "480px" : "280px", boxShadow: isFullPage ? "none" : "0 24px 64px rgba(0,0,0,0.25)", fontFamily: "'Inter', sans-serif" }}>
-      {/* Header */}
       <div style={{ background: bg.value, padding: "24px 20px 20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "14px" }}>
           {logoUrl ? (
             <img src={logoUrl} alt="logo" style={{ width: "56px", height: "56px", borderRadius: "16px", objectFit: "cover", border: `2px solid ${bg.accent}` }} />
           ) : (
             <div style={{ width: "56px", height: "56px", borderRadius: "16px", background: "rgba(255,255,255,0.1)", border: `2px solid ${bg.accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px" }}>
-              {/* BUG 1 FIX: header icon uses form.icon (business icon only) */}
               {form.icon || "⭐"}
             </div>
           )}
@@ -91,37 +115,39 @@ function BusinessPagePreview({ form, products, logoUrl, isFullPage }) {
         </div>
       </div>
 
-      {/* WhatsApp button */}
       <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", background: bg.accent, color: "#0d0d0d", textAlign: "center", padding: "14px", fontSize: "14px", fontWeight: 800, textDecoration: "none", margin: "14px 14px 4px" }}>
         💬 Enquire on WhatsApp
       </a>
 
-      {/* Products */}
       {activeProducts.length > 0 && (
         <div style={{ padding: "8px 0 16px" }}>
-          {activeProducts.map((p) => (
-            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 16px", borderBottom: "1px solid #f5f5f5" }}>
-              {/* BUG 1 & 2 FIX: product rows use their own icon, not the business icon */}
-              <div style={{ width: "36px", height: "36px", background: "#f5f5f5", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 0 }}>
-                {p.icon || "🛍️"}
+          {activeProducts.map((p) => {
+            const imgVal = p.image || p.icon || "🛍️";
+            const isUrl = imgVal.startsWith("http");
+            return (
+              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 16px", borderBottom: "1px solid #f5f5f5" }}>
+                {isUrl ? (
+                  <img src={imgVal} alt={p.name} style={{ width: "44px", height: "44px", borderRadius: "10px", objectFit: "cover", flexShrink: 0, border: "1px solid #f0f0f0" }} />
+                ) : (
+                  <div style={{ width: "44px", height: "44px", background: "#f5f5f5", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", flexShrink: 0 }}>
+                    {imgVal}
+                  </div>
+                )}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#0d0d0d" }}>{p.name}</div>
+                  {p.description && <div style={{ fontSize: "11px", color: "#aaa", marginTop: "1px" }}>{p.description}</div>}
+                </div>
+                <div style={{ fontSize: "14px", fontWeight: 800, color: "#0d0d0d" }}>R{p.price}</div>
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: "13px", fontWeight: 700, color: "#0d0d0d" }}>{p.name}</div>
-                {p.description && <div style={{ fontSize: "11px", color: "#aaa", marginTop: "1px" }}>{p.description}</div>}
-              </div>
-              <div style={{ fontSize: "14px", fontWeight: 800, color: "#0d0d0d" }}>R{p.price}</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {activeProducts.length === 0 && (
-        <div style={{ padding: "24px 16px", textAlign: "center", fontSize: "13px", color: "#ccc" }}>
-          Your products will appear here
-        </div>
+        <div style={{ padding: "24px 16px", textAlign: "center", fontSize: "13px", color: "#ccc" }}>Your products will appear here</div>
       )}
 
-      {/* Footer */}
       <div style={{ padding: "12px 16px", borderTop: "1px solid #f5f5f5", textAlign: "center" }}>
         <div style={{ fontSize: "10px", color: "#ccc" }}>Powered by <span style={{ color: "#5a9a00", fontWeight: 700 }}>VulaTrade</span></div>
       </div>
@@ -129,9 +155,7 @@ function BusinessPagePreview({ form, products, logoUrl, isFullPage }) {
   );
 
   if (isFullPage) return (
-    <div style={{ minHeight: "100vh", background: "#f5f5f3", display: "flex", justifyContent: "center", padding: "0" }}>
-      {card}
-    </div>
+    <div style={{ minHeight: "100vh", background: "#f5f5f3", display: "flex", justifyContent: "center" }}>{card}</div>
   );
 
   return (
@@ -145,6 +169,151 @@ function BusinessPagePreview({ form, products, logoUrl, isFullPage }) {
         <div style={{ height: "16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ width: "36px", height: "3px", background: "#333", borderRadius: "2px" }} />
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── IMAGE LIBRARY ──────────────────────────────────────────
+function ImageLibrary({ userId, images, setImages, uploading, setUploading }) {
+  const fileRef = useRef();
+  const atLimit = images.length >= MAX_IMAGES;
+
+  async function handleUpload(e) {
+    const file = e.target.files[0];
+    if (!file || atLimit) return;
+    setUploading(true);
+    try {
+      const compressed = await compressImage(file);
+      const path = `product-images/${userId}/${Date.now()}.jpg`;
+      const { error } = await supabase.storage.from("business-images").upload(path, compressed, { upsert: false });
+      if (!error) {
+        const { data } = supabase.storage.from("business-images").getPublicUrl(path);
+        setImages((prev) => [...prev, { url: data.publicUrl, path }]);
+      }
+    } catch (err) { console.error("Upload error:", err); }
+    setUploading(false);
+    e.target.value = "";
+  }
+
+  async function handleDelete(img) {
+    if (!window.confirm("Remove this image? Products using it will fall back to their icon.")) return;
+    await supabase.storage.from("business-images").remove([img.path]);
+    setImages((prev) => prev.filter((i) => i.path !== img.path));
+  }
+
+  return (
+    <div style={{ background: "#f8f8f6", border: "1.5px solid #e8e8e4", borderRadius: "16px", padding: "20px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+        <div>
+          <div style={{ fontSize: "15px", fontWeight: 700, color: DARK }}>Product Image Library</div>
+          <div style={{ fontSize: "12px", color: "#aaa", marginTop: "2px" }}>{images.length}/{MAX_IMAGES} images · Upload once, use on any product</div>
+        </div>
+        {!atLimit && (
+          <button onClick={() => fileRef.current.click()} disabled={uploading}
+            style={{ backgroundColor: DARK, color: LIME, border: "none", borderRadius: "10px", padding: "9px 16px", fontSize: "13px", fontWeight: 700, cursor: uploading ? "not-allowed" : "pointer", whiteSpace: "nowrap", opacity: uploading ? 0.6 : 1 }}>
+            {uploading ? "Uploading…" : "+ Add image"}
+          </button>
+        )}
+        <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleUpload} />
+      </div>
+
+      {atLimit && (
+        <div style={{ fontSize: "12px", color: "#888", background: "#fff", border: "1px solid #e0e0dc", borderRadius: "10px", padding: "8px 12px", marginBottom: "12px" }}>
+          📦 {MAX_IMAGES}-image limit reached. Delete one to add another. Higher limits on paid plans.
+        </div>
+      )}
+
+      {images.length === 0 ? (
+        <div onClick={() => fileRef.current.click()} style={{ border: "2px dashed #ddd", borderRadius: "12px", padding: "28px", textAlign: "center", cursor: "pointer", marginTop: "12px" }}>
+          <div style={{ fontSize: "28px", marginBottom: "8px" }}>🖼️</div>
+          <div style={{ fontSize: "13px", fontWeight: 600, color: "#888" }}>No images yet</div>
+          <div style={{ fontSize: "12px", color: "#bbb", marginTop: "4px" }}>Tap to upload your first product photo</div>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "8px", marginTop: "14px" }}>
+          {images.map((img) => (
+            <div key={img.path} style={{ position: "relative", aspectRatio: "1", borderRadius: "10px", overflow: "hidden", border: "1.5px solid #e0e0dc" }}>
+              <img src={img.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              <button onClick={() => handleDelete(img)}
+                style={{ position: "absolute", top: "4px", right: "4px", width: "20px", height: "20px", borderRadius: "50%", background: "rgba(0,0,0,0.65)", border: "none", color: "#fff", fontSize: "13px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>
+                ×
+              </button>
+            </div>
+          ))}
+          {Array.from({ length: MAX_IMAGES - images.length }).map((_, i) => (
+            <div key={`empty-${i}`} onClick={() => fileRef.current.click()}
+              style={{ aspectRatio: "1", borderRadius: "10px", border: "1.5px dashed #ddd", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", color: "#ccc" }}>
+              +
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── PRODUCT IMAGE PICKER ───────────────────────────────────
+function ProductImagePicker({ images, selectedImage, selectedIcon, onImageSelect, onIconSelect }) {
+  const [tab, setTab] = useState(selectedImage ? "image" : "icon");
+
+  const tabBtn = (key, label) => (
+    <button onClick={() => setTab(key)}
+      style={{ padding: "6px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: 700, border: "none", cursor: "pointer", background: tab === key ? DARK : "transparent", color: tab === key ? LIME : "#888" }}>
+      {label}
+    </button>
+  );
+
+  return (
+    <div>
+      <label style={labelStyle}>Product visual</label>
+      <div style={{ background: "#f8f8f6", border: "1.5px solid #e0e0dc", borderRadius: "12px", padding: "12px" }}>
+        <div style={{ display: "flex", gap: "4px", marginBottom: "12px", background: "#efefed", borderRadius: "10px", padding: "3px", width: "fit-content" }}>
+          {tabBtn("image", "📷 Photo")}
+          {tabBtn("icon", "😀 Icon")}
+        </div>
+
+        {tab === "image" && (
+          <div>
+            {images.length === 0 ? (
+              <div style={{ fontSize: "12px", color: "#aaa", padding: "4px 0" }}>No images in your library yet. Add photos above and they'll appear here.</div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "6px" }}>
+                {images.map((img) => (
+                  <div key={img.path} onClick={() => { onImageSelect(img.url); }}
+                    style={{ aspectRatio: "1", borderRadius: "8px", overflow: "hidden", cursor: "pointer", border: `2.5px solid ${selectedImage === img.url ? LIME : "transparent"}`, boxShadow: selectedImage === img.url ? `0 0 0 1px ${LIME}` : "none" }}>
+                    <img src={img.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  </div>
+                ))}
+                {selectedImage && (
+                  <div onClick={() => onImageSelect(null)}
+                    style={{ aspectRatio: "1", borderRadius: "8px", border: "1.5px dashed #ddd", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "#bbb", flexDirection: "column", gap: "2px" }}>
+                    <span style={{ fontSize: "14px" }}>✕</span><span>Clear</span>
+                  </div>
+                )}
+              </div>
+            )}
+            {selectedImage && <div style={{ marginTop: "8px", fontSize: "11px", color: "#5a9a00" }}>✓ Photo selected — shows on your page</div>}
+          </div>
+        )}
+
+        {tab === "icon" && (
+          <div>
+            {selectedImage && (
+              <div style={{ fontSize: "11px", color: "#f0a050", background: "#fff8ee", border: "1px solid #f0d080", borderRadius: "8px", padding: "6px 10px", marginBottom: "10px" }}>
+                ⚠️ A photo is selected — choosing an icon will remove it
+              </div>
+            )}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+              {PRODUCT_ICONS.map((ic) => (
+                <button key={ic} onClick={() => { onIconSelect(ic); onImageSelect(null); }}
+                  style={{ width: "38px", height: "38px", borderRadius: "8px", background: selectedIcon === ic && !selectedImage ? DARK : "#fff", border: `1.5px solid ${selectedIcon === ic && !selectedImage ? DARK : "#e0e0e0"}`, fontSize: "20px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {ic}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -262,42 +431,58 @@ function TemplatesTab({ business, setTab, setPrefilledTemplate }) {
 }
 
 // ── PRODUCTS SECTION ───────────────────────────────────────
-function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, onProductsChange }) {
+function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, onProductsChange, userId }) {
   const [products, setProducts] = useState([]);
+  const [images, setImages] = useState([]);
+  const [loadingImages, setLoadingImages] = useState(true);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
-  const [newProduct, setNewProduct] = useState({ name: "", price: "", description: "", icon: "🛍️" });
-  const [showNewIconPicker, setShowNewIconPicker] = useState(false);
-  const [showEditIconPicker, setShowEditIconPicker] = useState(false);
+  const [newProduct, setNewProduct] = useState({ name: "", price: "", description: "", icon: "🛍️", image: null });
+
+  // Load product images from storage
+  useEffect(() => {
+    if (!userId) return;
+    async function loadImages() {
+      const { data } = await supabase.storage.from("business-images").list(`product-images/${userId}`, { limit: MAX_IMAGES, sortBy: { column: "created_at", order: "asc" } });
+      if (data) {
+        const mapped = data
+          .filter((f) => f.name && f.name !== ".emptyFolderPlaceholder")
+          .map((f) => {
+            const { data: urlData } = supabase.storage.from("business-images").getPublicUrl(`product-images/${userId}/${f.name}`);
+            return { url: urlData.publicUrl, path: `product-images/${userId}/${f.name}` };
+          });
+        setImages(mapped);
+      }
+      setLoadingImages(false);
+    }
+    loadImages();
+  }, [userId]);
 
   useEffect(() => {
     if (!businessId) { setLoading(false); return; }
     supabase.from("products").select("*").eq("business_id", businessId).order("created_at")
-      .then(({ data }) => { if (data) { setProducts(data); onProductsChange && onProductsChange(data); } setLoading(false); });
+      .then(({ data }) => {
+        if (data) {
+          const mapped = data.map((p) => ({ ...p, icon: p.image && !p.image.startsWith("http") ? p.image : "🛍️" }));
+          setProducts(mapped); onProductsChange && onProductsChange(mapped);
+        }
+        setLoading(false);
+      });
   }, [businessId]);
 
   useEffect(() => {
     if (!prefilledProducts || !businessId || prefilledProducts.length === 0) return;
     async function applyTemplate() {
       await supabase.from("products").delete().eq("business_id", businessId);
-      const rows = prefilledProducts.map((p) => ({
-        business_id: businessId,
-        name: p.name,
-        price: p.price,
-        description: p.description,
-        // BUG 2 FIX: save icon from template into products table
-        image: p.icon || "🛍️",
-        is_active: true,
-      }));
+      const rows = prefilledProducts.map((p) => ({ business_id: businessId, name: p.name, price: p.price, description: p.description, image: p.icon || "🛍️", is_active: true }));
       const { data } = await supabase.from("products").insert(rows).select();
       if (data) {
-        // Map image column → icon for local use
         const mapped = data.map((p) => ({ ...p, icon: p.image }));
-        setProducts(mapped);
-        onProductsChange && onProductsChange(mapped);
+        setProducts(mapped); onProductsChange && onProductsChange(mapped);
       }
       onProductsPrefilled();
     }
@@ -309,21 +494,13 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
   async function handleAdd() {
     if (!newProduct.name.trim() || !newProduct.price) return;
     setSaving(true);
-    const { data } = await supabase.from("products").insert([{
-      business_id: businessId,
-      name: newProduct.name.trim(),
-      price: parseFloat(newProduct.price),
-      description: newProduct.description.trim(),
-      // BUG 2 FIX: save icon into the image column
-      image: newProduct.icon || "🛍️",
-      is_active: true,
-    }]).select().single();
+    const imageValue = newProduct.image || newProduct.icon || "🛍️";
+    const { data } = await supabase.from("products").insert([{ business_id: businessId, name: newProduct.name.trim(), price: parseFloat(newProduct.price), description: newProduct.description.trim(), image: imageValue, is_active: true }]).select().single();
     if (data) {
-      const withIcon = { ...data, icon: data.image };
-      updateProducts([...products, withIcon]);
-      setNewProduct({ name: "", price: "", description: "", icon: "🛍️" });
+      const withLocal = { ...data, icon: data.image && !data.image.startsWith("http") ? data.image : "🛍️" };
+      updateProducts([...products, withLocal]);
+      setNewProduct({ name: "", price: "", description: "", icon: "🛍️", image: null });
       setAdding(false);
-      setShowNewIconPicker(false);
     }
     setSaving(false);
   }
@@ -336,23 +513,24 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
 
   async function handleToggleActive(product) {
     const { data } = await supabase.from("products").update({ is_active: !product.is_active }).eq("id", product.id).select().single();
-    if (data) updateProducts(products.map((p) => p.id === data.id ? { ...data, icon: data.image } : p));
+    if (data) updateProducts(products.map((p) => p.id === data.id ? { ...data, icon: data.image && !data.image.startsWith("http") ? data.image : "🛍️" } : p));
   }
 
   async function handleSaveEdit(id) {
     if (!editForm.name.trim() || !editForm.price) return;
-    const { data } = await supabase.from("products").update({
-      name: editForm.name.trim(),
-      price: parseFloat(editForm.price),
-      description: editForm.description.trim(),
-      // BUG 2 FIX: save updated icon
-      image: editForm.icon || "🛍️",
-    }).eq("id", id).select().single();
+    const imageValue = editForm.image || editForm.icon || "🛍️";
+    const { data } = await supabase.from("products").update({ name: editForm.name.trim(), price: parseFloat(editForm.price), description: editForm.description.trim(), image: imageValue }).eq("id", id).select().single();
     if (data) {
-      updateProducts(products.map((p) => p.id === data.id ? { ...data, icon: data.image } : p));
+      updateProducts(products.map((p) => p.id === data.id ? { ...data, icon: data.image && !data.image.startsWith("http") ? data.image : "🛍️" } : p));
       setEditingId(null);
-      setShowEditIconPicker(false);
     }
+  }
+
+  function productThumb(p, size = 40) {
+    const val = p.image || p.icon || "🛍️";
+    const isUrl = val.startsWith("http");
+    if (isUrl) return <img src={val} alt={p.name} style={{ width: size, height: size, borderRadius: "10px", objectFit: "cover", flexShrink: 0, border: "1px solid #f0f0f0" }} />;
+    return <div style={{ width: size, height: size, background: "#f5f5f5", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", flexShrink: 0 }}>{val}</div>;
   }
 
   if (!businessId) return (
@@ -363,14 +541,23 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
 
   return (
     <div>
+      {/* Image Library */}
+      {!loadingImages && (
+        <div style={{ marginBottom: "28px" }}>
+          <ImageLibrary userId={userId} images={images} setImages={setImages} uploading={uploadingImage} setUploading={setUploadingImage} />
+        </div>
+      )}
+
+      {/* Products header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
         <div>
           <div style={{ fontSize: "16px", fontWeight: 700, color: DARK }}>Products & Services</div>
           <div style={{ fontSize: "13px", color: "#aaa", marginTop: "2px" }}>{products.length} item{products.length !== 1 ? "s" : ""}</div>
         </div>
-        <button onClick={() => { setAdding(true); setShowNewIconPicker(false); }} style={{ backgroundColor: DARK, color: LIME, border: "none", borderRadius: "10px", padding: "9px 16px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>+ Add product</button>
+        <button onClick={() => setAdding(true)} style={{ backgroundColor: DARK, color: LIME, border: "none", borderRadius: "10px", padding: "9px 16px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>+ Add product</button>
       </div>
 
+      {/* Add form */}
       {adding && (
         <div style={{ background: "#f8f8f6", border: "1.5px solid #e0e0dc", borderRadius: "14px", padding: "18px", marginBottom: "14px" }}>
           <div style={{ fontSize: "14px", fontWeight: 700, color: DARK, marginBottom: "14px" }}>New product or service</div>
@@ -378,34 +565,18 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
             <input style={inputStyle} placeholder="Name e.g. Gel overlay" value={newProduct.name} onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })} />
             <input style={inputStyle} type="number" placeholder="Price e.g. 220" value={newProduct.price} onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })} />
             <input style={inputStyle} placeholder="Description (optional)" value={newProduct.description} onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })} />
-
-            {/* BUG 2 FIX: Product icon picker for new product */}
-            <div>
-              <label style={labelStyle}>Product icon</label>
-              <button onClick={() => setShowNewIconPicker(!showNewIconPicker)}
-                style={{ width: "44px", height: "44px", borderRadius: "12px", background: "#fff", border: `1.5px solid ${LIME}`, fontSize: "22px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {newProduct.icon}
-              </button>
-              {showNewIconPicker && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "8px", background: "#fff", border: "1.5px solid #e0e0dc", borderRadius: "12px", padding: "10px" }}>
-                  {PRODUCT_ICONS.map((ic) => (
-                    <button key={ic} onClick={() => { setNewProduct({ ...newProduct, icon: ic }); setShowNewIconPicker(false); }}
-                      style={{ width: "38px", height: "38px", borderRadius: "8px", background: newProduct.icon === ic ? DARK : "#f5f5f5", border: "none", fontSize: "20px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      {ic}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
+            <ProductImagePicker images={images} selectedImage={newProduct.image} selectedIcon={newProduct.icon}
+              onImageSelect={(url) => setNewProduct((p) => ({ ...p, image: url }))}
+              onIconSelect={(ic) => setNewProduct((p) => ({ ...p, icon: ic, image: null }))} />
             <div style={{ display: "flex", gap: "8px" }}>
               <button onClick={handleAdd} disabled={saving} style={{ backgroundColor: LIME, color: DARK, border: "none", borderRadius: "10px", padding: "10px 20px", fontSize: "13px", fontWeight: 700, cursor: "pointer", flex: 1 }}>{saving ? "Saving..." : "Save product"}</button>
-              <button onClick={() => { setAdding(false); setNewProduct({ name: "", price: "", description: "", icon: "🛍️" }); setShowNewIconPicker(false); }} style={{ background: "#fff", color: "#888", border: "1.5px solid #e0e0e0", borderRadius: "10px", padding: "10px 16px", fontSize: "13px", cursor: "pointer" }}>Cancel</button>
+              <button onClick={() => { setAdding(false); setNewProduct({ name: "", price: "", description: "", icon: "🛍️", image: null }); }} style={{ background: "#fff", color: "#888", border: "1.5px solid #e0e0e0", borderRadius: "10px", padding: "10px 16px", fontSize: "13px", cursor: "pointer" }}>Cancel</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Products list */}
       {loading ? <div style={{ fontSize: "13px", color: "#aaa", padding: "20px 0" }}>Loading...</div> :
         products.length === 0 ? (
           <div style={{ background: "#f8f8f6", border: "1.5px dashed #ddd", borderRadius: "14px", padding: "32px", textAlign: "center" }}>
@@ -421,43 +592,27 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
                     <input style={inputStyle} value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} placeholder="Product name" />
                     <input style={inputStyle} type="number" value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} placeholder="Price" />
                     <input style={inputStyle} value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} placeholder="Description" />
-
-                    {/* BUG 2 FIX: Product icon picker for edit */}
-                    <div>
-                      <label style={labelStyle}>Product icon</label>
-                      <button onClick={() => setShowEditIconPicker(!showEditIconPicker)}
-                        style={{ width: "44px", height: "44px", borderRadius: "12px", background: "#fff", border: `1.5px solid ${LIME}`, fontSize: "22px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        {editForm.icon || "🛍️"}
-                      </button>
-                      {showEditIconPicker && (
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "8px", background: "#fff", border: "1.5px solid #e0e0dc", borderRadius: "12px", padding: "10px" }}>
-                          {PRODUCT_ICONS.map((ic) => (
-                            <button key={ic} onClick={() => { setEditForm({ ...editForm, icon: ic }); setShowEditIconPicker(false); }}
-                              style={{ width: "38px", height: "38px", borderRadius: "8px", background: editForm.icon === ic ? DARK : "#f5f5f5", border: "none", fontSize: "20px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              {ic}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
+                    <ProductImagePicker images={images} selectedImage={editForm.image} selectedIcon={editForm.icon}
+                      onImageSelect={(url) => setEditForm((f) => ({ ...f, image: url }))}
+                      onIconSelect={(ic) => setEditForm((f) => ({ ...f, icon: ic, image: null }))} />
                     <div style={{ display: "flex", gap: "8px" }}>
                       <button onClick={() => handleSaveEdit(p.id)} style={{ backgroundColor: LIME, color: DARK, border: "none", borderRadius: "10px", padding: "9px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer", flex: 1 }}>Save</button>
-                      <button onClick={() => { setEditingId(null); setShowEditIconPicker(false); }} style={{ background: "#fff", color: "#888", border: "1.5px solid #e0e0e0", borderRadius: "10px", padding: "9px 14px", fontSize: "13px", cursor: "pointer" }}>Cancel</button>
+                      <button onClick={() => setEditingId(null)} style={{ background: "#fff", color: "#888", border: "1.5px solid #e0e0e0", borderRadius: "10px", padding: "9px 14px", fontSize: "13px", cursor: "pointer" }}>Cancel</button>
                     </div>
                   </div>
                 ) : (
                   <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    {/* BUG 2 FIX: show each product's own icon in the list */}
-                    <div style={{ width: "36px", height: "36px", background: "#f5f5f5", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 0 }}>
-                      {p.icon || p.image || "🛍️"}
-                    </div>
+                    {productThumb(p)}
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: "14px", fontWeight: 700, color: DARK }}>{p.name}</div>
                       {p.description && <div style={{ fontSize: "12px", color: "#aaa", marginTop: "2px" }}>{p.description}</div>}
                     </div>
                     <div style={{ fontSize: "16px", fontWeight: 900, color: DARK, minWidth: "55px", textAlign: "right" }}>R{p.price}</div>
-                    <button onClick={() => { setEditingId(p.id); setEditForm({ name: p.name, price: p.price, description: p.description || "", icon: p.icon || p.image || "🛍️" }); setShowEditIconPicker(false); }} style={{ fontSize: "11px", padding: "5px 10px", borderRadius: "8px", border: "1px solid #e0e0e0", background: "#f8f8f6", color: "#555", cursor: "pointer", fontWeight: 600 }}>Edit</button>
+                    <button onClick={() => {
+                      setEditingId(p.id);
+                      const isUrl = p.image && p.image.startsWith("http");
+                      setEditForm({ name: p.name, price: p.price, description: p.description || "", icon: isUrl ? "🛍️" : (p.image || p.icon || "🛍️"), image: isUrl ? p.image : null });
+                    }} style={{ fontSize: "11px", padding: "5px 10px", borderRadius: "8px", border: "1px solid #e0e0e0", background: "#f8f8f6", color: "#555", cursor: "pointer", fontWeight: 600 }}>Edit</button>
                     <button onClick={() => handleToggleActive(p)} style={{ fontSize: "11px", padding: "5px 10px", borderRadius: "8px", border: "1px solid #e0e0e0", background: p.is_active ? "#f0ffe0" : "#f5f5f5", color: p.is_active ? "#3a6b00" : "#aaa", cursor: "pointer", fontWeight: 600, whiteSpace: "nowrap" }}>{p.is_active ? "Active" : "Hidden"}</button>
                     <button onClick={() => handleDelete(p.id)} style={{ fontSize: "11px", padding: "5px 10px", borderRadius: "8px", border: "1px solid #ffd0d0", background: "#fff5f5", color: "#cc3300", cursor: "pointer", fontWeight: 600 }}>Delete</button>
                   </div>
@@ -473,15 +628,9 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
 // ── SETUP TAB ──────────────────────────────────────────────
 function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilledTemplate }) {
   const [form, setForm] = useState({
-    name: business?.name || "",
-    owner: business?.owner || "",
-    category: business?.category || "",
-    area: business?.area || "",
-    description: business?.description || "",
-    whatsapp: business?.whatsapp || "",
-    payment: business?.payment || "",
-    bgColour: business?.theme || "#0d0d0d",
-    // BUG 3 FIX: load saved icon from background_style column
+    name: business?.name || "", owner: business?.owner || "", category: business?.category || "",
+    area: business?.area || "", description: business?.description || "", whatsapp: business?.whatsapp || "",
+    payment: business?.payment || "", bgColour: business?.theme || "#0d0d0d",
     icon: business?.background_style || "⭐",
   });
   const [saving, setSaving] = useState(false);
@@ -512,9 +661,9 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
     const file = e.target.files[0];
     if (!file) return;
     setUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `logos/${user.id}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("business-images").upload(path, file, { upsert: true });
+    const compressed = await compressImage(file);
+    const path = `logos/${user.id}.jpg`;
+    const { error: upErr } = await supabase.storage.from("business-images").upload(path, compressed, { upsert: true });
     if (!upErr) {
       const { data } = supabase.storage.from("business-images").getPublicUrl(path);
       setLogoUrl(data.publicUrl);
@@ -526,21 +675,7 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
     if (!form.name.trim()) { setError("Business name is required."); return; }
     setSaving(true); setError("");
     const slug = form.name.toLowerCase().trim().replaceAll(" ", "-").replace(/[^a-z0-9-]/g, "");
-    const payload = {
-      name: form.name.trim(),
-      slug,
-      owner: form.owner.trim(),
-      category: form.category,
-      area: form.area.trim(),
-      description: form.description.trim(),
-      whatsapp: form.whatsapp.trim(),
-      payment: form.payment,
-      user_id: user.id,
-      theme: form.bgColour,
-      // BUG 3 FIX: save icon into background_style column
-      background_style: form.icon,
-      catalogue: logoUrl || "",
-    };
+    const payload = { name: form.name.trim(), slug, owner: form.owner.trim(), category: form.category, area: form.area.trim(), description: form.description.trim(), whatsapp: form.whatsapp.trim(), payment: form.payment, user_id: user.id, theme: form.bgColour, background_style: form.icon, catalogue: logoUrl || "" };
     const { data, error: err } = await supabase.from("businesses").upsert([payload], { onConflict: "user_id" }).select().single();
     if (err) { setError(err.message); } else { setSaved(true); setBusiness(data); setSavedBusinessId(data.id); }
     setSaving(false);
@@ -550,10 +685,7 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
 
   return (
     <div style={{ display: "flex", gap: "40px", alignItems: "flex-start" }}>
-
-      {/* LEFT — Form */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Sticky save bar */}
         <div style={{ position: "sticky", top: 0, background: "#f5f5f3", zIndex: 10, paddingBottom: "16px", paddingTop: "4px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
@@ -585,8 +717,6 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
               {PAYMENT_METHODS.map((method) => <button key={method} onClick={() => update("payment", method)} style={{ padding: "8px 14px", borderRadius: "999px", fontSize: "13px", fontWeight: 600, cursor: "pointer", border: "1.5px solid", background: form.payment === method ? DARK : "#fff", color: form.payment === method ? LIME : "#555", borderColor: form.payment === method ? DARK : "#e0e0e0" }}>{method}</button>)}
             </div>
           </div>
-
-          {/* Background colour */}
           <div>
             <label style={labelStyle}>Page background colour</label>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
@@ -596,11 +726,9 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
               ))}
             </div>
           </div>
-
-          {/* BUG 1 FIX: Icon picker — clearly labelled as header/business icon only */}
           <div>
             <label style={labelStyle}>Business header icon</label>
-            <div style={{ fontSize: "11px", color: "#aaa", marginBottom: "8px" }}>This appears in your page header only — products have their own icons.</div>
+            <div style={{ fontSize: "11px", color: "#aaa", marginBottom: "8px" }}>Appears in your page header — products have their own images/icons.</div>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
               {iconOptions.map((ic) => (
                 <button key={ic} onClick={() => update("icon", ic)}
@@ -610,8 +738,6 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
               ))}
             </div>
           </div>
-
-          {/* Logo upload */}
           <div>
             <label style={labelStyle}>Logo / Photo (optional)</label>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -628,14 +754,12 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
 
         <div style={{ borderTop: "1.5px solid #eeeeea", marginBottom: "32px" }} />
 
-        <ProductsSection businessId={savedBusinessId} prefilledProducts={prefilledProducts} onProductsPrefilled={() => setPrefilledProducts(null)} onProductsChange={setProducts} />
+        <ProductsSection businessId={savedBusinessId} prefilledProducts={prefilledProducts} onProductsPrefilled={() => setPrefilledProducts(null)} onProductsChange={setProducts} userId={user.id} />
       </div>
 
-      {/* RIGHT — Live preview (desktop only) */}
       <div style={{ width: "320px", flexShrink: 0, position: "sticky", top: "24px" }}>
         <BusinessPagePreview form={form} products={products} logoUrl={logoUrl} isFullPage={false} />
       </div>
-
     </div>
   );
 }
@@ -651,9 +775,7 @@ function PageTab({ business, products, logoUrl }) {
       </div>
     );
   }
-
   const shareUrl = `${window.location.origin}/b/${business.slug}`;
-
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
@@ -666,25 +788,12 @@ function PageTab({ business, products, logoUrl }) {
           Copy share link
         </button>
       </div>
-
       <div style={{ background: "#e8e8e4", borderRadius: "12px", padding: "10px 14px", fontSize: "13px", color: "#555", marginBottom: "24px", display: "flex", alignItems: "center", gap: "8px" }}>
         🔗 <span style={{ fontWeight: 600 }}>{shareUrl}</span>
       </div>
-
-      {/* BUG 3 FIX: use saved icon from background_style column, not hardcoded "⭐" */}
       <BusinessPagePreview
-        form={{
-          name: business.name,
-          category: business.category,
-          area: business.area,
-          description: business.description,
-          whatsapp: business.whatsapp,
-          bgColour: business.theme || "#0d0d0d",
-          icon: business.background_style || "⭐",
-        }}
-        products={products}
-        logoUrl={logoUrl}
-        isFullPage={false}
+        form={{ name: business.name, category: business.category, area: business.area, description: business.description, whatsapp: business.whatsapp, bgColour: business.theme || "#0d0d0d", icon: business.background_style || "⭐" }}
+        products={products} logoUrl={logoUrl} isFullPage={false}
       />
     </div>
   );
@@ -723,10 +832,7 @@ export default function AppDashboard({ onBack }) {
         setBusiness(data);
         setLogoUrl(data.catalogue || null);
         supabase.from("products").select("*").eq("business_id", data.id).then(({ data: prods }) => {
-          if (prods) {
-            // BUG 2 FIX: map image column → icon when loading products
-            setProducts(prods.map((p) => ({ ...p, icon: p.image })));
-          }
+          if (prods) setProducts(prods.map((p) => ({ ...p, icon: p.image && !p.image.startsWith("http") ? p.image : "🛍️" })));
         });
       }
     });
