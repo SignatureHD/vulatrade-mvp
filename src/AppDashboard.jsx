@@ -1770,6 +1770,638 @@ function CustomersTab({ business }) {
   );
 }
 
+
+// ── BOOKINGS TAB ───────────────────────────────────────────
+
+const BOOKING_TIMES = [
+  "07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30",
+  "11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30",
+  "15:00","15:30","16:00","16:30","17:00","17:30","18:00","18:30","19:00",
+];
+
+function formatDate(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-ZA", { weekday:"short", day:"numeric", month:"short" });
+}
+
+function isToday(dateStr) {
+  return dateStr === new Date().toISOString().slice(0, 10);
+}
+
+function isTomorrow(dateStr) {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return dateStr === tomorrow.toISOString().slice(0, 10);
+}
+
+function dateLabel(dateStr) {
+  if (isToday(dateStr))    return "Today";
+  if (isTomorrow(dateStr)) return "Tomorrow";
+  return formatDate(dateStr);
+}
+
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+
+function weekEnd() {
+  const d = new Date();
+  d.setDate(d.getDate() + 7);
+  return d.toISOString().slice(0, 10);
+}
+
+const STATUS_CONFIG = {
+  confirmed: { label:"Confirmed", color:"#1a1a1a", bg:"#eeeeea",  border:"#c8c8c4" },
+  done:      { label:"Done",      color:"#3a6b00", bg:"#f0ffe0",  border:"#a3e635" },
+  cancelled: { label:"Cancelled", color:"#cc3300", bg:"#fff5f5",  border:"#ffd0d0" },
+};
+
+// ── CUSTOMER SEARCH INPUT ──────────────────────────────────
+function CustomerSearchInput({ customers, value, onSelect }) {
+  const [query, setQuery]   = useState(value?.customer_name || "");
+  const [open, setOpen]     = useState(false);
+  const [isNew, setIsNew]   = useState(false);
+
+  const matches = query.length > 0
+    ? customers.filter((c) => c.name.toLowerCase().includes(query.toLowerCase())).slice(0, 6)
+    : [];
+
+  function handleSelect(c) {
+    setQuery(c.name);
+    setOpen(false);
+    setIsNew(false);
+    onSelect({ customer_id: c.id, customer_name: c.name, interested_in: c.interested_in || [] });
+  }
+
+  function handleChange(e) {
+    setQuery(e.target.value);
+    setOpen(true);
+    setIsNew(false);
+    if (!e.target.value.trim()) {
+      onSelect({ customer_id: null, customer_name: "", interested_in: [] });
+    }
+  }
+
+  function handleCreateNew() {
+    setOpen(false);
+    setIsNew(true);
+    onSelect({ customer_id: null, customer_name: query.trim(), interested_in: [], isNew: true });
+  }
+
+  return (
+    <div style={{ position:"relative" }}>
+      <input
+        style={{ ...inputStyle, borderColor: isNew ? "#a3e635" : "#e8e8e8" }}
+        placeholder="Type customer name…"
+        value={query}
+        onChange={handleChange}
+        onFocus={() => query.length > 0 && setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        autoComplete="off"
+      />
+      {isNew && (
+        <div style={{ fontSize:"11px", color:"#5a9a00", marginTop:"4px" }}>
+          New customer — will be created automatically when you save
+        </div>
+      )}
+      {open && query.length > 0 && (
+        <div style={{ position:"absolute", top:"100%", left:0, right:0, background:"#fff", border:"1.5px solid #e0e0e0", borderRadius:"12px", boxShadow:"0 8px 24px rgba(0,0,0,0.1)", zIndex:100, overflow:"hidden", marginTop:"4px" }}>
+          {matches.map((c) => (
+            <div key={c.id} onMouseDown={() => handleSelect(c)}
+              style={{ padding:"10px 14px", cursor:"pointer", borderBottom:"1px solid #f5f5f5", display:"flex", flexDirection:"column", gap:"2px" }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "#f8f8f6"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "#fff"}>
+              <div style={{ fontSize:"14px", fontWeight:700, color:DARK }}>{c.name}</div>
+              {c.whatsapp && <div style={{ fontSize:"12px", color:"#aaa" }}>{c.whatsapp}</div>}
+              {c.interested_in?.length > 0 && (
+                <div style={{ fontSize:"11px", color:"#5a9a00" }}>Interested in: {c.interested_in.join(", ")}</div>
+              )}
+            </div>
+          ))}
+          {matches.length === 0 && query.trim().length > 1 && (
+            <div onMouseDown={handleCreateNew}
+              style={{ padding:"12px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:"8px" }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "#f8f8f6"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "#fff"}>
+              <div style={{ width:"24px", height:"24px", borderRadius:"50%", background:LIME, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"14px", fontWeight:800, color:DARK, flexShrink:0 }}>+</div>
+              <div>
+                <div style={{ fontSize:"14px", fontWeight:700, color:DARK }}>Create "{query.trim()}"</div>
+                <div style={{ fontSize:"11px", color:"#aaa" }}>New customer, added automatically</div>
+              </div>
+            </div>
+          )}
+          {matches.length === 0 && query.trim().length <= 1 && (
+            <div style={{ padding:"12px 14px", fontSize:"13px", color:"#aaa" }}>Keep typing to search…</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── BOOKING FORM ───────────────────────────────────────────
+function BookingForm({ initial, onSave, onCancel, saving, customers, products }) {
+  const today = todayStr();
+  const [form, setForm] = useState({
+    customer_id:   initial?.customer_id   || null,
+    customer_name: initial?.customer_name || "",
+    service:       initial?.service       || "",
+    booking_date:  initial?.booking_date  || today,
+    booking_time:  initial?.booking_time  || "09:00",
+    price:         initial?.price         || "",
+    deposit:       initial?.deposit       || "",
+    notes:         initial?.notes         || "",
+    isNewCustomer: false,
+  });
+  const [interestedIn, setInterestedIn] = useState(initial?.interested_in || []);
+
+  function upd(k, v) { setForm((p) => ({ ...p, [k]: v })); }
+
+  function handleCustomerSelect(sel) {
+    setForm((p) => ({ ...p, customer_id: sel.customer_id, customer_name: sel.customer_name, isNewCustomer: sel.isNew || false }));
+    // Auto-select services from customer's interests
+    if (sel.interested_in?.length > 0) {
+      setInterestedIn(sel.interested_in);
+      // Auto-fill first interested service and its price
+      const firstMatch = products.find((p) => sel.interested_in.includes(p.name));
+      if (firstMatch) {
+        setForm((prev) => ({ ...prev, customer_id: sel.customer_id, customer_name: sel.customer_name, isNewCustomer: sel.isNew || false, service: firstMatch.name, price: firstMatch.price || prev.price }));
+      }
+    } else {
+      setInterestedIn([]);
+    }
+  }
+
+  function handleServiceSelect(p) {
+    setForm((prev) => ({ ...prev, service: p.name, price: p.price || prev.price }));
+  }
+
+  // Products to show: interested_in first, then all active products
+  const suggestedProducts = interestedIn.length > 0
+    ? products.filter((p) => interestedIn.includes(p.name))
+    : products;
+  const otherProducts = interestedIn.length > 0
+    ? products.filter((p) => !interestedIn.includes(p.name))
+    : [];
+
+  const valid = form.customer_name.trim() && form.booking_date;
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
+
+      {/* Customer */}
+      <div>
+        <label style={labelStyle}>Customer *</label>
+        <CustomerSearchInput customers={customers} value={form} onSelect={handleCustomerSelect} />
+      </div>
+
+      {/* Service — smart suggestions */}
+      <div>
+        <label style={labelStyle}>Service</label>
+        {suggestedProducts.length > 0 && (
+          <div style={{ marginBottom:"8px" }}>
+            {interestedIn.length > 0 && (
+              <div style={{ fontSize:"11px", color:"#5a9a00", fontWeight:600, marginBottom:"6px" }}>
+                Based on what they want
+              </div>
+            )}
+            <div style={{ display:"flex", flexWrap:"wrap", gap:"6px" }}>
+              {suggestedProducts.map((p) => {
+                const selected = form.service === p.name;
+                return (
+                  <button key={p.id} onClick={() => handleServiceSelect(p)}
+                    style={{ padding:"8px 14px", borderRadius:"12px", fontSize:"13px", fontWeight:700, cursor:"pointer", border:`1.5px solid ${selected ? LIME : "#e0e0e0"}`, background:selected ? "#f7ffe0" : "#fff", color:selected ? "#3a6b00" : "#555" }}>
+                    {p.name} {p.price ? `· R${p.price}` : ""}
+                    {selected && " ✓"}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {otherProducts.length > 0 && (
+          <details style={{ marginTop:"4px" }}>
+            <summary style={{ fontSize:"12px", color:"#aaa", cursor:"pointer", marginBottom:"6px" }}>Other services</summary>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:"6px", marginTop:"6px" }}>
+              {otherProducts.map((p) => {
+                const selected = form.service === p.name;
+                return (
+                  <button key={p.id} onClick={() => handleServiceSelect(p)}
+                    style={{ padding:"8px 14px", borderRadius:"12px", fontSize:"13px", fontWeight:700, cursor:"pointer", border:`1.5px solid ${selected ? LIME : "#e0e0e0"}`, background:selected ? "#f7ffe0" : "#fff", color:selected ? "#3a6b00" : "#555" }}>
+                    {p.name} {p.price ? `· R${p.price}` : ""}
+                  </button>
+                );
+              })}
+            </div>
+          </details>
+        )}
+        {products.length === 0 && (
+          <input style={inputStyle} placeholder="e.g. Gel overlay" value={form.service}
+            onChange={(e) => upd("service", e.target.value)} />
+        )}
+      </div>
+
+      {/* Date & Time */}
+      <div style={{ display:"flex", gap:"10px" }}>
+        <div style={{ flex:1 }}>
+          <label style={labelStyle}>Date *</label>
+          <input style={inputStyle} type="date" value={form.booking_date} min={today}
+            onChange={(e) => upd("booking_date", e.target.value)} />
+        </div>
+        <div style={{ flex:1 }}>
+          <label style={labelStyle}>Time</label>
+          <select style={{ ...inputStyle, cursor:"pointer" }} value={form.booking_time}
+            onChange={(e) => upd("booking_time", e.target.value)}>
+            <option value="">Flexible</option>
+            {BOOKING_TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Price & Deposit */}
+      <div style={{ display:"flex", gap:"10px" }}>
+        <div style={{ flex:1 }}>
+          <label style={labelStyle}>Price (R)</label>
+          <input style={inputStyle} type="number" placeholder="0" value={form.price}
+            onChange={(e) => upd("price", e.target.value)} />
+        </div>
+        <div style={{ flex:1 }}>
+          <label style={labelStyle}>Deposit (R)</label>
+          <input style={inputStyle} type="number" placeholder="0" value={form.deposit}
+            onChange={(e) => upd("deposit", e.target.value)} />
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div>
+        <label style={labelStyle}>Notes</label>
+        <input style={inputStyle} placeholder="Any extra details…" value={form.notes}
+          onChange={(e) => upd("notes", e.target.value)} />
+      </div>
+
+      <div style={{ display:"flex", gap:"8px" }}>
+        <button onClick={() => onSave(form)} disabled={!valid || saving}
+          style={{ flex:1, backgroundColor:valid ? LIME : "#e0e0e0", color:valid ? DARK : "#aaa", border:"none", borderRadius:"12px", padding:"13px", fontSize:"14px", fontWeight:800, cursor:valid ? "pointer" : "not-allowed" }}>
+          {saving ? "Saving…" : "Save booking"}
+        </button>
+        <button onClick={onCancel}
+          style={{ padding:"13px 18px", borderRadius:"12px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#888", fontSize:"14px", cursor:"pointer" }}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── BOOKING CARD ───────────────────────────────────────────
+function BookingCard({ booking, onStatusChange, onEdit, onDelete, onWhatsApp }) {
+  const s = STATUS_CONFIG[booking.status] || STATUS_CONFIG.confirmed;
+  const dl = dateLabel(booking.booking_date);
+
+  return (
+    <div style={{ background:"#fff", border:`1.5px solid ${s.border}`, borderRadius:"16px", padding:"16px 20px" }}>
+      <div style={{ display:"flex", alignItems:"flex-start", gap:"14px" }}>
+        {/* Time column */}
+        <div style={{ textAlign:"center", minWidth:"48px", flexShrink:0 }}>
+          <div style={{ fontSize:"13px", fontWeight:800, color:DARK }}>{booking.booking_time || "—"}</div>
+          <div style={{ fontSize:"10px", color:"#aaa", marginTop:"2px", fontWeight:600 }}>{dl}</div>
+        </div>
+
+        {/* Details */}
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"4px", flexWrap:"wrap" }}>
+            <span style={{ fontSize:"15px", fontWeight:800, color:DARK }}>{booking.customer_name}</span>
+            <span style={{ fontSize:"10px", fontWeight:700, color:s.color, background:s.bg, border:`1px solid ${s.border}`, borderRadius:"6px", padding:"1px 7px" }}>{s.label}</span>
+          </div>
+          {booking.service && <div style={{ fontSize:"13px", color:"#555", marginBottom:"4px" }}>{booking.service}</div>}
+          <div style={{ display:"flex", gap:"12px", flexWrap:"wrap" }}>
+            {booking.price > 0 && <span style={{ fontSize:"12px", color:"#888" }}>R{booking.price}</span>}
+            {booking.deposit > 0 && <span style={{ fontSize:"12px", color:"#5a9a00" }}>Deposit: R{booking.deposit}</span>}
+            {booking.notes && <span style={{ fontSize:"12px", color:"#aaa" }}>{booking.notes}</span>}
+          </div>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div style={{ display:"flex", gap:"6px", marginTop:"14px", flexWrap:"wrap", borderTop:"1px solid #f5f5f5", paddingTop:"12px" }}>
+        {booking.status === "confirmed" && (
+          <button onClick={() => onStatusChange(booking, "done")}
+            style={{ padding:"7px 14px", borderRadius:"10px", border:"1.5px solid #a3e635", background:"#f0ffe0", color:"#3a6b00", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
+            Mark done
+          </button>
+        )}
+        {booking.status !== "cancelled" && (
+          <button onClick={() => onWhatsApp(booking)}
+            style={{ padding:"7px 14px", borderRadius:"10px", border:"none", background:"#25d366", color:"#fff", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
+            Reminder
+          </button>
+        )}
+        <button onClick={() => onEdit(booking)}
+          style={{ padding:"7px 14px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
+          Edit
+        </button>
+        {booking.status === "confirmed" && (
+          <button onClick={() => onStatusChange(booking, "cancelled")}
+            style={{ padding:"7px 14px", borderRadius:"10px", border:"1.5px solid #ffd0d0", background:"#fff5f5", color:"#cc3300", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
+            Cancel
+          </button>
+        )}
+        {booking.status !== "confirmed" && (
+          <button onClick={() => onDelete(booking)}
+            style={{ padding:"7px 14px", borderRadius:"10px", border:"1.5px solid #ffd0d0", background:"#fff5f5", color:"#cc3300", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
+            Delete
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── WHATSAPP REMINDER MODAL ────────────────────────────────
+function BookingReminderModal({ booking, business, onClose }) {
+  const time = booking.booking_time ? ` at ${booking.booking_time}` : "";
+  const date = dateLabel(booking.booking_date);
+  const defaultMsg = `Hi ${booking.customer_name}! Just a reminder about your ${booking.service || "appointment"} on ${date}${time}. Looking forward to seeing you! — ${business?.name || ""}`;
+  const [message, setMessage] = useState(defaultMsg);
+
+  const waNumber = booking.customer_whatsapp || "";
+  const waUrl = waNumber
+    ? `https://wa.me/${waNumber.replace(/\D/g,"")}?text=${encodeURIComponent(message)}`
+    : null;
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:"24px" }}>
+      <div style={{ background:"#fff", borderRadius:"24px", padding:"32px", width:"100%", maxWidth:"420px", boxShadow:"0 20px 60px rgba(0,0,0,0.25)" }}>
+        <h3 style={{ fontSize:"18px", fontWeight:800, color:DARK, marginBottom:"4px" }}>Send reminder</h3>
+        <p style={{ fontSize:"13px", color:"#aaa", marginBottom:"20px" }}>To {booking.customer_name}</p>
+        <textarea style={{ ...inputStyle, minHeight:"120px", resize:"vertical", marginBottom:"16px" }}
+          value={message} onChange={(e) => setMessage(e.target.value)} />
+        {!waNumber && (
+          <div style={{ fontSize:"12px", color:"#f59e0b", background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:"8px", padding:"8px 12px", marginBottom:"12px" }}>
+            No WhatsApp number saved for this customer. Edit the booking to add one.
+          </div>
+        )}
+        <div style={{ display:"flex", gap:"8px" }}>
+          {waUrl ? (
+            <a href={waUrl} target="_blank" rel="noopener noreferrer"
+              style={{ flex:1, display:"block", backgroundColor:"#25d366", color:"#fff", textAlign:"center", padding:"13px", fontSize:"14px", fontWeight:800, borderRadius:"12px", textDecoration:"none" }}>
+              Open WhatsApp →
+            </a>
+          ) : (
+            <button disabled style={{ flex:1, backgroundColor:"#e0e0e0", color:"#aaa", border:"none", borderRadius:"12px", padding:"13px", fontSize:"14px", fontWeight:800, cursor:"not-allowed" }}>
+              No number saved
+            </button>
+          )}
+          <button onClick={onClose}
+            style={{ padding:"13px 18px", borderRadius:"12px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#888", fontSize:"14px", cursor:"pointer" }}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── MAIN BOOKINGS TAB ──────────────────────────────────────
+function BookingsTab({ business }) {
+  const [bookings, setBookings]   = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [products, setProducts]   = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [mode, setMode]           = useState("list"); // list | add | edit
+  const [editTarget, setEditTarget] = useState(null);
+  const [saving, setSaving]       = useState(false);
+  const [view, setView]           = useState("upcoming"); // today | upcoming | all
+  const [reminderFor, setReminderFor] = useState(null);
+  const [toast, setToast]         = useState("");
+
+  function showToast(msg) { setToast(msg); setTimeout(() => setToast(""), 2800); }
+
+  // ── LOAD ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!business?.id) { setLoading(false); return; }
+    Promise.all([
+      supabase.from("bookings").select("*").eq("business_id", business.id).order("booking_date").order("booking_time"),
+      supabase.from("customers").select("id,name,whatsapp,interested_in").eq("business_id", business.id),
+      supabase.from("products").select("id,name,price,image").eq("business_id", business.id).eq("is_active", true),
+    ]).then(([{ data: b }, { data: c }, { data: p }]) => {
+      if (b) setBookings(b);
+      if (c) setCustomers(c);
+      if (p) setProducts(p);
+      setLoading(false);
+    });
+  }, [business?.id]);
+
+  // ── FILTERED ───────────────────────────────────────────────
+  const today = todayStr();
+  const filtered = bookings.filter((b) => {
+    if (view === "today")    return b.booking_date === today && b.status !== "cancelled";
+    if (view === "upcoming") return b.booking_date >= today  && b.status !== "cancelled";
+    return true;
+  });
+
+  // Group by date
+  const grouped = filtered.reduce((acc, b) => {
+    const key = b.booking_date;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(b);
+    return acc;
+  }, {});
+  const sortedDates = Object.keys(grouped).sort();
+
+  // ── SAVE ───────────────────────────────────────────────────
+  async function handleSave(form) {
+    if (!business?.id) return;
+    setSaving(true);
+
+    let customerId = form.customer_id;
+
+    // If new customer, create them first
+    if (form.isNewCustomer && form.customer_name.trim()) {
+      const { data: newCust } = await supabase.from("customers")
+        .insert([{ business_id: business.id, name: form.customer_name.trim(), status: "new", interested_in: [] }])
+        .select().single();
+      if (newCust) {
+        setCustomers((prev) => [newCust, ...prev]);
+        customerId = newCust.id;
+        showToast(`New customer "${newCust.name}" created ✓`);
+      }
+    }
+
+    // Get whatsapp from customer for reminder use
+    const cust = customers.find((c) => c.id === customerId);
+
+    const payload = {
+      business_id:    business.id,
+      customer_id:    customerId,
+      customer_name:  form.customer_name.trim(),
+      customer_whatsapp: cust?.whatsapp || "",
+      service:        form.service,
+      booking_date:   form.booking_date,
+      booking_time:   form.booking_time || null,
+      price:          form.price ? parseFloat(form.price) : null,
+      deposit:        form.deposit ? parseFloat(form.deposit) : null,
+      notes:          form.notes?.trim() || "",
+      status:         "confirmed",
+    };
+
+    if (editTarget) {
+      const { data } = await supabase.from("bookings").update(payload).eq("id", editTarget.id).select().single();
+      if (data) setBookings((prev) => prev.map((b) => b.id === data.id ? data : b));
+      showToast("Booking updated ✓");
+    } else {
+      const { data } = await supabase.from("bookings").insert([payload]).select().single();
+      if (data) setBookings((prev) => [...prev, data].sort((a,b) => a.booking_date.localeCompare(b.booking_date)));
+      showToast("Booking saved ✓");
+    }
+
+    setSaving(false);
+    setMode("list");
+    setEditTarget(null);
+  }
+
+  // ── STATUS CHANGE ──────────────────────────────────────────
+  async function handleStatusChange(booking, newStatus) {
+    const { data } = await supabase.from("bookings").update({ status: newStatus }).eq("id", booking.id).select().single();
+    if (data) setBookings((prev) => prev.map((b) => b.id === data.id ? data : b));
+    if (newStatus === "done") showToast(`${booking.customer_name} marked done ✓`);
+    if (newStatus === "cancelled") showToast("Booking cancelled");
+  }
+
+  // ── DELETE ─────────────────────────────────────────────────
+  async function handleDelete(booking) {
+    if (!window.confirm("Delete this booking?")) return;
+    await supabase.from("bookings").delete().eq("id", booking.id);
+    setBookings((prev) => prev.filter((b) => b.id !== booking.id));
+    showToast("Booking deleted");
+  }
+
+  // ── STATS ──────────────────────────────────────────────────
+  const todayCount    = bookings.filter((b) => b.booking_date === today && b.status === "confirmed").length;
+  const upcomingCount = bookings.filter((b) => b.booking_date > today  && b.status === "confirmed").length;
+  const doneCount     = bookings.filter((b) => b.status === "done").length;
+  const revenue       = bookings.filter((b) => b.status === "done" && b.price).reduce((s, b) => s + (b.price||0), 0);
+
+  if (!business?.id) return (
+    <div style={{ textAlign:"center", padding:"80px 24px" }}>
+      <div style={{ fontSize:"40px", marginBottom:"16px" }}>🏪</div>
+      <h3 style={{ fontSize:"20px", fontWeight:800, color:DARK, marginBottom:"8px" }}>Set up your business first</h3>
+    </div>
+  );
+
+  // ── ADD / EDIT ─────────────────────────────────────────────
+  if (mode === "add" || mode === "edit") return (
+    <div style={{ maxWidth:"560px" }}>
+      <button onClick={() => { setMode("list"); setEditTarget(null); }}
+        style={{ background:"transparent", border:"none", fontSize:"13px", color:"#aaa", cursor:"pointer", padding:"0 0 16px" }}>
+        ← Back
+      </button>
+      <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"24px" }}>
+        {mode === "edit" ? "Edit booking" : "New booking"}
+      </h2>
+      <BookingForm
+        initial={editTarget}
+        onSave={handleSave}
+        onCancel={() => { setMode("list"); setEditTarget(null); }}
+        saving={saving}
+        customers={customers}
+        products={products}
+      />
+    </div>
+  );
+
+  // ── LIST ───────────────────────────────────────────────────
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:"20px", flexWrap:"wrap", gap:"12px" }}>
+        <div>
+          <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Bookings</h2>
+          <p style={{ fontSize:"13px", color:"#aaa" }}>{todayCount} today · {upcomingCount} upcoming</p>
+        </div>
+        <button onClick={() => setMode("add")}
+          style={{ padding:"10px 20px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"13px", fontWeight:700, cursor:"pointer" }}>
+          + New booking
+        </button>
+      </div>
+
+      {/* Stats */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(120px, 1fr))", gap:"10px", marginBottom:"20px" }}>
+        {[
+          { label:"Today",    value: todayCount },
+          { label:"Upcoming", value: upcomingCount },
+          { label:"Done",     value: doneCount },
+          { label:"Revenue",  value: `R${revenue.toLocaleString()}` },
+        ].map((s) => (
+          <div key={s.label} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"14px", padding:"14px 16px" }}>
+            <div style={{ fontSize:"10px", color:"#aaa", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"6px" }}>{s.label}</div>
+            <div style={{ fontSize:"22px", fontWeight:900, color:DARK }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* View toggle */}
+      <div style={{ display:"flex", gap:"6px", marginBottom:"20px" }}>
+        {[["today","Today"],["upcoming","Upcoming"],["all","All"]].map(([key, label]) => (
+          <button key={key} onClick={() => setView(key)}
+            style={{ padding:"8px 16px", borderRadius:"999px", fontSize:"13px", fontWeight:700, cursor:"pointer", border:"1.5px solid", background:view===key?DARK:"#fff", color:view===key?"#fff":"#555", borderColor:view===key?DARK:"#e0e0e0" }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {loading && <div style={{ textAlign:"center", padding:"60px", color:"#aaa" }}>Loading…</div>}
+
+      {/* Empty */}
+      {!loading && filtered.length === 0 && (
+        <div style={{ textAlign:"center", padding:"64px 24px" }}>
+          <div style={{ fontSize:"44px", marginBottom:"14px" }}>📅</div>
+          <h3 style={{ fontSize:"20px", fontWeight:800, color:DARK, marginBottom:"8px" }}>
+            {view === "today" ? "No appointments today" : "No bookings yet"}
+          </h3>
+          <p style={{ fontSize:"14px", color:"#aaa", marginBottom:"28px" }}>
+            {view === "today" ? "Enjoy the rest, or add a walk-in." : "Add your first booking to get started."}
+          </p>
+          <button onClick={() => setMode("add")}
+            style={{ backgroundColor:DARK, color:LIME, border:"none", borderRadius:"12px", padding:"13px 24px", fontSize:"14px", fontWeight:700, cursor:"pointer" }}>
+            + New booking
+          </button>
+        </div>
+      )}
+
+      {/* Grouped by date */}
+      {!loading && sortedDates.map((date) => (
+        <div key={date} style={{ marginBottom:"24px" }}>
+          <div style={{ fontSize:"12px", fontWeight:700, color:"#888", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:"10px", display:"flex", alignItems:"center", gap:"10px" }}>
+            <span>{dateLabel(date)}</span>
+            {isToday(date) && <span style={{ background:LIME, color:DARK, fontSize:"10px", fontWeight:800, padding:"2px 8px", borderRadius:"6px" }}>TODAY</span>}
+            <div style={{ flex:1, height:"1px", background:"#eeeeea" }} />
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
+            {grouped[date].map((b) => (
+              <BookingCard key={b.id} booking={b}
+                onStatusChange={handleStatusChange}
+                onEdit={(bk) => { setEditTarget(bk); setMode("edit"); }}
+                onDelete={handleDelete}
+                onWhatsApp={setReminderFor}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {reminderFor && (
+        <BookingReminderModal booking={reminderFor} business={business} onClose={() => setReminderFor(null)} />
+      )}
+
+      {toast && (
+        <div style={{ position:"fixed", bottom:"28px", left:"50%", transform:"translateX(-50%)", background:DARK, color:LIME, padding:"12px 24px", borderRadius:"999px", fontSize:"13px", fontWeight:700, zIndex:2000, boxShadow:"0 8px 32px rgba(0,0,0,0.25)", whiteSpace:"nowrap" }}>
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── PLACEHOLDER ────────────────────────────────────────────
 function ComingSoon({ tab }) {
   return (
@@ -1818,6 +2450,7 @@ export default function AppDashboard({ onBack }) {
       case "Setup":     return <SetupTab user={user} business={business} setBusiness={setBusiness} prefilledTemplate={prefilledTemplate} setPrefilledTemplate={setPrefilledTemplate} setTab={setTab} setGlobalProducts={setProducts} setGlobalLogoUrl={setLogoUrl} />;
       case "Page":      return <PageTab business={business} products={products} logoUrl={logoUrl} />;
       case "Customers": return <CustomersTab business={business} />;
+      case "Bookings":  return <BookingsTab business={business} />;
       default:          return <ComingSoon tab={tab} />;
     }
   }
