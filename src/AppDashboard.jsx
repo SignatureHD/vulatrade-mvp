@@ -160,7 +160,7 @@ function BusinessPagePreview({ form, products, logoUrl, isFullPage }) {
   if (font.import) injectFont(font.import);
 
   const card = (
-    <div style={{ background:"#fff", borderRadius:isFullPage?"0":"32px", overflow:"hidden", width:isFullPage?"100%":"280px", maxWidth:isFullPage?"480px":"280px", boxShadow:isFullPage?"none":"0 24px 64px rgba(0,0,0,0.25)", fontFamily: font.value + ", 'Inter', sans-serif" }}>
+    <div style={{ background:"#fff", borderRadius:isFullPage?"0":"32px", overflow:"hidden", width:isFullPage?"100%":"320px", maxWidth:isFullPage?"480px":"320px", boxShadow:isFullPage?"none":"0 24px 64px rgba(0,0,0,0.25)", fontFamily: font.value + ", 'Inter', sans-serif" }}>
 
       {/* Header — uses bg.text for correct contrast on both dark & light backgrounds */}
       <div style={{ background:bg.value, padding:"24px 20px 20px" }}>
@@ -1270,9 +1270,11 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
                       {p.description && <div style={{ fontSize:"12px", color:"#aaa", marginTop:"2px" }}>{p.description}</div>}
                     </div>
                     <div style={{ fontSize:"16px", fontWeight:900, color:DARK, minWidth:"55px", textAlign:"right" }}>R{p.price}</div>
-                    <button onClick={() => { setEditingId(p.id); const isUrl=p.image&&p.image.startsWith("http"); setEditForm({name:p.name,price:p.price,description:p.description||"",icon:isUrl?"🛍️":(p.image||p.icon||"🛍️"),image:isUrl?p.image:null}); }} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:"#f8f8f6", color:"#555", cursor:"pointer", fontWeight:600 }}>Edit</button>
-                    <button onClick={() => handleToggleActive(p)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:p.is_active?"#f0ffe0":"#f5f5f5", color:p.is_active?"#3a6b00":"#aaa", cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>{p.is_active?"Active":"Hidden"}</button>
-                    <button onClick={() => handleDelete(p.id)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #ffd0d0", background:"#fff5f5", color:"#cc3300", cursor:"pointer", fontWeight:600 }}>Delete</button>
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:"4px" }}>
+                      <button onClick={() => { setEditingId(p.id); const isUrl=p.image&&p.image.startsWith("http"); setEditForm({name:p.name,price:p.price,description:p.description||"",icon:isUrl?"🛍️":(p.image||p.icon||"🛍️"),image:isUrl?p.image:null}); }} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:"#f8f8f6", color:"#555", cursor:"pointer", fontWeight:600 }}>Edit</button>
+                      <button onClick={() => handleToggleActive(p)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:p.is_active?"#f0ffe0":"#f5f5f5", color:p.is_active?"#3a6b00":"#aaa", cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>{p.is_active?"Active":"Hidden"}</button>
+                      <button onClick={() => handleDelete(p.id)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #ffd0d0", background:"#fff5f5", color:"#cc3300", cursor:"pointer", fontWeight:600 }}>Delete</button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1538,7 +1540,7 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
       </div>
 
       {/* RIGHT — Live preview — desktop only */}
-      <div id="setup-preview-panel" style={{ width:"320px", flexShrink:0, position:"sticky", top:"24px" }}>
+      <div id="setup-preview-panel" style={{ width:"360px", flexShrink:0, position:"sticky", top:"24px" }}>
         <BusinessPagePreview form={form} products={products} logoUrl={logoUrl} isFullPage={false} />
       </div>
       <style>{`
