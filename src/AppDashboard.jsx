@@ -668,7 +668,7 @@ function DashboardHome({ user, business, setTab }) {
     </div>
   );
 
-  const revenueUp = data?.thisMonthRevenue >= (data?.lastMonthRevenue || 0);
+  const revenueUp = (data?.thisMonthRevenue || 0) >= (data?.lastMonthRevenue || 0);
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:"20px" }}>
@@ -683,7 +683,7 @@ function DashboardHome({ user, business, setTab }) {
         </p>
       </div>
 
-      {loading ? (
+      {loading || !data ? (
         <div style={{ textAlign:"center", padding:"40px", color:"#aaa" }}>Loading your dashboard…</div>
       ) : (
         <>
