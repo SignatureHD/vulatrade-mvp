@@ -1308,6 +1308,7 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
   const [deleting, setDeleting]       = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
   const fileRef = useRef();
 
   // Inject all unlocked fonts on mount
@@ -1381,7 +1382,20 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
   const iconOptions = ICON_TEMPLATES[form.category] || ICON_TEMPLATES["Other"];
 
   return (
-    <div style={{ display:"flex", gap:"40px", alignItems:"flex-start" }}>
+    <div style={{ display:"flex", gap:"40px", alignItems:"flex-start", position:"relative" }}>
+      {/* Mobile preview overlay */}
+      {showMobilePreview && (
+        <div style={{ position:"fixed", inset:0, background:"#f5f5f3", zIndex:200, overflowY:"auto", padding:"16px" }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"16px" }}>
+            <div style={{ fontSize:"15px", fontWeight:800, color:DARK }}>Live Preview</div>
+            <button onClick={() => setShowMobilePreview(false)}
+              style={{ padding:"8px 16px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"13px", fontWeight:700, cursor:"pointer" }}>
+              Back to editing
+            </button>
+          </div>
+          <BusinessPagePreview form={form} products={products} logoUrl={logoUrl} isFullPage={false} />
+        </div>
+      )}
       <div style={{ flex:1, minWidth:0 }}>
         {/* Sticky save bar */}
         <div style={{ position:"sticky", top:0, background:"#f5f5f3", zIndex:10, paddingBottom:"16px", paddingTop:"4px" }}>
@@ -1390,9 +1404,15 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
               <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Business Setup</h2>
               <p style={{ fontSize:"13px", color:"#888" }}>Changes update your preview instantly.</p>
             </div>
-            <button onClick={handleSave} disabled={saving} style={{ backgroundColor:saving?"#ccc":saved?"#e8f5d0":LIME, color:saving?"#fff":saved?"#3a6b00":DARK, border:saved?"1.5px solid #a3e635":"none", borderRadius:"12px", padding:"12px 24px", fontSize:"14px", fontWeight:800, cursor:saving?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
-              {saving?"Saving...":saved?"✓ Saved":"Save Business"}
-            </button>
+            <div style={{ display:"flex", gap:"8px" }}>
+              <button onClick={() => setShowMobilePreview(true)}
+                style={{ padding:"12px 16px", borderRadius:"12px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"13px", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
+                Preview
+              </button>
+              <button onClick={handleSave} disabled={saving} style={{ backgroundColor:saving?"#ccc":saved?"#e8f5d0":LIME, color:saving?"#fff":saved?"#3a6b00":DARK, border:saved?"1.5px solid #a3e635":"none", borderRadius:"12px", padding:"12px 24px", fontSize:"14px", fontWeight:800, cursor:saving?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
+                {saving?"Saving...":saved?"✓ Saved":"Save Business"}
+              </button>
+            </div>
           </div>
           {error && <div style={{ fontSize:"13px", color:"#cc3300", background:"#fff0ee", padding:"10px 14px", borderRadius:"10px", marginTop:"8px" }}>{error}</div>}
         </div>
@@ -1517,10 +1537,15 @@ function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilled
         )}
       </div>
 
-      {/* RIGHT — Live preview */}
-      <div style={{ width:"320px", flexShrink:0, position:"sticky", top:"24px" }}>
+      {/* RIGHT — Live preview — desktop only */}
+      <div id="setup-preview-panel" style={{ width:"320px", flexShrink:0, position:"sticky", top:"24px" }}>
         <BusinessPagePreview form={form} products={products} logoUrl={logoUrl} isFullPage={false} />
       </div>
+      <style>{`
+        @media (max-width: 767px) {
+          #setup-preview-panel { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 }
