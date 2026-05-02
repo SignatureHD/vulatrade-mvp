@@ -1126,6 +1126,7 @@ export default function AppDashboard({ onBack }) {
       case "Templates": return <TemplatesTab business={business} setTab={setTab} setPrefilledTemplate={setPrefilledTemplate} />;
       case "Setup":     return <SetupTab user={user} business={business} setBusiness={setBusiness} prefilledTemplate={prefilledTemplate} setPrefilledTemplate={setPrefilledTemplate} setTab={setTab} setGlobalProducts={setProducts} setGlobalLogoUrl={setLogoUrl} />;
       case "Page":      return <PageTab business={business} products={products} logoUrl={logoUrl} />;
+      case "Customers": return <CustomersTab business={business} />;
       default:          return <ComingSoon tab={tab} />;
     }
   }
