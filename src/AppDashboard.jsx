@@ -564,26 +564,368 @@ function AuthScreen() {
 
 // ── DASHBOARD HOME ─────────────────────────────────────────
 function DashboardHome({ user, business, setTab }) {
-  return (
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Get greeting based on time of day
+  function greeting() {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    return "Good evening";
+  }
+
+  // Format month label
+  function monthLabel(offset) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - offset);
+    return d.toLocaleDateString("en-ZA", { month: "short" });
+  }
+
+  useEffect(() => {
+    if (!business?.id) { setLoading(false); return; }
+
+    async function loadAll() {
+      const [
+        { data: customers },
+        { data: bookings },
+        { data: sales },
+      ] = await Promise.all([
+        supabase.from("customers").select("*").eq("business_id", business.id),
+        supabase.from("bookings").select("*").eq("business_id", business.id),
+        supabase.from("customers").select("total_spent, last_contacted, visit_count").eq("business_id", business.id),
+      ]);
+
+      const now = new Date();
+      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const thirtyDaysAgo  = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+      const threeDaysAhead = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+
+      // Stats
+      const totalCustomers  = customers?.length || 0;
+      const leads           = customers?.filter((c) => c.status === "lead") || [];
+      const todayBookings   = bookings?.filter((b) => b.booking_date === today && b.status === "confirmed") || [];
+      const upcomingSoon    = bookings?.filter((b) => b.booking_date > today && b.booking_date <= threeDaysAhead && b.status === "confirmed") || [];
+      const needsContact    = customers?.filter((c) => {
+        if (!c.last_contacted) return c.visit_count > 0; // visited but never logged
+        return c.last_contacted < thirtyDaysAgo && c.status !== "lead";
+      }) || [];
+
+      // Revenue this month — from done bookings + logged sales
+      const monthRevenue =
+        (bookings?.filter((b) => b.status === "done" && b.booking_date >= thisMonthStart.slice(0,10)).reduce((s, b) => s + (b.price || 0), 0) || 0) +
+        (customers?.reduce((s, c) => s + (c.total_spent || 0), 0) || 0);
+
+      // Last 6 months revenue from done bookings
+      const monthlyRevenue = Array.from({ length: 6 }, (_, i) => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - (5 - i));
+        const ym = d.toISOString().slice(0, 7);
+        const val = bookings
+          ?.filter((b) => b.status === "done" && b.booking_date?.startsWith(ym))
+          .reduce((s, b) => s + (b.price || 0), 0) || 0;
+        return { label: d.toLocaleDateString("en-ZA", { month: "short" }), value: val };
+      });
+
+      // Last month revenue for comparison
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 7);
+      const lastMonthRevenue = bookings
+        ?.filter((b) => b.status === "done" && b.booking_date?.startsWith(lastMonthStart))
+        .reduce((s, b) => s + (b.price || 0), 0) || 0;
+
+      // This month done bookings revenue
+      const thisMonthRevenue = bookings
+        ?.filter((b) => b.status === "done" && b.booking_date >= thisMonthStart.slice(0,10))
+        .reduce((s, b) => s + (b.price || 0), 0) || 0;
+
+      setData({
+        totalCustomers, leads, todayBookings, upcomingSoon,
+        needsContact, thisMonthRevenue, lastMonthRevenue,
+        monthlyRevenue, customers, bookings,
+      });
+      setLoading(false);
+    }
+    loadAll();
+  }, [business?.id]);
+
+  // ── NO BUSINESS ────────────────────────────────────────────
+  if (!business?.name) return (
     <div>
-      <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"6px" }}>Welcome back{business?.name ? `, ${business.name}` : ""} 👋</h2>
+      <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"6px" }}>Welcome to VulaTrade 👋</h2>
       <p style={{ fontSize:"14px", color:"#888", marginBottom:"28px" }}>{user.email}</p>
-      {!business?.name && (
-        <div style={{ background:"#fffbe6", border:"1.5px solid #f0d000", borderRadius:"16px", padding:"20px 24px", marginBottom:"24px" }}>
-          <div style={{ fontSize:"15px", fontWeight:700, color:"#7a5e00", marginBottom:"4px" }}>Get started — pick a business template</div>
-          <div style={{ fontSize:"13px", color:"#9a7a00", marginBottom:"12px" }}>Choose a ready-made template to launch your business in minutes.</div>
-          <button onClick={() => setTab("Templates")} style={{ backgroundColor:DARK, color:LIME, border:"none", borderRadius:"10px", padding:"10px 20px", fontSize:"13px", fontWeight:700, cursor:"pointer" }}>Browse templates →</button>
+      <div style={{ background:DARK, borderRadius:"20px", padding:"28px", marginBottom:"20px" }}>
+        <div style={{ fontSize:"20px", fontWeight:800, color:LIME, marginBottom:"8px" }}>Let's build your business page</div>
+        <div style={{ fontSize:"14px", color:"rgba(255,255,255,0.6)", marginBottom:"20px", lineHeight:1.6 }}>
+          Pick a template and launch in minutes. Your customers will be able to find you, book you, and pay you.
         </div>
-      )}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(160px, 1fr))", gap:"14px" }}>
-        {[{label:"Customers",value:"0",sub:"Total tracked"},{label:"Messages",value:"0",sub:"Templates ready"},{label:"Payments",value:"R0",sub:"This month"},{label:"Follow-ups",value:"0",sub:"Due today"}].map((stat) => (
-          <div key={stat.label} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"16px", padding:"20px" }}>
-            <div style={{ fontSize:"11px", color:"#aaa", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"8px" }}>{stat.label}</div>
-            <div style={{ fontSize:"28px", fontWeight:900, color:DARK, lineHeight:1 }}>{stat.value}</div>
-            <div style={{ fontSize:"12px", color:"#bbb", marginTop:"4px" }}>{stat.sub}</div>
-          </div>
-        ))}
+        <button onClick={() => setTab("Templates")}
+          style={{ backgroundColor:LIME, color:DARK, border:"none", borderRadius:"12px", padding:"12px 24px", fontSize:"14px", fontWeight:800, cursor:"pointer" }}>
+          Browse templates →
+        </button>
       </div>
+    </div>
+  );
+
+  const revenueUp = data?.thisMonthRevenue >= (data?.lastMonthRevenue || 0);
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:"20px" }}>
+
+      {/* Header */}
+      <div>
+        <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>
+          {greeting()}{business?.name ? `, ${business.name.split(" ")[0]}` : ""} 👋
+        </h2>
+        <p style={{ fontSize:"13px", color:"#aaa" }}>
+          {new Date().toLocaleDateString("en-ZA", { weekday:"long", day:"numeric", month:"long" })}
+        </p>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign:"center", padding:"40px", color:"#aaa" }}>Loading your dashboard…</div>
+      ) : (
+        <>
+          {/* ── ROW 1: STAT CARDS ── */}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))", gap:"10px" }}>
+            {[
+              {
+                label: "Today's bookings",
+                value: data.todayBookings.length,
+                sub: data.todayBookings.length === 0 ? "Free day" : `${data.todayBookings.length} appointment${data.todayBookings.length !== 1 ? "s" : ""}`,
+                onClick: () => setTab("Bookings"),
+                highlight: data.todayBookings.length > 0,
+              },
+              {
+                label: "Revenue this month",
+                value: `R${data.thisMonthRevenue.toLocaleString()}`,
+                sub: data.lastMonthRevenue > 0
+                  ? `${revenueUp ? "▲" : "▼"} vs R${data.lastMonthRevenue.toLocaleString()} last month`
+                  : "Log sales to track",
+                subColor: revenueUp ? "#5a9a00" : "#cc3300",
+              },
+              {
+                label: "Customers",
+                value: data.totalCustomers,
+                sub: `${data.leads.length} lead${data.leads.length !== 1 ? "s" : ""} to convert`,
+                onClick: () => setTab("Customers"),
+              },
+              {
+                label: "Needs follow-up",
+                value: data.needsContact.length,
+                sub: data.needsContact.length > 0 ? "Not contacted in 30+ days" : "All caught up",
+                subColor: data.needsContact.length > 0 ? "#f59e0b" : "#5a9a00",
+                onClick: () => setTab("Customers"),
+              },
+            ].map((s) => (
+              <div key={s.label}
+                onClick={s.onClick}
+                style={{ background:"#fff", border:`1.5px solid ${s.highlight ? LIME : "#eeeeea"}`, borderRadius:"16px", padding:"18px", cursor:s.onClick ? "pointer" : "default", transition:"border-color 0.15s" }}
+                onMouseEnter={(e) => { if (s.onClick) e.currentTarget.style.borderColor = DARK; }}
+                onMouseLeave={(e) => { if (s.onClick) e.currentTarget.style.borderColor = s.highlight ? LIME : "#eeeeea"; }}>
+                <div style={{ fontSize:"10px", color:"#aaa", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"8px" }}>{s.label}</div>
+                <div style={{ fontSize:"28px", fontWeight:900, color:DARK, lineHeight:1, marginBottom:"6px" }}>{s.value}</div>
+                <div style={{ fontSize:"11px", color: s.subColor || "#bbb", fontWeight:600 }}>{s.sub}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── ROW 2: TODAY'S APPOINTMENTS ── */}
+          <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"20px" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"16px" }}>
+              <div style={{ fontSize:"15px", fontWeight:800, color:DARK }}>Today's appointments</div>
+              <button onClick={() => setTab("Bookings")}
+                style={{ fontSize:"12px", color:"#aaa", background:"transparent", border:"none", cursor:"pointer", fontWeight:600 }}>
+                View all →
+              </button>
+            </div>
+
+            {data.todayBookings.length === 0 ? (
+              <div style={{ background:"#f8f8f6", borderRadius:"14px", padding:"20px", textAlign:"center" }}>
+                <div style={{ fontSize:"13px", color:"#888", marginBottom:"14px", lineHeight:1.6 }}>
+                  No appointments today — use the time to grow your business.
+                </div>
+                <div style={{ display:"flex", gap:"8px", justifyContent:"center", flexWrap:"wrap" }}>
+                  <button onClick={() => setTab("Customers")}
+                    style={{ padding:"8px 16px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
+                    Follow up with customers
+                  </button>
+                  <button onClick={() => setTab("Bookings")}
+                    style={{ padding:"8px 16px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
+                    + Add a booking
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
+                {data.todayBookings
+                  .sort((a, b) => (a.booking_time || "").localeCompare(b.booking_time || ""))
+                  .map((b) => (
+                    <div key={b.id} style={{ display:"flex", alignItems:"center", gap:"14px", padding:"12px 16px", background:"#f8f8f6", borderRadius:"12px" }}>
+                      <div style={{ textAlign:"center", minWidth:"44px", background:LIME, borderRadius:"10px", padding:"6px 0" }}>
+                        <div style={{ fontSize:"13px", fontWeight:900, color:DARK }}>{b.booking_time || "—"}</div>
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:"14px", fontWeight:700, color:DARK }}>{b.customer_name}</div>
+                        {b.service && <div style={{ fontSize:"12px", color:"#aaa" }}>{b.service}</div>}
+                      </div>
+                      {b.price > 0 && <div style={{ fontSize:"14px", fontWeight:800, color:DARK }}>R{b.price}</div>}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── ROW 3: UPCOMING IN 3 DAYS ── */}
+          {data.upcomingSoon.length > 0 && (
+            <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"20px" }}>
+              <div style={{ fontSize:"15px", fontWeight:800, color:DARK, marginBottom:"14px" }}>Coming up this week</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:"6px" }}>
+                {data.upcomingSoon.slice(0, 4).map((b) => (
+                  <div key={b.id} style={{ display:"flex", alignItems:"center", gap:"12px", padding:"10px 14px", border:"1px solid #eeeeea", borderRadius:"12px" }}>
+                    <div style={{ textAlign:"center", minWidth:"36px" }}>
+                      <div style={{ fontSize:"16px", fontWeight:900, color:DARK }}>{new Date(b.booking_date + "T00:00:00").getDate()}</div>
+                      <div style={{ fontSize:"10px", color:"#aaa", fontWeight:600 }}>{new Date(b.booking_date + "T00:00:00").toLocaleDateString("en-ZA", { month:"short" })}</div>
+                    </div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:"13px", fontWeight:700, color:DARK }}>{b.customer_name}</div>
+                      {b.service && <div style={{ fontSize:"12px", color:"#aaa" }}>{b.service}</div>}
+                    </div>
+                    {b.booking_time && <div style={{ fontSize:"12px", fontWeight:700, color:"#888" }}>{b.booking_time}</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── ROW 4: NEEDS ATTENTION ── */}
+          <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"20px" }}>
+            <div style={{ fontSize:"15px", fontWeight:800, color:DARK, marginBottom:"16px" }}>Needs your attention</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
+
+              {/* Leads to convert */}
+              {data.leads.length > 0 ? (
+                <div style={{ background:"#f8f8f6", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"14px" }}>
+                  <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:"#eeeeea", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"18px", flexShrink:0 }}>🔥</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:"13px", fontWeight:700, color:DARK, marginBottom:"2px" }}>
+                      {data.leads.length} lead{data.leads.length !== 1 ? "s" : ""} haven't booked yet
+                    </div>
+                    <div style={{ fontSize:"12px", color:"#aaa" }}>
+                      {data.leads.slice(0, 2).map((c) => c.name).join(", ")}{data.leads.length > 2 ? ` +${data.leads.length - 2} more` : ""}
+                    </div>
+                  </div>
+                  <button onClick={() => setTab("Customers")}
+                    style={{ padding:"8px 14px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"12px", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
+                    Follow up
+                  </button>
+                </div>
+              ) : (
+                <div style={{ background:"#f0ffe0", border:"1px solid #c3e66a", borderRadius:"14px", padding:"14px 16px", display:"flex", alignItems:"center", gap:"10px" }}>
+                  <span style={{ fontSize:"16px" }}>✓</span>
+                  <div style={{ fontSize:"13px", color:"#3a6b00", fontWeight:600 }}>No leads waiting — share your page link to attract new ones</div>
+                  <button onClick={() => setTab("Page")}
+                    style={{ marginLeft:"auto", padding:"6px 12px", borderRadius:"8px", border:"none", background:"#3a6b00", color:"#fff", fontSize:"11px", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
+                    Share page
+                  </button>
+                </div>
+              )}
+
+              {/* Customers needing contact */}
+              {data.needsContact.length > 0 ? (
+                <div style={{ background:"#f8f8f6", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"14px" }}>
+                  <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:"#eeeeea", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"18px", flexShrink:0 }}>💬</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:"13px", fontWeight:700, color:DARK, marginBottom:"2px" }}>
+                      {data.needsContact.length} customer{data.needsContact.length !== 1 ? "s" : ""} not contacted in 30+ days
+                    </div>
+                    <div style={{ fontSize:"12px", color:"#aaa" }}>
+                      {data.needsContact.slice(0, 2).map((c) => c.name).join(", ")}{data.needsContact.length > 2 ? ` +${data.needsContact.length - 2} more` : ""}
+                    </div>
+                  </div>
+                  <button onClick={() => setTab("Customers")}
+                    style={{ padding:"8px 14px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"12px", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
+                    Reach out
+                  </button>
+                </div>
+              ) : (
+                <div style={{ background:"#f0ffe0", border:"1px solid #c3e66a", borderRadius:"14px", padding:"14px 16px", display:"flex", alignItems:"center", gap:"10px" }}>
+                  <span style={{ fontSize:"16px" }}>✓</span>
+                  <div style={{ fontSize:"13px", color:"#3a6b00", fontWeight:600 }}>All customers recently contacted — great work!</div>
+                </div>
+              )}
+
+              {/* No customers yet */}
+              {data.totalCustomers === 0 && (
+                <div style={{ background:"#f8f8f6", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"14px" }}>
+                  <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:"#eeeeea", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"18px", flexShrink:0 }}>👥</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:"13px", fontWeight:700, color:DARK, marginBottom:"2px" }}>No customers yet</div>
+                    <div style={{ fontSize:"12px", color:"#aaa" }}>Import from your phone contacts or add manually</div>
+                  </div>
+                  <button onClick={() => setTab("Customers")}
+                    style={{ padding:"8px 14px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"12px", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
+                    Add customers
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── ROW 5: REVENUE TREND ── */}
+          {data.monthlyRevenue.some((m) => m.value > 0) ? (
+            <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"20px" }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"16px" }}>
+                <div style={{ fontSize:"15px", fontWeight:800, color:DARK }}>Revenue — last 6 months</div>
+                <div style={{ fontSize:"13px", fontWeight:700, color: revenueUp ? "#5a9a00" : "#cc3300" }}>
+                  {revenueUp ? "▲" : "▼"} {data.lastMonthRevenue > 0 ? `${Math.abs(Math.round(((data.thisMonthRevenue - data.lastMonthRevenue) / data.lastMonthRevenue) * 100))}% vs last month` : "First month"}
+                </div>
+              </div>
+              {(() => {
+                const max = Math.max(...data.monthlyRevenue.map((m) => m.value), 1);
+                return (
+                  <div style={{ display:"flex", alignItems:"flex-end", gap:"8px", height:"80px" }}>
+                    {data.monthlyRevenue.map((m, i) => {
+                      const isLast = i === data.monthlyRevenue.length - 1;
+                      const h = Math.max((m.value / max) * 72, m.value > 0 ? 6 : 2);
+                      return (
+                        <div key={m.label} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:"6px" }}>
+                          <div style={{ fontSize:"10px", color:"#888", fontWeight:700 }}>
+                            {m.value > 0 ? `R${m.value >= 1000 ? Math.round(m.value/1000)+"k" : m.value}` : ""}
+                          </div>
+                          <div style={{ width:"100%", height:`${h}px`, borderRadius:"6px 6px 0 0", background: isLast ? LIME : "#e0e0dc", transition:"height 0.3s" }} />
+                          <div style={{ fontSize:"10px", color: isLast ? DARK : "#bbb", fontWeight: isLast ? 800 : 500 }}>{m.label}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          ) : (
+            <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"20px" }}>
+              <div style={{ fontSize:"15px", fontWeight:800, color:DARK, marginBottom:"12px" }}>Revenue trend</div>
+              <div style={{ background:"#f8f8f6", borderRadius:"14px", padding:"20px", textAlign:"center" }}>
+                <div style={{ fontSize:"13px", color:"#888", marginBottom:"14px", lineHeight:1.6 }}>
+                  No revenue logged yet. Mark bookings as done or log sales on customers to start tracking.
+                </div>
+                <div style={{ display:"flex", gap:"8px", justifyContent:"center", flexWrap:"wrap" }}>
+                  <button onClick={() => setTab("Bookings")}
+                    style={{ padding:"8px 16px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
+                    Go to bookings
+                  </button>
+                  <button onClick={() => setTab("Customers")}
+                    style={{ padding:"8px 16px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
+                    Log a sale
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </>
+      )}
     </div>
   );
 }
