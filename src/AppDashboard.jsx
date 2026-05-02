@@ -605,7 +605,8 @@ function DashboardHome({ user, business, setTab }) {
       // ── REVENUE — booking revenue only, clear and simple ──
       const thisMonthRevenue = doneBookings
         .filter((b) => b.booking_date >= thisMonthStart)
-        .reduce((s, b) => s + (b.price || 0), 0);
+        .reduce((s, b) => s + (b.price || 0), 0)
+        + (customers || []).reduce((s, c) => s + (c.total_spent || 0), 0);
 
       const lastMonthRevenue = doneBookings
         .filter((b) => b.booking_date >= lastMonthStart && b.booking_date <= lastMonthEnd)
@@ -615,6 +616,7 @@ function DashboardHome({ user, business, setTab }) {
       const totalEarned =
         doneBookings.reduce((s, b) => s + (b.price || 0), 0) +
         (customers || []).reduce((s, c) => s + (c.total_spent || 0), 0);
+      // Note: thisMonthRevenue already includes total_spent so monthly comparison may be approximate
 
       // ── NEEDS CONTACT ──
       const needsContact = (customers || []).filter((c) => {
@@ -668,7 +670,7 @@ function DashboardHome({ user, business, setTab }) {
 
       // ── SMART CONTEXTUAL BANNER ──
       // Pick the single most relevant thing happening right now
-      const celebrationKey = `vula_celebrated_${business.id}`;
+      const celebrationKey = `vula_celebrated_${business.id}_${(customers||[])[0]?.business_id || business.id}`;
       const celebrated = JSON.parse(localStorage.getItem(celebrationKey) || "{}");
       let newCelebration = null;
 
@@ -782,7 +784,7 @@ function DashboardHome({ user, business, setTab }) {
       {/* ── HEADER ── */}
       <div>
         <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>
-          {greeting()}{business?.name ? `, ${business.name.split(" ")[0]}` : ""}
+          {greeting()}{business?.owner ? `, ${business.owner.split(" ")[0]}` : business?.name ? `, ${business.name.split(" ")[0]}` : ""}
         </h2>
         <p style={{ fontSize:"13px", color:"#aaa" }}>
           {new Date().toLocaleDateString("en-ZA", { weekday:"long", day:"numeric", month:"long" })}
