@@ -1110,10 +1110,10 @@ function formatPhone(raw) {
 
 // ── STATUS CONFIG ──────────────────────────────────────────
 const CUSTOMER_STATUSES = [
-  { value: "lead",    label: "Lead",    color: "#f59e0b", bg: "#fffbeb", border: "#fcd34d", desc: "Interested but hasn't booked yet" },
-  { value: "new",     label: "New",     color: "#3b82f6", bg: "#eff6ff", border: "#93c5fd", desc: "Booked once" },
-  { value: "regular", label: "Regular", color: "#10b981", bg: "#ecfdf5", border: "#6ee7b7", desc: "Comes back regularly" },
-  { value: "vip",     label: "VIP ⭐",  color: "#7a5e00", bg: "#fef9c3", border: "#f0d000", desc: "Your best customers" },
+  { value: "lead",    label: "Lead",    color: "#666",    bg: "#f5f5f3", border: "#d8d8d4", desc: "Interested but hasn't booked yet" },
+  { value: "new",     label: "New",     color: "#444",    bg: "#eeeeea", border: "#c8c8c4", desc: "Booked once" },
+  { value: "regular", label: "Regular", color: "#1a1a1a", bg: "#e0e0dc", border: "#b8b8b4", desc: "Comes back regularly" },
+  { value: "vip",     label: "VIP",     color: "#0d0d0d", bg: "#a3e635", border: "#8bc620", desc: "Your best customers" },
 ];
 
 function statusConfig(val) {
@@ -1215,7 +1215,7 @@ function LogSaleModal({ customer, onClose, onLogged }) {
       <div style={{ background:"#fff", borderRadius:"24px", padding:"32px", width:"100%", maxWidth:"380px", boxShadow:"0 20px 60px rgba(0,0,0,0.25)" }}>
         <h3 style={{ fontSize:"18px", fontWeight:800, color:DARK, marginBottom:"4px" }}>Log a sale</h3>
         <p style={{ fontSize:"13px", color:"#aaa", marginBottom:"24px" }}>Payment from <strong>{customer.name}</strong></p>
-        {customer.status === "lead" && <div style={{ fontSize:"12px", color:"#f59e0b", background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:"8px", padding:"8px 12px", marginBottom:"16px" }}>💡 Logging a sale will automatically move them from Lead → New</div>}
+        {customer.status === "lead" && <div style={{ fontSize:"12px", color:"#555", background:"#f5f5f3", border:"1px solid #d8d8d4", borderRadius:"8px", padding:"8px 12px", marginBottom:"16px" }}>Logging a sale will automatically move them from Lead → New</div>}
         <label style={labelStyle}>Amount (R)</label>
         <input style={{ ...inputStyle, fontSize:"28px", fontWeight:800, marginBottom:"20px", textAlign:"center" }}
           type="number" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus />
@@ -1243,7 +1243,7 @@ function WhatsAppModal({ customer, onClose }) {
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:"24px" }}>
       <div style={{ background:"#fff", borderRadius:"24px", padding:"32px", width:"100%", maxWidth:"420px", boxShadow:"0 20px 60px rgba(0,0,0,0.25)" }}>
-        <h3 style={{ fontSize:"18px", fontWeight:800, color:DARK, marginBottom:"4px" }}>💬 Message {customer.name}</h3>
+        <h3 style={{ fontSize:"18px", fontWeight:800, color:DARK, marginBottom:"4px" }}>Message {customer.name}</h3>
         <p style={{ fontSize:"13px", color:"#aaa", marginBottom:"20px" }}>{customer.whatsapp}</p>
         <div style={{ display:"flex", flexWrap:"wrap", gap:"6px", marginBottom:"14px" }}>
           {TEMPLATES.map((t) => (
@@ -1393,8 +1393,8 @@ function CustomerCard({ customer, onEdit, onDelete, onLogSale, onWhatsApp, onSta
             <StatusBadge status={customer.status || "new"} small />
           </div>
           <div style={{ fontSize:"12px", color:"#aaa", display:"flex", gap:"10px", flexWrap:"wrap" }}>
-            {customer.whatsapp && <span>📱 {customer.whatsapp}</span>}
-            {customer.area && <span>📍 {customer.area}</span>}
+            {customer.whatsapp && <span>{customer.whatsapp}</span>}
+            {customer.area && <span>{customer.area}</span>}
           </div>
         </div>
         <div style={{ textAlign:"right", flexShrink:0 }}>
@@ -1447,16 +1447,16 @@ function CustomerCard({ customer, onEdit, onDelete, onLogSale, onWhatsApp, onSta
             {customer.whatsapp && (
               <button onClick={() => onWhatsApp(customer)}
                 style={{ display:"flex", alignItems:"center", gap:"5px", padding:"8px 14px", borderRadius:"10px", border:"none", background:"#25d366", color:"#fff", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
-                💬 WhatsApp
+                WhatsApp
               </button>
             )}
             <button onClick={() => onLogSale(customer)}
               style={{ padding:"8px 14px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
-              💰 Log sale
+              Log sale
             </button>
             <button onClick={() => onEdit(customer)}
               style={{ padding:"8px 14px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
-              ✏️ Edit
+              Edit
             </button>
             <button onClick={() => onDelete(customer)}
               style={{ padding:"8px 14px", borderRadius:"10px", border:"1.5px solid #ffd0d0", background:"#fff5f5", color:"#cc3300", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
@@ -1652,7 +1652,7 @@ function CustomersTab({ business }) {
           {CONTACT_PICKER_SUPPORTED && (
             <button onClick={handleImportPhone}
               style={{ padding:"10px 16px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"13px", fontWeight:700, cursor:"pointer" }}>
-              📱 Import from phone
+              Import contacts
             </button>
           )}
           <button onClick={() => setMode("add")}
@@ -1728,7 +1728,7 @@ function CustomersTab({ business }) {
             {CONTACT_PICKER_SUPPORTED && (
               <button onClick={handleImportPhone}
                 style={{ backgroundColor:LIME, color:DARK, border:"none", borderRadius:"12px", padding:"13px 20px", fontSize:"14px", fontWeight:700, cursor:"pointer" }}>
-                📱 Import from phone contacts
+                Import contacts contacts
               </button>
             )}
             <button onClick={() => setMode("add")}
