@@ -3104,30 +3104,66 @@ export default function AppDashboard({ onBack }) {
 
   return (
     <div style={{ minHeight:"100vh", background:"#f5f5f3", fontFamily:"'Inter', -apple-system, sans-serif" }}>
-      <div style={{ background:"#fff", borderBottom:"1px solid #eeeeea", padding:"14px 28px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+      {/* ── TOP NAV ── */}
+      <div style={{ background:"#fff", borderBottom:"1px solid #eeeeea", padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:50 }}>
         <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
-          <div style={{ width:"36px", height:"36px", background:DARK, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"11px", fontWeight:900, color:LIME }}>VT</div>
-          <span style={{ fontSize:"15px", fontWeight:800, color:DARK }}>VulaTrade</span>
-          {business?.name && <span style={{ fontSize:"13px", color:"#bbb", marginLeft:"4px" }}>· {business.name}</span>}
+          <div style={{ width:"32px", height:"32px", background:DARK, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"10px", fontWeight:900, color:LIME }}>VT</div>
+          <span style={{ fontSize:"14px", fontWeight:800, color:DARK }}>VulaTrade</span>
+          {business?.name && <span style={{ fontSize:"12px", color:"#bbb", marginLeft:"2px", display:"none" }} className="desktop-only">· {business.name}</span>}
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:"12px" }}>
-          <span style={{ fontSize:"13px", color:"#aaa" }}>{user.email}</span>
-          <button onClick={async () => { await supabase.auth.signOut(); onBack(); }} style={{ fontSize:"12px", color:"#888", background:"transparent", border:"1px solid #e0e0e0", borderRadius:"8px", padding:"6px 12px", cursor:"pointer" }}>Sign out</button>
-          <button onClick={onBack} style={{ fontSize:"12px", color:"#888", background:"transparent", border:"1px solid #e0e0e0", borderRadius:"8px", padding:"6px 12px", cursor:"pointer" }}>← Landing page</button>
+        <div style={{ display:"flex", alignItems:"center", gap:"8px" }}>
+          <button onClick={async () => { await supabase.auth.signOut(); onBack(); }}
+            style={{ fontSize:"12px", color:"#888", background:"transparent", border:"1px solid #e0e0e0", borderRadius:"8px", padding:"6px 10px", cursor:"pointer" }}>
+            Sign out
+          </button>
         </div>
       </div>
-      <div style={{ display:"flex", minHeight:"calc(100vh - 65px)" }}>
-        <div style={{ width:"200px", background:"#fff", borderRight:"1px solid #eeeeea", padding:"20px 12px", flexShrink:0 }}>
+
+      <div style={{ display:"flex", minHeight:"calc(100vh - 53px)" }}>
+        {/* ── DESKTOP SIDEBAR ── */}
+        <div style={{ width:"200px", background:"#fff", borderRight:"1px solid #eeeeea", padding:"16px 10px", flexShrink:0, display:"none" }} id="desktop-sidebar">
           {TABS.map((t) => (
-            <button key={t} onClick={() => setTab(t)} style={{ width:"100%", textAlign:"left", padding:"11px 14px", borderRadius:"10px", fontSize:"14px", fontWeight:tab===t?700:500, background:tab===t?DARK:"transparent", color:tab===t?LIME:"#555", border:"none", cursor:"pointer", marginBottom:"2px", display:"block" }}>
+            <button key={t} onClick={() => setTab(t)}
+              style={{ width:"100%", textAlign:"left", padding:"10px 14px", borderRadius:"10px", fontSize:"13px", fontWeight:tab===t?700:500, background:tab===t?DARK:"transparent", color:tab===t?LIME:"#555", border:"none", cursor:"pointer", marginBottom:"2px", display:"block" }}>
               {t}
             </button>
           ))}
         </div>
-        <div style={{ flex:1, padding:"36px 40px", overflowY:"auto" }}>
+
+        {/* ── MAIN CONTENT ── */}
+        <div style={{ flex:1, padding:"20px 16px", overflowY:"auto", paddingBottom:"80px" }}>
           {renderTab()}
         </div>
       </div>
+
+      {/* ── MOBILE BOTTOM TAB BAR ── */}
+      <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"#fff", borderTop:"1px solid #eeeeea", display:"flex", zIndex:100, paddingBottom:"env(safe-area-inset-bottom)" }}>
+        {["Dashboard","Customers","Bookings","Messages","Setup"].map((t) => {
+          const ICONS = { Dashboard:"Home", Customers:"People", Bookings:"Book", Messages:"Msg", Setup:"Setup" };
+          const active = tab === t;
+          return (
+            <button key={t} onClick={() => setTab(t)}
+              style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"8px 4px", border:"none", background:"transparent", cursor:"pointer", gap:"3px" }}>
+              <div style={{ fontSize:"10px", fontWeight:700, lineHeight:1, color: active ? DARK : "#ccc" }}>
+                {ICONS[t]}
+              </div>
+              <div style={{ fontSize:"10px", fontWeight: active ? 800 : 500, color: active ? DARK : "#aaa", lineHeight:1 }}>
+                {t}
+              </div>
+              {active && <div style={{ width:"4px", height:"4px", borderRadius:"50%", background:LIME, marginTop:"1px" }} />}
+            </button>
+          );
+        })}
+      </div>
+
+      <style>{`
+        @media (min-width: 768px) {
+          #desktop-sidebar { display: block !important; }
+        }
+        @media (max-width: 767px) {
+          #desktop-sidebar { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 }
