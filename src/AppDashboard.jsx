@@ -1108,6 +1108,36 @@ function formatPhone(raw) {
   return raw.trim();
 }
 
+// ── STATUS CONFIG ──────────────────────────────────────────
+const CUSTOMER_STATUSES = [
+  { value: "lead",    label: "Lead",    color: "#f59e0b", bg: "#fffbeb", border: "#fcd34d", desc: "Interested but hasn't booked yet" },
+  { value: "new",     label: "New",     color: "#3b82f6", bg: "#eff6ff", border: "#93c5fd", desc: "Booked once" },
+  { value: "regular", label: "Regular", color: "#10b981", bg: "#ecfdf5", border: "#6ee7b7", desc: "Comes back regularly" },
+  { value: "vip",     label: "VIP ⭐",  color: "#7a5e00", bg: "#fef9c3", border: "#f0d000", desc: "Your best customers" },
+];
+
+function statusConfig(val) {
+  return CUSTOMER_STATUSES.find((s) => s.value === val) || CUSTOMER_STATUSES[1];
+}
+
+function StatusBadge({ status, small }) {
+  const s = statusConfig(status);
+  return (
+    <span style={{
+      fontSize: small ? "10px" : "11px",
+      fontWeight: 700,
+      color: s.color,
+      background: s.bg,
+      border: `1px solid ${s.border}`,
+      borderRadius: "6px",
+      padding: small ? "1px 6px" : "2px 8px",
+      whiteSpace: "nowrap",
+    }}>
+      {s.label}
+    </span>
+  );
+}
+
 // ── CONTACT PICKER ─────────────────────────────────────────
 const CONTACT_PICKER_SUPPORTED =
   typeof navigator !== "undefined" &&
@@ -1130,24 +1160,15 @@ async function pickFromContacts() {
 // ── IMPORT PREVIEW MODAL ───────────────────────────────────
 function ImportPreviewModal({ contacts, onConfirm, onCancel, importing }) {
   const [selected, setSelected] = useState(() => new Set(contacts.map((_, i) => i)));
-
   function toggle(i) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.has(i) ? next.delete(i) : next.add(i);
-      return next;
-    });
+    setSelected((prev) => { const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next; });
   }
-
   const toImport = contacts.filter((_, i) => selected.has(i));
-
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:"24px" }}>
       <div style={{ background:"#fff", borderRadius:"24px", padding:"28px", width:"100%", maxWidth:"460px", boxShadow:"0 20px 60px rgba(0,0,0,0.25)", maxHeight:"80vh", display:"flex", flexDirection:"column" }}>
         <h3 style={{ fontSize:"18px", fontWeight:800, color:DARK, marginBottom:"4px" }}>Import contacts</h3>
-        <p style={{ fontSize:"13px", color:"#aaa", marginBottom:"16px" }}>
-          {contacts.length} contact{contacts.length !== 1 ? "s" : ""} found — tap to deselect any you don't want
-        </p>
+        <p style={{ fontSize:"13px", color:"#aaa", marginBottom:"16px" }}>{contacts.length} found — deselect any you don't want</p>
         <div style={{ overflowY:"auto", flex:1, display:"flex", flexDirection:"column", gap:"6px", marginBottom:"16px" }}>
           {contacts.map((c, i) => (
             <div key={i} onClick={() => toggle(i)}
@@ -1167,10 +1188,7 @@ function ImportPreviewModal({ contacts, onConfirm, onCancel, importing }) {
             style={{ flex:1, backgroundColor:toImport.length > 0 ? LIME : "#e0e0e0", color:toImport.length > 0 ? DARK : "#aaa", border:"none", borderRadius:"12px", padding:"13px", fontSize:"14px", fontWeight:800, cursor:toImport.length > 0 ? "pointer" : "not-allowed" }}>
             {importing ? "Importing…" : `Import ${toImport.length} contact${toImport.length !== 1 ? "s" : ""}`}
           </button>
-          <button onClick={onCancel}
-            style={{ padding:"13px 18px", borderRadius:"12px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#888", fontSize:"14px", cursor:"pointer" }}>
-            Cancel
-          </button>
+          <button onClick={onCancel} style={{ padding:"13px 18px", borderRadius:"12px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#888", fontSize:"14px", cursor:"pointer" }}>Cancel</button>
         </div>
       </div>
     </div>
@@ -1181,44 +1199,32 @@ function ImportPreviewModal({ contacts, onConfirm, onCancel, importing }) {
 function LogSaleModal({ customer, onClose, onLogged }) {
   const [amount, setAmount] = useState("");
   const [saving, setSaving] = useState(false);
-
   async function handleLog() {
     const val = parseFloat(amount);
     if (!val) return;
     setSaving(true);
-    const { data } = await supabase
-      .from("customers")
-      .update({
-        total_spent: (customer.total_spent || 0) + val,
-        visit_count: (customer.visit_count || 0) + 1,
-        last_contacted: new Date().toISOString(),
-      })
-      .eq("id", customer.id)
-      .select()
-      .single();
+    const { data } = await supabase.from("customers")
+      .update({ total_spent:(customer.total_spent||0)+val, visit_count:(customer.visit_count||0)+1, last_contacted:new Date().toISOString(), status: customer.status === "lead" ? "new" : customer.status })
+      .eq("id", customer.id).select().single();
     if (data) onLogged(data);
     setSaving(false);
     onClose();
   }
-
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:"24px" }}>
       <div style={{ background:"#fff", borderRadius:"24px", padding:"32px", width:"100%", maxWidth:"380px", boxShadow:"0 20px 60px rgba(0,0,0,0.25)" }}>
         <h3 style={{ fontSize:"18px", fontWeight:800, color:DARK, marginBottom:"4px" }}>Log a sale</h3>
-        <p style={{ fontSize:"13px", color:"#aaa", marginBottom:"24px" }}>Recording a payment for <strong>{customer.name}</strong></p>
+        <p style={{ fontSize:"13px", color:"#aaa", marginBottom:"24px" }}>Payment from <strong>{customer.name}</strong></p>
+        {customer.status === "lead" && <div style={{ fontSize:"12px", color:"#f59e0b", background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:"8px", padding:"8px 12px", marginBottom:"16px" }}>💡 Logging a sale will automatically move them from Lead → New</div>}
         <label style={labelStyle}>Amount (R)</label>
         <input style={{ ...inputStyle, fontSize:"28px", fontWeight:800, marginBottom:"20px", textAlign:"center" }}
-          type="number" placeholder="0" value={amount}
-          onChange={(e) => setAmount(e.target.value)} autoFocus />
+          type="number" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus />
         <div style={{ display:"flex", gap:"8px" }}>
           <button onClick={handleLog} disabled={!amount || saving}
             style={{ flex:1, backgroundColor:amount ? LIME : "#e0e0e0", color:amount ? DARK : "#aaa", border:"none", borderRadius:"12px", padding:"13px", fontSize:"14px", fontWeight:800, cursor:amount ? "pointer" : "not-allowed" }}>
             {saving ? "Saving…" : "Log sale"}
           </button>
-          <button onClick={onClose}
-            style={{ padding:"13px 18px", borderRadius:"12px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#888", fontSize:"14px", cursor:"pointer" }}>
-            Cancel
-          </button>
+          <button onClick={onClose} style={{ padding:"13px 18px", borderRadius:"12px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#888", fontSize:"14px", cursor:"pointer" }}>Cancel</button>
         </div>
       </div>
     </div>
@@ -1228,13 +1234,12 @@ function LogSaleModal({ customer, onClose, onLogged }) {
 // ── WHATSAPP MODAL ─────────────────────────────────────────
 function WhatsAppModal({ customer, onClose }) {
   const TEMPLATES = [
-    { label: "Check in",     text: `Hi ${customer.name}! 👋 Just checking in — is there anything I can help you with?` },
-    { label: "Follow up",    text: `Hi ${customer.name}! Just wanted to follow up — hope everything went well. Would love to have you back! 😊` },
-    { label: "Special offer",text: `Hi ${customer.name}! 🎉 I have a special offer just for you this week. Reply to find out more!` },
-    { label: "Reminder",     text: `Hi ${customer.name}! Just a reminder about your upcoming appointment. See you soon! 😊` },
+    { label:"Check in",      text:`Hi ${customer.name}! 👋 Just checking in — is there anything I can help you with?` },
+    { label:"Follow up",     text:`Hi ${customer.name}! Just wanted to follow up — hope everything went well. Would love to have you back! 😊` },
+    { label:"Special offer", text:`Hi ${customer.name}! 🎉 I have a special offer just for you this week. Reply to find out more!` },
+    { label:"Reminder",      text:`Hi ${customer.name}! Just a reminder about your upcoming appointment. See you soon! 😊` },
   ];
   const [message, setMessage] = useState(TEMPLATES[0].text);
-
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:"24px" }}>
       <div style={{ background:"#fff", borderRadius:"24px", padding:"32px", width:"100%", maxWidth:"420px", boxShadow:"0 20px 60px rgba(0,0,0,0.25)" }}>
@@ -1243,7 +1248,7 @@ function WhatsAppModal({ customer, onClose }) {
         <div style={{ display:"flex", flexWrap:"wrap", gap:"6px", marginBottom:"14px" }}>
           {TEMPLATES.map((t) => (
             <button key={t.label} onClick={() => setMessage(t.text)}
-              style={{ padding:"6px 12px", borderRadius:"999px", fontSize:"12px", fontWeight:600, cursor:"pointer", border:"1.5px solid", background:message === t.text ? DARK : "#fff", color:message === t.text ? LIME : "#555", borderColor:message === t.text ? DARK : "#e0e0e0" }}>
+              style={{ padding:"6px 12px", borderRadius:"999px", fontSize:"12px", fontWeight:600, cursor:"pointer", border:"1.5px solid", background:message===t.text?DARK:"#fff", color:message===t.text?LIME:"#555", borderColor:message===t.text?DARK:"#e0e0e0" }}>
               {t.label}
             </button>
           ))}
@@ -1255,10 +1260,7 @@ function WhatsAppModal({ customer, onClose }) {
             style={{ flex:1, display:"block", backgroundColor:"#25d366", color:"#fff", textAlign:"center", padding:"13px", fontSize:"14px", fontWeight:800, borderRadius:"12px", textDecoration:"none" }}>
             Open WhatsApp →
           </a>
-          <button onClick={onClose}
-            style={{ padding:"13px 18px", borderRadius:"12px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#888", fontSize:"14px", cursor:"pointer" }}>
-            Cancel
-          </button>
+          <button onClick={onClose} style={{ padding:"13px 18px", borderRadius:"12px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#888", fontSize:"14px", cursor:"pointer" }}>Cancel</button>
         </div>
       </div>
     </div>
@@ -1266,39 +1268,96 @@ function WhatsAppModal({ customer, onClose }) {
 }
 
 // ── CUSTOMER FORM ──────────────────────────────────────────
-function CustomerForm({ initial = {}, onSave, onCancel, saving }) {
+function CustomerForm({ initial = {}, onSave, onCancel, saving, businessProducts }) {
   const [form, setForm] = useState({
-    name:     initial.name     || "",
-    whatsapp: initial.whatsapp || "",
-    area:     initial.area     || "",
-    notes:    initial.notes    || "",
+    name:          initial.name          || "",
+    whatsapp:      initial.whatsapp      || "",
+    area:          initial.area          || "",
+    notes:         initial.notes         || "",
+    status:        initial.status        || "new",
+    interested_in: initial.interested_in || [],
   });
   function upd(k, v) { setForm((p) => ({ ...p, [k]: v })); }
+
+  function toggleProduct(productName) {
+    setForm((p) => ({
+      ...p,
+      interested_in: p.interested_in.includes(productName)
+        ? p.interested_in.filter((x) => x !== productName)
+        : [...p.interested_in, productName],
+    }));
+  }
+
   const valid = form.name.trim().length > 0;
 
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:"14px" }}>
+    <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
+
+      {/* Status */}
+      <div>
+        <label style={labelStyle}>Status</label>
+        <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
+          {CUSTOMER_STATUSES.map((s) => (
+            <button key={s.value} onClick={() => upd("status", s.value)}
+              title={s.desc}
+              style={{ padding:"8px 14px", borderRadius:"999px", fontSize:"13px", fontWeight:700, cursor:"pointer", border:`1.5px solid ${form.status===s.value ? s.border : "#e0e0e0"}`, background:form.status===s.value ? s.bg : "#fff", color:form.status===s.value ? s.color : "#888" }}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <div style={{ fontSize:"11px", color:"#bbb", marginTop:"5px" }}>{statusConfig(form.status).desc}</div>
+      </div>
+
       <div>
         <label style={labelStyle}>Name *</label>
-        <input style={inputStyle} placeholder="Customer name" value={form.name}
-          onChange={(e) => upd("name", e.target.value)} autoFocus />
+        <input style={inputStyle} placeholder="Customer name" value={form.name} onChange={(e) => upd("name", e.target.value)} autoFocus />
       </div>
       <div>
         <label style={labelStyle}>WhatsApp number</label>
-        <input style={inputStyle} placeholder="+27 82 000 0000" value={form.whatsapp}
-          onChange={(e) => upd("whatsapp", e.target.value)} />
+        <input style={inputStyle} placeholder="+27 82 000 0000" value={form.whatsapp} onChange={(e) => upd("whatsapp", e.target.value)} />
       </div>
       <div>
         <label style={labelStyle}>Area / Neighbourhood</label>
-        <input style={inputStyle} placeholder="e.g. Soweto, Sandton" value={form.area}
-          onChange={(e) => upd("area", e.target.value)} />
+        <input style={inputStyle} placeholder="e.g. Soweto, Sandton" value={form.area} onChange={(e) => upd("area", e.target.value)} />
       </div>
+
+      {/* Product interest — only show if business has products */}
+      {businessProducts && businessProducts.length > 0 && (
+        <div>
+          <label style={labelStyle}>Interested in</label>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:"8px" }}>
+            {businessProducts.map((p) => {
+              const selected = form.interested_in.includes(p.name);
+              const imgVal = p.image || p.icon || "🛍️";
+              const isUrl  = imgVal.startsWith("http");
+              return (
+                <button key={p.id} onClick={() => toggleProduct(p.name)}
+                  style={{ display:"flex", alignItems:"center", gap:"8px", padding:"8px 14px", borderRadius:"12px", border:`1.5px solid ${selected ? LIME : "#e0e0e0"}`, background:selected ? "#f7ffe0" : "#fff", cursor:"pointer" }}>
+                  {isUrl
+                    ? <img src={imgVal} alt="" style={{ width:"20px", height:"20px", borderRadius:"5px", objectFit:"cover" }} />
+                    : <span style={{ fontSize:"16px" }}>{imgVal}</span>
+                  }
+                  <span style={{ fontSize:"13px", fontWeight:700, color:selected ? "#3a6b00" : "#555" }}>{p.name}</span>
+                  {selected && <span style={{ fontSize:"11px", color:LIME }}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+          {form.interested_in.length > 0 && (
+            <div style={{ fontSize:"11px", color:"#5a9a00", marginTop:"5px" }}>
+              {form.interested_in.length} service{form.interested_in.length !== 1 ? "s" : ""} selected
+            </div>
+          )}
+        </div>
+      )}
+
       <div>
         <label style={labelStyle}>Notes</label>
         <textarea style={{ ...inputStyle, minHeight:"72px", resize:"vertical" }}
           placeholder="Allergies, preferences, anything useful…"
           value={form.notes} onChange={(e) => upd("notes", e.target.value)} />
       </div>
+
       <div style={{ display:"flex", gap:"8px" }}>
         <button onClick={() => onSave(form)} disabled={!valid || saving}
           style={{ flex:1, backgroundColor:valid ? LIME : "#e0e0e0", color:valid ? DARK : "#aaa", border:"none", borderRadius:"12px", padding:"13px", fontSize:"14px", fontWeight:800, cursor:valid ? "pointer" : "not-allowed" }}>
@@ -1314,23 +1373,26 @@ function CustomerForm({ initial = {}, onSave, onCancel, saving }) {
 }
 
 // ── CUSTOMER CARD ──────────────────────────────────────────
-function CustomerCard({ customer, onEdit, onDelete, onToggleVIP, onLogSale, onWhatsApp }) {
+function CustomerCard({ customer, onEdit, onDelete, onLogSale, onWhatsApp, onStatusChange }) {
   const [expanded, setExpanded] = useState(false);
   const initials = customer.name.split(" ").slice(0, 2).map((w) => w[0]?.toUpperCase() || "").join("");
+  const s = statusConfig(customer.status || "new");
 
   return (
-    <div style={{ background:"#fff", border:`1.5px solid ${customer.is_vip ? "#f0d000" : "#e8e8e4"}`, borderRadius:"16px", overflow:"hidden" }}>
+    <div style={{ background:"#fff", border:`1.5px solid ${s.border}`, borderRadius:"16px", overflow:"hidden" }}>
+      {/* Main row */}
       <div style={{ padding:"14px 18px", display:"flex", alignItems:"center", gap:"14px", cursor:"pointer" }}
         onClick={() => setExpanded((x) => !x)}>
-        <div style={{ width:"44px", height:"44px", borderRadius:"50%", background:customer.is_vip ? "#fef9c3" : "#f0f0ee", border:`2px solid ${customer.is_vip ? "#f0d000" : "#e0e0dc"}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"15px", fontWeight:800, color:customer.is_vip ? "#7a5e00" : "#555", flexShrink:0 }}>
-          {customer.is_vip ? "⭐" : initials}
+        {/* Avatar */}
+        <div style={{ width:"44px", height:"44px", borderRadius:"50%", background:s.bg, border:`2px solid ${s.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"15px", fontWeight:800, color:s.color, flexShrink:0 }}>
+          {initials}
         </div>
         <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:"6px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:"6px", marginBottom:"3px" }}>
             <span style={{ fontSize:"15px", fontWeight:700, color:DARK, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{customer.name}</span>
-            {customer.is_vip && <span style={{ fontSize:"10px", fontWeight:700, color:"#7a5e00", background:"#fef9c3", border:"1px solid #f0d000", borderRadius:"6px", padding:"1px 6px", flexShrink:0 }}>VIP</span>}
+            <StatusBadge status={customer.status || "new"} small />
           </div>
-          <div style={{ fontSize:"12px", color:"#aaa", marginTop:"2px", display:"flex", gap:"10px", flexWrap:"wrap" }}>
+          <div style={{ fontSize:"12px", color:"#aaa", display:"flex", gap:"10px", flexWrap:"wrap" }}>
             {customer.whatsapp && <span>📱 {customer.whatsapp}</span>}
             {customer.area && <span>📍 {customer.area}</span>}
           </div>
@@ -1342,13 +1404,45 @@ function CustomerCard({ customer, onEdit, onDelete, onToggleVIP, onLogSale, onWh
         <span style={{ fontSize:"12px", color:"#ccc", marginLeft:"4px" }}>{expanded ? "▲" : "▼"}</span>
       </div>
 
+      {/* Expanded */}
       {expanded && (
         <div style={{ borderTop:"1px solid #f5f5f5", padding:"14px 18px", background:"#fafafa" }}>
+
+          {/* Interested in */}
+          {customer.interested_in && customer.interested_in.length > 0 && (
+            <div style={{ marginBottom:"12px" }}>
+              <div style={{ fontSize:"11px", color:"#aaa", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"6px" }}>Interested in</div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:"6px" }}>
+                {customer.interested_in.map((item) => (
+                  <span key={item} style={{ fontSize:"12px", fontWeight:600, color:"#3a6b00", background:"#f7ffe0", border:"1px solid #c3e66a", borderRadius:"8px", padding:"3px 10px" }}>
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Notes */}
           {customer.notes && (
-            <div style={{ fontSize:"13px", color:"#666", background:"#fff", border:"1px solid #eeeeea", borderRadius:"10px", padding:"10px 14px", marginBottom:"14px", lineHeight:1.6 }}>
+            <div style={{ fontSize:"13px", color:"#666", background:"#fff", border:"1px solid #eeeeea", borderRadius:"10px", padding:"10px 14px", marginBottom:"12px", lineHeight:1.6 }}>
               {customer.notes}
             </div>
           )}
+
+          {/* Status quick-change */}
+          <div style={{ marginBottom:"12px" }}>
+            <div style={{ fontSize:"11px", color:"#aaa", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"6px" }}>Move to</div>
+            <div style={{ display:"flex", gap:"6px", flexWrap:"wrap" }}>
+              {CUSTOMER_STATUSES.filter((st) => st.value !== (customer.status || "new")).map((st) => (
+                <button key={st.value} onClick={() => onStatusChange(customer, st.value)}
+                  style={{ padding:"5px 12px", borderRadius:"999px", fontSize:"12px", fontWeight:700, cursor:"pointer", border:`1.5px solid ${st.border}`, background:st.bg, color:st.color }}>
+                  → {st.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Actions */}
           <div style={{ display:"flex", gap:"6px", flexWrap:"wrap" }}>
             {customer.whatsapp && (
               <button onClick={() => onWhatsApp(customer)}
@@ -1360,10 +1454,6 @@ function CustomerCard({ customer, onEdit, onDelete, onToggleVIP, onLogSale, onWh
               style={{ padding:"8px 14px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
               💰 Log sale
             </button>
-            <button onClick={() => onToggleVIP(customer)}
-              style={{ padding:"8px 14px", borderRadius:"10px", border:`1.5px solid ${customer.is_vip ? "#f0d000" : "#e0e0e0"}`, background:customer.is_vip ? "#fef9c3" : "#fff", color:customer.is_vip ? "#7a5e00" : "#555", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
-              {customer.is_vip ? "★ VIP" : "☆ Mark VIP"}
-            </button>
             <button onClick={() => onEdit(customer)}
               style={{ padding:"8px 14px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
               ✏️ Edit
@@ -1373,6 +1463,8 @@ function CustomerCard({ customer, onEdit, onDelete, onToggleVIP, onLogSale, onWh
               Delete
             </button>
           </div>
+
+          {/* Stats */}
           {(customer.visit_count > 0 || customer.total_spent > 0) && (
             <div style={{ display:"flex", gap:"20px", marginTop:"14px", paddingTop:"14px", borderTop:"1px solid #f0f0f0" }}>
               <div>
@@ -1381,7 +1473,7 @@ function CustomerCard({ customer, onEdit, onDelete, onToggleVIP, onLogSale, onWh
               </div>
               <div>
                 <div style={{ fontSize:"11px", color:"#aaa", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.05em" }}>Total spent</div>
-                <div style={{ fontSize:"20px", fontWeight:800, color:DARK }}>R{(customer.total_spent || 0).toLocaleString()}</div>
+                <div style={{ fontSize:"20px", fontWeight:800, color:DARK }}>R{(customer.total_spent||0).toLocaleString()}</div>
               </div>
               {customer.last_contacted && (
                 <div>
@@ -1399,43 +1491,49 @@ function CustomerCard({ customer, onEdit, onDelete, onToggleVIP, onLogSale, onWh
 
 // ── MAIN CUSTOMERS TAB ─────────────────────────────────────
 function CustomersTab({ business }) {
-  const [customers, setCustomers]     = useState([]);
-  const [loading, setLoading]         = useState(true);
-  const [search, setSearch]           = useState("");
-  const [filterVIP, setFilterVIP]     = useState(false);
-  const [sortBy, setSortBy]           = useState("recent");
-  const [mode, setMode]               = useState("list");
-  const [editTarget, setEditTarget]   = useState(null);
-  const [saving, setSaving]           = useState(false);
-  const [logSaleFor, setLogSaleFor]   = useState(null);
-  const [whatsAppFor, setWhatsAppFor] = useState(null);
+  const [customers, setCustomers]       = useState([]);
+  const [businessProducts, setBusinessProducts] = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [search, setSearch]             = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [sortBy, setSortBy]             = useState("recent");
+  const [mode, setMode]                 = useState("list");
+  const [editTarget, setEditTarget]     = useState(null);
+  const [saving, setSaving]             = useState(false);
+  const [logSaleFor, setLogSaleFor]     = useState(null);
+  const [whatsAppFor, setWhatsAppFor]   = useState(null);
   const [importContacts, setImportContacts] = useState(null);
-  const [importing, setImporting]     = useState(false);
-  const [toast, setToast]             = useState("");
+  const [importing, setImporting]       = useState(false);
+  const [toast, setToast]               = useState("");
 
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(""), 2800); }
 
   // ── LOAD ───────────────────────────────────────────────────
   useEffect(() => {
     if (!business?.id) { setLoading(false); return; }
-    supabase.from("customers").select("*").eq("business_id", business.id)
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (error) console.error("Load customers error:", error);
-        if (data) setCustomers(data);
-        setLoading(false);
-      });
+    // Load customers and products in parallel
+    Promise.all([
+      supabase.from("customers").select("*").eq("business_id", business.id).order("created_at", { ascending: false }),
+      supabase.from("products").select("id,name,image").eq("business_id", business.id).eq("is_active", true),
+    ]).then(([{ data: custs, error: e1 }, { data: prods, error: e2 }]) => {
+      if (e1) console.error("Load customers:", e1);
+      if (e2) console.error("Load products:", e2);
+      if (custs) setCustomers(custs);
+      if (prods) setBusinessProducts(prods);
+      setLoading(false);
+    });
   }, [business?.id]);
 
-  // ── FILTERED + SORTED LIST ─────────────────────────────────
+  // ── FILTERED LIST ──────────────────────────────────────────
   const filtered = customers
     .filter((c) => {
       const q = search.toLowerCase();
-      const match = !q || c.name?.toLowerCase().includes(q) || c.whatsapp?.includes(q) || c.area?.toLowerCase().includes(q);
-      return match && (!filterVIP || c.is_vip);
+      const matchSearch = !q || c.name?.toLowerCase().includes(q) || c.whatsapp?.includes(q) || c.area?.toLowerCase().includes(q);
+      const matchStatus = filterStatus === "all" || (c.status || "new") === filterStatus;
+      return matchSearch && matchStatus;
     })
     .sort((a, b) => {
-      if (sortBy === "spent") return (b.total_spent || 0) - (a.total_spent || 0);
+      if (sortBy === "spent") return (b.total_spent||0) - (a.total_spent||0);
       if (sortBy === "name")  return a.name.localeCompare(b.name);
       return new Date(b.created_at) - new Date(a.created_at);
     });
@@ -1445,10 +1543,12 @@ function CustomersTab({ business }) {
     if (!business?.id) return;
     setSaving(true);
     const payload = {
-      name:     form.name.trim(),
-      whatsapp: formatPhone(form.whatsapp),
-      area:     form.area.trim(),
-      notes:    form.notes.trim(),
+      name:          form.name.trim(),
+      whatsapp:      formatPhone(form.whatsapp),
+      area:          form.area.trim(),
+      notes:         form.notes.trim(),
+      status:        form.status,
+      interested_in: form.interested_in,
     };
     if (editTarget) {
       const { data, error } = await supabase.from("customers").update(payload).eq("id", editTarget.id).select().single();
@@ -1474,10 +1574,12 @@ function CustomersTab({ business }) {
     showToast("Customer deleted");
   }
 
-  // ── VIP ────────────────────────────────────────────────────
-  async function handleToggleVIP(customer) {
-    const { data } = await supabase.from("customers").update({ is_vip: !customer.is_vip }).eq("id", customer.id).select().single();
+  // ── STATUS CHANGE ──────────────────────────────────────────
+  async function handleStatusChange(customer, newStatus) {
+    const { data } = await supabase.from("customers").update({ status: newStatus }).eq("id", customer.id).select().single();
     if (data) setCustomers((prev) => prev.map((c) => c.id === data.id ? data : c));
+    const s = statusConfig(newStatus);
+    showToast(`${customer.name} → ${s.label} ✓`);
   }
 
   // ── LOG SALE ───────────────────────────────────────────────
@@ -1486,31 +1588,28 @@ function CustomersTab({ business }) {
     showToast(`R${updated.total_spent?.toLocaleString()} total for ${updated.name} ✓`);
   }
 
-  // ── IMPORT FROM PHONE ──────────────────────────────────────
+  // ── IMPORT ─────────────────────────────────────────────────
   async function handleImportPhone() {
     const picked = await pickFromContacts();
-    if (!picked || picked.length === 0) {
-      showToast("No contacts selected.");
-      return;
-    }
+    if (!picked || picked.length === 0) { showToast("No contacts selected."); return; }
     setImportContacts(picked);
   }
 
-  // ── CONFIRM IMPORT ─────────────────────────────────────────
   async function handleConfirmImport(contacts) {
     if (!business?.id || contacts.length === 0) return;
     setImporting(true);
-    const rows = contacts.map((c) => ({ business_id: business.id, name: c.name || "Unknown", whatsapp: c.whatsapp || "" }));
+    const rows = contacts.map((c) => ({ business_id:business.id, name:c.name||"Unknown", whatsapp:c.whatsapp||"", status:"new", interested_in:[] }));
     const { data, error } = await supabase.from("customers").insert(rows).select();
     if (error) console.error("Import error:", error);
     if (data) setCustomers((prev) => [...data, ...prev]);
     setImporting(false);
     setImportContacts(null);
-    showToast(`${contacts.length} contact${contacts.length !== 1 ? "s" : ""} imported ✓`);
+    showToast(`${contacts.length} contact${contacts.length!==1?"s":""} imported ✓`);
   }
 
-  const totalSpent = customers.reduce((sum, c) => sum + (c.total_spent || 0), 0);
-  const vipCount   = customers.filter((c) => c.is_vip).length;
+  // ── STATS ──────────────────────────────────────────────────
+  const totalSpent  = customers.reduce((s, c) => s + (c.total_spent||0), 0);
+  const countByStatus = (st) => customers.filter((c) => (c.status||"new") === st).length;
 
   if (!business?.id) return (
     <div style={{ textAlign:"center", padding:"80px 24px" }}>
@@ -1522,7 +1621,7 @@ function CustomersTab({ business }) {
 
   // ── ADD / EDIT FORM ────────────────────────────────────────
   if (mode === "add" || mode === "edit") return (
-    <div style={{ maxWidth:"520px" }}>
+    <div style={{ maxWidth:"540px" }}>
       <button onClick={() => { setMode("list"); setEditTarget(null); }}
         style={{ background:"transparent", border:"none", fontSize:"13px", color:"#aaa", cursor:"pointer", padding:"0 0 16px" }}>
         ← Back
@@ -1530,29 +1629,31 @@ function CustomersTab({ business }) {
       <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"24px" }}>
         {mode === "edit" ? `Edit ${editTarget?.name}` : "Add customer"}
       </h2>
-      <CustomerForm initial={editTarget || {}} onSave={handleSave} onCancel={() => { setMode("list"); setEditTarget(null); }} saving={saving} />
+      <CustomerForm
+        initial={editTarget || {}}
+        onSave={handleSave}
+        onCancel={() => { setMode("list"); setEditTarget(null); }}
+        saving={saving}
+        businessProducts={businessProducts}
+      />
     </div>
   );
 
-  // ── LIST ───────────────────────────────────────────────────
+  // ── LIST VIEW ──────────────────────────────────────────────
   return (
     <div>
       {/* Header */}
       <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:"20px", flexWrap:"wrap", gap:"12px" }}>
         <div>
           <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Customers</h2>
-          <p style={{ fontSize:"13px", color:"#aaa" }}>{customers.length} total · R{totalSpent.toLocaleString()} earned · {vipCount} VIP</p>
+          <p style={{ fontSize:"13px", color:"#aaa" }}>{customers.length} total · R{totalSpent.toLocaleString()} earned</p>
         </div>
         <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
-          {CONTACT_PICKER_SUPPORTED ? (
+          {CONTACT_PICKER_SUPPORTED && (
             <button onClick={handleImportPhone}
               style={{ padding:"10px 16px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"13px", fontWeight:700, cursor:"pointer" }}>
               📱 Import from phone
             </button>
-          ) : (
-            <div style={{ fontSize:"12px", color:"#bbb", padding:"10px 0", alignSelf:"center" }}>
-              (Phone import available on Android Chrome)
-            </div>
           )}
           <button onClick={() => setMode("add")}
             style={{ padding:"10px 18px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"13px", fontWeight:700, cursor:"pointer" }}>
@@ -1561,14 +1662,34 @@ function CustomersTab({ business }) {
         </div>
       </div>
 
+      {/* Status strip */}
+      {customers.length > 0 && (
+        <div style={{ display:"flex", gap:"8px", marginBottom:"20px", flexWrap:"wrap" }}>
+          <button onClick={() => setFilterStatus("all")}
+            style={{ padding:"8px 14px", borderRadius:"999px", fontSize:"13px", fontWeight:700, cursor:"pointer", border:"1.5px solid", background:filterStatus==="all"?DARK:"#fff", color:filterStatus==="all"?"#fff":"#555", borderColor:filterStatus==="all"?DARK:"#e0e0e0" }}>
+            All ({customers.length})
+          </button>
+          {CUSTOMER_STATUSES.map((s) => {
+            const count = countByStatus(s.value);
+            if (count === 0) return null;
+            return (
+              <button key={s.value} onClick={() => setFilterStatus(filterStatus === s.value ? "all" : s.value)}
+                style={{ padding:"8px 14px", borderRadius:"999px", fontSize:"13px", fontWeight:700, cursor:"pointer", border:`1.5px solid ${filterStatus===s.value ? s.border : "#e0e0e0"}`, background:filterStatus===s.value ? s.bg : "#fff", color:filterStatus===s.value ? s.color : "#888" }}>
+                {s.label} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Stats */}
       {customers.length > 0 && (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(130px, 1fr))", gap:"10px", marginBottom:"20px" }}>
           {[
-            { label:"Total customers", value: customers.length },
-            { label:"VIP customers",   value: vipCount },
-            { label:"Total revenue",   value: `R${totalSpent.toLocaleString()}` },
-            { label:"Avg. spend",      value: customers.filter((c) => c.total_spent > 0).length ? `R${Math.round(totalSpent / customers.filter((c) => c.total_spent > 0).length).toLocaleString()}` : "—" },
+            { label:"Total",    value: customers.length },
+            { label:"Leads",    value: countByStatus("lead") },
+            { label:"Revenue",  value: `R${totalSpent.toLocaleString()}` },
+            { label:"Avg spend",value: customers.filter((c)=>c.total_spent>0).length ? `R${Math.round(totalSpent/customers.filter((c)=>c.total_spent>0).length).toLocaleString()}` : "—" },
           ].map((s) => (
             <div key={s.label} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"14px", padding:"16px" }}>
               <div style={{ fontSize:"10px", color:"#aaa", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"6px" }}>{s.label}</div>
@@ -1578,16 +1699,12 @@ function CustomersTab({ business }) {
         </div>
       )}
 
-      {/* Search + filter */}
+      {/* Search + sort */}
       {customers.length > 0 && (
         <div style={{ display:"flex", gap:"8px", marginBottom:"16px", flexWrap:"wrap" }}>
           <input style={{ ...inputStyle, flex:1, minWidth:"180px", padding:"10px 14px" }}
             placeholder="Search by name, number, area…"
             value={search} onChange={(e) => setSearch(e.target.value)} />
-          <button onClick={() => setFilterVIP((x) => !x)}
-            style={{ padding:"10px 14px", borderRadius:"10px", border:`1.5px solid ${filterVIP ? "#f0d000" : "#e0e0e0"}`, background:filterVIP ? "#fef9c3" : "#fff", color:filterVIP ? "#7a5e00" : "#555", fontSize:"13px", fontWeight:700, cursor:"pointer" }}>
-            {filterVIP ? "★ VIP only" : "☆ All"}
-          </button>
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
             style={{ padding:"10px 14px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", fontSize:"13px", fontWeight:600, color:"#555", cursor:"pointer", outline:"none" }}>
             <option value="recent">Most recent</option>
@@ -1597,14 +1714,15 @@ function CustomersTab({ business }) {
         </div>
       )}
 
-      {loading && <div style={{ textAlign:"center", padding:"60px", color:"#aaa" }}>Loading customers…</div>}
+      {loading && <div style={{ textAlign:"center", padding:"60px", color:"#aaa" }}>Loading…</div>}
 
+      {/* Empty state */}
       {!loading && customers.length === 0 && (
         <div style={{ textAlign:"center", padding:"64px 24px" }}>
           <div style={{ fontSize:"44px", marginBottom:"14px" }}>👥</div>
           <h3 style={{ fontSize:"20px", fontWeight:800, color:DARK, marginBottom:"8px" }}>No customers yet</h3>
           <p style={{ fontSize:"14px", color:"#aaa", marginBottom:"32px" }}>
-            Add your first customer manually{CONTACT_PICKER_SUPPORTED ? " or import straight from your phone contacts" : ""}.
+            Add your first customer{CONTACT_PICKER_SUPPORTED ? " or import from your phone contacts" : ""}.
           </p>
           <div style={{ display:"flex", flexDirection:"column", gap:"10px", maxWidth:"280px", margin:"0 auto" }}>
             {CONTACT_PICKER_SUPPORTED && (
@@ -1614,7 +1732,7 @@ function CustomersTab({ business }) {
               </button>
             )}
             <button onClick={() => setMode("add")}
-              style={{ backgroundColor: CONTACT_PICKER_SUPPORTED ? "#fff" : DARK, color: CONTACT_PICKER_SUPPORTED ? DARK : LIME, border: CONTACT_PICKER_SUPPORTED ? "1.5px solid #e0e0e0" : "none", borderRadius:"12px", padding:"13px 20px", fontSize:"14px", fontWeight:700, cursor:"pointer" }}>
+              style={{ backgroundColor:CONTACT_PICKER_SUPPORTED?"#fff":DARK, color:CONTACT_PICKER_SUPPORTED?DARK:LIME, border:CONTACT_PICKER_SUPPORTED?"1.5px solid #e0e0e0":"none", borderRadius:"12px", padding:"13px 20px", fontSize:"14px", fontWeight:700, cursor:"pointer" }}>
               + Add customer manually
             </button>
           </div>
@@ -1631,9 +1749,9 @@ function CustomersTab({ business }) {
             <CustomerCard key={c.id} customer={c}
               onEdit={(cust) => { setEditTarget(cust); setMode("edit"); }}
               onDelete={handleDelete}
-              onToggleVIP={handleToggleVIP}
               onLogSale={setLogSaleFor}
               onWhatsApp={setWhatsAppFor}
+              onStatusChange={handleStatusChange}
             />
           ))}
         </div>
