@@ -2178,20 +2178,153 @@ function BookingReminderModal({ booking, business, onClose }) {
   );
 }
 
+
+// ── MINI CALENDAR ──────────────────────────────────────────
+function MiniCalendar({ bookings, selectedDate, onSelectDate, onNewBooking }) {
+  const [cursor, setCursor] = useState(() => {
+    const d = new Date();
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
+
+  const today = new Date().toISOString().slice(0, 10);
+  const { year, month } = cursor;
+
+  const firstDay  = new Date(year, month, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const DAY_NAMES   = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+
+  // Build a set of dates that have bookings this month
+  const bookedDates = new Set(
+    bookings
+      .filter((b) => b.status !== "cancelled")
+      .map((b) => b.booking_date)
+  );
+
+  // Count bookings per date for dot indicator
+  function countForDate(dateStr) {
+    return bookings.filter((b) => b.booking_date === dateStr && b.status !== "cancelled").length;
+  }
+
+  function dateStr(day) {
+    return `${year}-${String(month + 1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+  }
+
+  function prevMonth() {
+    setCursor(({ year, month }) => month === 0
+      ? { year: year - 1, month: 11 }
+      : { year, month: month - 1 });
+  }
+  function nextMonth() {
+    setCursor(({ year, month }) => month === 11
+      ? { year: year + 1, month: 0 }
+      : { year, month: month + 1 });
+  }
+
+  // Build grid cells: nulls for padding + day numbers
+  const cells = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+  // Pad to complete last row
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return (
+    <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"20px", marginBottom:"20px" }}>
+      {/* Month nav */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"16px" }}>
+        <button onClick={prevMonth}
+          style={{ width:"32px", height:"32px", borderRadius:"50%", border:"1.5px solid #e0e0e0", background:"#fff", cursor:"pointer", fontSize:"16px", display:"flex", alignItems:"center", justifyContent:"center", color:"#555" }}>
+          ‹
+        </button>
+        <div style={{ fontSize:"16px", fontWeight:800, color:DARK }}>
+          {MONTH_NAMES[month]} {year}
+        </div>
+        <button onClick={nextMonth}
+          style={{ width:"32px", height:"32px", borderRadius:"50%", border:"1.5px solid #e0e0e0", background:"#fff", cursor:"pointer", fontSize:"16px", display:"flex", alignItems:"center", justifyContent:"center", color:"#555" }}>
+          ›
+        </button>
+      </div>
+
+      {/* Day headers */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", marginBottom:"8px" }}>
+        {DAY_NAMES.map((d) => (
+          <div key={d} style={{ textAlign:"center", fontSize:"11px", fontWeight:700, color:"#bbb", padding:"4px 0" }}>{d}</div>
+        ))}
+      </div>
+
+      {/* Day grid */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:"2px" }}>
+        {cells.map((day, i) => {
+          if (!day) return <div key={`e${i}`} />;
+          const ds      = dateStr(day);
+          const isToday = ds === today;
+          const isSel   = ds === selectedDate;
+          const count   = countForDate(ds);
+          const isPast  = ds < today;
+
+          return (
+            <div key={ds} onClick={() => onSelectDate(ds)}
+              style={{
+                borderRadius:"10px",
+                padding:"6px 2px",
+                textAlign:"center",
+                cursor:"pointer",
+                background: isSel ? DARK : isToday ? LIME : "transparent",
+                transition:"background 0.1s",
+              }}
+              onMouseEnter={(e) => { if (!isSel && !isToday) e.currentTarget.style.background = "#f5f5f3"; }}
+              onMouseLeave={(e) => { if (!isSel && !isToday) e.currentTarget.style.background = "transparent"; }}
+            >
+              <div style={{
+                fontSize:"14px",
+                fontWeight: isToday || isSel ? 800 : 500,
+                color: isSel ? LIME : isToday ? DARK : isPast ? "#ccc" : DARK,
+                lineHeight:1,
+                marginBottom:"4px",
+              }}>
+                {day}
+              </div>
+              {/* Booking dots */}
+              <div style={{ display:"flex", justifyContent:"center", gap:"2px", minHeight:"6px" }}>
+                {count > 0 && Array.from({ length: Math.min(count, 3) }).map((_, di) => (
+                  <div key={di} style={{
+                    width:"4px", height:"4px", borderRadius:"50%",
+                    background: isSel ? LIME : isToday ? DARK : "#a3e635",
+                  }} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Quick add button */}
+      <div style={{ borderTop:"1px solid #f5f5f5", marginTop:"16px", paddingTop:"14px", display:"flex", justifyContent:"flex-end" }}>
+        <button onClick={() => onNewBooking(selectedDate || today)}
+          style={{ padding:"8px 18px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"13px", fontWeight:700, cursor:"pointer" }}>
+          + New booking
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── MAIN BOOKINGS TAB ──────────────────────────────────────
 function BookingsTab({ business }) {
-  const [bookings, setBookings]   = useState([]);
-  const [customers, setCustomers] = useState([]);
-  const [products, setProducts]   = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [mode, setMode]           = useState("list"); // list | add | edit
+  const [bookings, setBookings]     = useState([]);
+  const [customers, setCustomers]   = useState([]);
+  const [products, setProducts]     = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [mode, setMode]             = useState("list"); // list | add | edit
   const [editTarget, setEditTarget] = useState(null);
-  const [saving, setSaving]       = useState(false);
-  const [view, setView]           = useState("upcoming"); // today | upcoming | all
-  const [reminderFor, setReminderFor] = useState(null);
-  const [toast, setToast]         = useState("");
+  const [saving, setSaving]         = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
+  const [reminderFor, setReminderFor]   = useState(null);
+  const [toast, setToast]           = useState("");
+  const [newBookingDate, setNewBookingDate] = useState(null);
 
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(""), 2800); }
+
+  const today = new Date().toISOString().slice(0, 10);
 
   // ── LOAD ───────────────────────────────────────────────────
   useEffect(() => {
@@ -2208,57 +2341,48 @@ function BookingsTab({ business }) {
     });
   }, [business?.id]);
 
-  // ── FILTERED ───────────────────────────────────────────────
-  const today = todayStr();
-  const filtered = bookings.filter((b) => {
-    if (view === "today")    return b.booking_date === today && b.status !== "cancelled";
-    if (view === "upcoming") return b.booking_date >= today  && b.status !== "cancelled";
-    return true;
-  });
+  // ── SELECTED DAY BOOKINGS ──────────────────────────────────
+  const dayBookings = bookings
+    .filter((b) => b.booking_date === selectedDate)
+    .sort((a, b) => (a.booking_time || "").localeCompare(b.booking_time || ""));
 
-  // Group by date
-  const grouped = filtered.reduce((acc, b) => {
-    const key = b.booking_date;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(b);
-    return acc;
-  }, {});
-  const sortedDates = Object.keys(grouped).sort();
+  const upcomingBookings = bookings
+    .filter((b) => b.booking_date > today && b.status === "confirmed")
+    .slice(0, 5);
 
   // ── SAVE ───────────────────────────────────────────────────
   async function handleSave(form) {
     if (!business?.id) return;
-    setSaving(true);
 
+    // Block past dates
+    if (form.booking_date < today) {
+      alert("Cannot book a date in the past.");
+      return;
+    }
+
+    setSaving(true);
     let customerId = form.customer_id;
 
-    // If new customer, create them first
     if (form.isNewCustomer && form.customer_name.trim()) {
       const { data: newCust } = await supabase.from("customers")
         .insert([{ business_id: business.id, name: form.customer_name.trim(), status: "new", interested_in: [] }])
         .select().single();
-      if (newCust) {
-        setCustomers((prev) => [newCust, ...prev]);
-        customerId = newCust.id;
-        showToast(`New customer "${newCust.name}" created ✓`);
-      }
+      if (newCust) { setCustomers((prev) => [newCust, ...prev]); customerId = newCust.id; showToast(`New customer "${newCust.name}" created ✓`); }
     }
 
-    // Get whatsapp from customer for reminder use
     const cust = customers.find((c) => c.id === customerId);
-
     const payload = {
-      business_id:    business.id,
-      customer_id:    customerId,
-      customer_name:  form.customer_name.trim(),
+      business_id:       business.id,
+      customer_id:       customerId,
+      customer_name:     form.customer_name.trim(),
       customer_whatsapp: cust?.whatsapp || "",
-      service:        (form.services || []).join(', '),
-      booking_date:   form.booking_date,
-      booking_time:   form.booking_time || null,
-      price:          form.price ? parseFloat(form.price) : null,
-      deposit:        form.deposit ? parseFloat(form.deposit) : null,
-      notes:          form.notes?.trim() || "",
-      status:         "confirmed",
+      service:           (form.services || []).join(", "),
+      booking_date:      form.booking_date,
+      booking_time:      form.booking_time || null,
+      price:             form.price ? parseFloat(form.price) : null,
+      deposit:           form.deposit ? parseFloat(form.deposit) : null,
+      notes:             form.notes?.trim() || "",
+      status:            "confirmed",
     };
 
     if (editTarget) {
@@ -2267,20 +2391,21 @@ function BookingsTab({ business }) {
       showToast("Booking updated ✓");
     } else {
       const { data } = await supabase.from("bookings").insert([payload]).select().single();
-      if (data) setBookings((prev) => [...prev, data].sort((a,b) => a.booking_date.localeCompare(b.booking_date)));
+      if (data) { setBookings((prev) => [...prev, data]); setSelectedDate(data.booking_date); }
       showToast("Booking saved ✓");
     }
 
     setSaving(false);
     setMode("list");
     setEditTarget(null);
+    setNewBookingDate(null);
   }
 
-  // ── STATUS CHANGE ──────────────────────────────────────────
+  // ── STATUS ─────────────────────────────────────────────────
   async function handleStatusChange(booking, newStatus) {
     const { data } = await supabase.from("bookings").update({ status: newStatus }).eq("id", booking.id).select().single();
     if (data) setBookings((prev) => prev.map((b) => b.id === data.id ? data : b));
-    if (newStatus === "done") showToast(`${booking.customer_name} marked done ✓`);
+    if (newStatus === "done")      showToast(`${booking.customer_name} marked done ✓`);
     if (newStatus === "cancelled") showToast("Booking cancelled");
   }
 
@@ -2296,7 +2421,7 @@ function BookingsTab({ business }) {
   const todayCount    = bookings.filter((b) => b.booking_date === today && b.status === "confirmed").length;
   const upcomingCount = bookings.filter((b) => b.booking_date > today  && b.status === "confirmed").length;
   const doneCount     = bookings.filter((b) => b.status === "done").length;
-  const revenue       = bookings.filter((b) => b.status === "done" && b.price).reduce((s, b) => s + (b.price||0), 0);
+  const revenue       = bookings.filter((b) => b.status === "done" && b.price).reduce((s, b) => s + (b.price || 0), 0);
 
   if (!business?.id) return (
     <div style={{ textAlign:"center", padding:"80px 24px" }}>
@@ -2305,10 +2430,10 @@ function BookingsTab({ business }) {
     </div>
   );
 
-  // ── ADD / EDIT ─────────────────────────────────────────────
+  // ── ADD / EDIT FORM ────────────────────────────────────────
   if (mode === "add" || mode === "edit") return (
     <div style={{ maxWidth:"560px" }}>
-      <button onClick={() => { setMode("list"); setEditTarget(null); }}
+      <button onClick={() => { setMode("list"); setEditTarget(null); setNewBookingDate(null); }}
         style={{ background:"transparent", border:"none", fontSize:"13px", color:"#aaa", cursor:"pointer", padding:"0 0 16px" }}>
         ← Back
       </button>
@@ -2316,9 +2441,9 @@ function BookingsTab({ business }) {
         {mode === "edit" ? "Edit booking" : "New booking"}
       </h2>
       <BookingForm
-        initial={editTarget}
+        initial={editTarget || (newBookingDate ? { booking_date: newBookingDate, services: [], booking_time: "09:00" } : { services: [], booking_time: "09:00" })}
         onSave={handleSave}
-        onCancel={() => { setMode("list"); setEditTarget(null); }}
+        onCancel={() => { setMode("list"); setEditTarget(null); setNewBookingDate(null); }}
         saving={saving}
         customers={customers}
         products={products}
@@ -2326,23 +2451,19 @@ function BookingsTab({ business }) {
     </div>
   );
 
-  // ── LIST ───────────────────────────────────────────────────
+  // ── MAIN LIST VIEW ─────────────────────────────────────────
   return (
     <div>
       {/* Header */}
-      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:"20px", flexWrap:"wrap", gap:"12px" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"20px" }}>
         <div>
           <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Bookings</h2>
           <p style={{ fontSize:"13px", color:"#aaa" }}>{todayCount} today · {upcomingCount} upcoming</p>
         </div>
-        <button onClick={() => setMode("add")}
-          style={{ padding:"10px 20px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"13px", fontWeight:700, cursor:"pointer" }}>
-          + New booking
-        </button>
       </div>
 
-      {/* Stats */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(120px, 1fr))", gap:"10px", marginBottom:"20px" }}>
+      {/* Stats strip */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:"10px", marginBottom:"20px" }}>
         {[
           { label:"Today",    value: todayCount },
           { label:"Upcoming", value: upcomingCount },
@@ -2356,55 +2477,83 @@ function BookingsTab({ business }) {
         ))}
       </div>
 
-      {/* View toggle */}
-      <div style={{ display:"flex", gap:"6px", marginBottom:"20px" }}>
-        {[["today","Today"],["upcoming","Upcoming"],["all","All"]].map(([key, label]) => (
-          <button key={key} onClick={() => setView(key)}
-            style={{ padding:"8px 16px", borderRadius:"999px", fontSize:"13px", fontWeight:700, cursor:"pointer", border:"1.5px solid", background:view===key?DARK:"#fff", color:view===key?"#fff":"#555", borderColor:view===key?DARK:"#e0e0e0" }}>
-            {label}
-          </button>
-        ))}
-      </div>
-
       {loading && <div style={{ textAlign:"center", padding:"60px", color:"#aaa" }}>Loading…</div>}
 
-      {/* Empty */}
-      {!loading && filtered.length === 0 && (
-        <div style={{ textAlign:"center", padding:"64px 24px" }}>
-          <div style={{ fontSize:"44px", marginBottom:"14px" }}>📅</div>
-          <h3 style={{ fontSize:"20px", fontWeight:800, color:DARK, marginBottom:"8px" }}>
-            {view === "today" ? "No appointments today" : "No bookings yet"}
-          </h3>
-          <p style={{ fontSize:"14px", color:"#aaa", marginBottom:"28px" }}>
-            {view === "today" ? "Enjoy the rest, or add a walk-in." : "Add your first booking to get started."}
-          </p>
-          <button onClick={() => setMode("add")}
-            style={{ backgroundColor:DARK, color:LIME, border:"none", borderRadius:"12px", padding:"13px 24px", fontSize:"14px", fontWeight:700, cursor:"pointer" }}>
-            + New booking
-          </button>
-        </div>
-      )}
+      {!loading && (
+        <>
+          {/* Calendar */}
+          <MiniCalendar
+            bookings={bookings}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            onNewBooking={(date) => { setNewBookingDate(date); setMode("add"); }}
+          />
 
-      {/* Grouped by date */}
-      {!loading && sortedDates.map((date) => (
-        <div key={date} style={{ marginBottom:"24px" }}>
-          <div style={{ fontSize:"12px", fontWeight:700, color:"#888", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:"10px", display:"flex", alignItems:"center", gap:"10px" }}>
-            <span>{dateLabel(date)}</span>
-            {isToday(date) && <span style={{ background:LIME, color:DARK, fontSize:"10px", fontWeight:800, padding:"2px 8px", borderRadius:"6px" }}>TODAY</span>}
-            <div style={{ flex:1, height:"1px", background:"#eeeeea" }} />
+          {/* Selected day bookings */}
+          <div>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"12px" }}>
+              <div style={{ fontSize:"14px", fontWeight:700, color:DARK }}>
+                {selectedDate === today ? "Today" : dateLabel(selectedDate)}
+                {dayBookings.length > 0 && <span style={{ fontSize:"12px", color:"#aaa", fontWeight:500, marginLeft:"8px" }}>{dayBookings.length} booking{dayBookings.length !== 1 ? "s" : ""}</span>}
+              </div>
+              <button onClick={() => { setNewBookingDate(selectedDate); setMode("add"); }}
+                style={{ padding:"7px 14px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
+                + Add
+              </button>
+            </div>
+
+            {dayBookings.length === 0 ? (
+              <div style={{ background:"#fff", border:"1.5px dashed #e0e0dc", borderRadius:"16px", padding:"32px", textAlign:"center" }}>
+                <div style={{ fontSize:"13px", color:"#bbb", marginBottom:"12px" }}>
+                  {selectedDate < today ? "No bookings on this day" : "Nothing booked yet for this day"}
+                </div>
+                {selectedDate >= today && (
+                  <button onClick={() => { setNewBookingDate(selectedDate); setMode("add"); }}
+                    style={{ padding:"9px 20px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"13px", fontWeight:700, cursor:"pointer" }}>
+                    + New booking
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
+                {dayBookings.map((b) => (
+                  <BookingCard key={b.id} booking={b}
+                    onStatusChange={handleStatusChange}
+                    onEdit={(bk) => { setEditTarget({ ...bk, services: bk.service ? bk.service.split(", ") : [] }); setMode("edit"); }}
+                    onDelete={handleDelete}
+                    onWhatsApp={setReminderFor}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Upcoming peek — only show when viewing today */}
+            {selectedDate === today && upcomingBookings.length > 0 && (
+              <div style={{ marginTop:"28px" }}>
+                <div style={{ fontSize:"12px", fontWeight:700, color:"#aaa", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:"10px" }}>Coming up</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:"6px" }}>
+                  {upcomingBookings.map((b) => (
+                    <div key={b.id} onClick={() => setSelectedDate(b.booking_date)}
+                      style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"12px", padding:"10px 16px", display:"flex", alignItems:"center", gap:"12px", cursor:"pointer" }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = "#f8f8f6"}
+                      onMouseLeave={(e) => e.currentTarget.style.background = "#fff"}>
+                      <div style={{ textAlign:"center", minWidth:"40px" }}>
+                        <div style={{ fontSize:"16px", fontWeight:900, color:DARK }}>{new Date(b.booking_date + "T00:00:00").getDate()}</div>
+                        <div style={{ fontSize:"10px", color:"#aaa", fontWeight:600 }}>{new Date(b.booking_date + "T00:00:00").toLocaleDateString("en-ZA",{month:"short"})}</div>
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:"13px", fontWeight:700, color:DARK }}>{b.customer_name}</div>
+                        {b.service && <div style={{ fontSize:"12px", color:"#aaa" }}>{b.service}</div>}
+                      </div>
+                      {b.booking_time && <div style={{ fontSize:"12px", fontWeight:700, color:"#888" }}>{b.booking_time}</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-          <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
-            {grouped[date].map((b) => (
-              <BookingCard key={b.id} booking={b}
-                onStatusChange={handleStatusChange}
-                onEdit={(bk) => { setEditTarget(bk); setMode("edit"); }}
-                onDelete={handleDelete}
-                onWhatsApp={setReminderFor}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
+        </>
+      )}
 
       {reminderFor && (
         <BookingReminderModal booking={reminderFor} business={business} onClose={() => setReminderFor(null)} />
