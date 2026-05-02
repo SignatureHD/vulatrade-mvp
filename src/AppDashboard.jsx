@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import "./styles.css";
 
 // ── CONSTANTS ──────────────────────────────────────────────
-const TABS = ["Dashboard", "Templates", "Setup", "Page", "Customers", "Bookings", "Messages", "Growth", "Money", "Vuke", "Plans"];
+const TABS = ["Dashboard", "Templates", "Setup", "Page", "Customers", "Messages", "Growth", "Money", "Vuke", "Plans"];
 const LIME = "#a3e635";
 const DARK = "#0d0d0d";
 const MAX_IMAGES = 6;
@@ -1904,7 +1904,7 @@ function BookingForm({ initial, onSave, onCancel, saving, customers, products })
   const [form, setForm] = useState({
     customer_id:   initial?.customer_id   || null,
     customer_name: initial?.customer_name || "",
-    service:       initial?.service       || "",
+    services:      initial?.services      || (initial?.service ? [initial.service] : []),
     booking_date:  initial?.booking_date  || today,
     booking_time:  initial?.booking_time  || "09:00",
     price:         initial?.price         || "",
@@ -1924,15 +1924,27 @@ function BookingForm({ initial, onSave, onCancel, saving, customers, products })
       // Auto-fill first interested service and its price
       const firstMatch = products.find((p) => sel.interested_in.includes(p.name));
       if (firstMatch) {
-        setForm((prev) => ({ ...prev, customer_id: sel.customer_id, customer_name: sel.customer_name, isNewCustomer: sel.isNew || false, service: firstMatch.name, price: firstMatch.price || prev.price }));
+        const autoServices = sel.interested_in.filter((name) => products.find((p) => p.name === name));
+      const autoPrice = autoServices.reduce((sum, name) => { const p = products.find((pr) => pr.name === name); return sum + (p?.price || 0); }, 0);
+      setForm((prev) => ({ ...prev, customer_id: sel.customer_id, customer_name: sel.customer_name, isNewCustomer: sel.isNew || false, services: autoServices, price: autoPrice || prev.price }));
       }
     } else {
       setInterestedIn([]);
+      setForm((prev) => ({ ...prev, customer_id: sel.customer_id, customer_name: sel.customer_name, isNewCustomer: sel.isNew || false }));
     }
   }
 
   function handleServiceSelect(p) {
-    setForm((prev) => ({ ...prev, service: p.name, price: p.price || prev.price }));
+    setForm((prev) => {
+      const already = prev.services.includes(p.name);
+      const services = already ? prev.services.filter((s) => s !== p.name) : [...prev.services, p.name];
+      // Recalculate total price from selected products
+      const total = services.reduce((sum, name) => {
+        const prod = products.find((pr) => pr.name === name);
+        return sum + (prod?.price || 0);
+      }, 0);
+      return { ...prev, services, price: total || prev.price };
+    });
   }
 
   // Products to show: interested_in first, then all active products
@@ -1966,7 +1978,7 @@ function BookingForm({ initial, onSave, onCancel, saving, customers, products })
             )}
             <div style={{ display:"flex", flexWrap:"wrap", gap:"6px" }}>
               {suggestedProducts.map((p) => {
-                const selected = form.service === p.name;
+                const selected = (form.services || []).includes(p.name);
                 return (
                   <button key={p.id} onClick={() => handleServiceSelect(p)}
                     style={{ padding:"8px 14px", borderRadius:"12px", fontSize:"13px", fontWeight:700, cursor:"pointer", border:`1.5px solid ${selected ? LIME : "#e0e0e0"}`, background:selected ? "#f7ffe0" : "#fff", color:selected ? "#3a6b00" : "#555" }}>
@@ -1983,7 +1995,7 @@ function BookingForm({ initial, onSave, onCancel, saving, customers, products })
             <summary style={{ fontSize:"12px", color:"#aaa", cursor:"pointer", marginBottom:"6px" }}>Other services</summary>
             <div style={{ display:"flex", flexWrap:"wrap", gap:"6px", marginTop:"6px" }}>
               {otherProducts.map((p) => {
-                const selected = form.service === p.name;
+                const selected = (form.services || []).includes(p.name);
                 return (
                   <button key={p.id} onClick={() => handleServiceSelect(p)}
                     style={{ padding:"8px 14px", borderRadius:"12px", fontSize:"13px", fontWeight:700, cursor:"pointer", border:`1.5px solid ${selected ? LIME : "#e0e0e0"}`, background:selected ? "#f7ffe0" : "#fff", color:selected ? "#3a6b00" : "#555" }}>
@@ -1994,9 +2006,14 @@ function BookingForm({ initial, onSave, onCancel, saving, customers, products })
             </div>
           </details>
         )}
+        {(form.services||[]).length > 0 && (
+          <div style={{ fontSize:"11px", color:"#5a9a00", marginTop:"6px", fontWeight:600 }}>
+            {(form.services||[]).length} service{(form.services||[]).length !== 1 ? "s" : ""} selected · R{form.price || 0} total
+          </div>
+        )}
         {products.length === 0 && (
-          <input style={inputStyle} placeholder="e.g. Gel overlay" value={form.service}
-            onChange={(e) => upd("service", e.target.value)} />
+          <input style={inputStyle} placeholder="e.g. Gel overlay, Soak off" value={(form.services||[]).join(', ')}
+            onChange={(e) => upd("services", e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} />
         )}
       </div>
 
@@ -2235,7 +2252,7 @@ function BookingsTab({ business }) {
       customer_id:    customerId,
       customer_name:  form.customer_name.trim(),
       customer_whatsapp: cust?.whatsapp || "",
-      service:        form.service,
+      service:        (form.services || []).join(', '),
       booking_date:   form.booking_date,
       booking_time:   form.booking_time || null,
       price:          form.price ? parseFloat(form.price) : null,
