@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import "./styles.css";
 
 // ── CONSTANTS ──────────────────────────────────────────────
-const TABS = ["Dashboard", "Templates", "Setup", "Page", "Customers", "Messages", "Growth", "Money", "Vuke", "Plans"];
+const TABS = ["Dashboard", "Templates", "Setup", "Page", "Customers", "Bookings", "Messages", "Growth", "Money", "Vuke", "Plans"];
 const LIME = "#a3e635";
 const DARK = "#0d0d0d";
 const MAX_IMAGES = 6;
