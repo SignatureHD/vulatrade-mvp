@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { LIME, DARK, CUSTOMER_STATUSES, CONTACT_PICKER_SUPPORTED, inputStyle, labelStyle, statusConfig } from "../../constants";
+import { LIME, DARK, CUSTOMER_STATUSES, CONTACT_PICKER_SUPPORTED, PAYMENT_METHODS, PAYMENT_STATUSES, inputStyle, labelStyle, statusConfig } from "../../constants";
 import { waLink, timeAgo, formatPhone, pickFromContacts } from "../../utils";
 import { supabase } from "../../lib/supabase";
 import { StatusBadge } from "../ui";
@@ -43,17 +43,45 @@ function ImportPreviewModal({ contacts, onConfirm, onCancel, importing }) {
 }
 
 // ── LOG SALE MODAL ─────────────────────────────────────────
-function LogSaleModal({ customer, onClose, onLogged }) {
+function LogSaleModal({ business, customer, onClose, onLogged }) {
   const [amount, setAmount] = useState("");
+  const [status, setStatus] = useState("Paid");
+  const [method, setMethod] = useState("Cash");
+  const [reference, setReference] = useState("");
   const [saving, setSaving] = useState(false);
   async function handleLog() {
     const val = parseFloat(amount);
-    if (!val) return;
+    if (!business?.id || !val) return;
     setSaving(true);
+    const { data: payment, error: paymentError } = await supabase.from("payments")
+      .insert([{
+        business_id: business.id,
+        customer_id: customer.id,
+        amount: val,
+        status,
+        method,
+        reference: reference.trim() || null,
+      }])
+      .select()
+      .single();
+
+    if (paymentError) {
+      console.error("Payment insert error:", paymentError);
+      alert("Payment could not be saved. Please try again.");
+      setSaving(false);
+      return;
+    }
+
+    const paidAmount = status === "Unpaid" ? 0 : val;
     const { data } = await supabase.from("customers")
-      .update({ total_spent:(customer.total_spent||0)+val, visit_count:(customer.visit_count||0)+1, last_contacted:new Date().toISOString(), status: customer.status === "lead" ? "new" : customer.status })
+      .update({
+        total_spent: (customer.total_spent || 0) + paidAmount,
+        visit_count: (customer.visit_count || 0) + (status === "Unpaid" ? 0 : 1),
+        last_contacted: new Date().toISOString(),
+        status: customer.status === "lead" ? "new" : customer.status,
+      })
       .eq("id", customer.id).select().single();
-    if (data) onLogged(data);
+    if (data) onLogged(data, payment);
     setSaving(false);
     onClose();
   }
@@ -66,6 +94,22 @@ function LogSaleModal({ customer, onClose, onLogged }) {
         <label style={labelStyle}>Amount (R)</label>
         <input style={{ ...inputStyle, fontSize:"28px", fontWeight:800, marginBottom:"20px", textAlign:"center" }}
           type="number" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus />
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px", marginBottom:"16px" }}>
+          <div>
+            <label style={labelStyle}>Status</label>
+            <select style={{ ...inputStyle, cursor:"pointer" }} value={status} onChange={(e) => setStatus(e.target.value)}>
+              {PAYMENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Method</label>
+            <select style={{ ...inputStyle, cursor:"pointer" }} value={method} onChange={(e) => setMethod(e.target.value)}>
+              {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+        </div>
+        <label style={labelStyle}>Reference / note</label>
+        <input style={{ ...inputStyle, marginBottom:"20px" }} placeholder="Optional" value={reference} onChange={(e) => setReference(e.target.value)} />
         <div style={{ display:"flex", gap:"8px" }}>
           <button onClick={handleLog} disabled={!amount || saving}
             style={{ flex:1, backgroundColor:amount ? LIME : "#e0e0e0", color:amount ? DARK : "#aaa", border:"none", borderRadius:"12px", padding:"13px", fontSize:"14px", fontWeight:800, cursor:amount ? "pointer" : "not-allowed" }}>
@@ -361,9 +405,9 @@ export function CustomersTab({ business }) {
     showToast(`${customer.name} → ${s.label} ✓`);
   }
 
-  function handleSaleLogged(updated) {
+  function handleSaleLogged(updated, payment) {
     setCustomers((prev) => prev.map((c) => c.id === updated.id ? updated : c));
-    showToast(`R${updated.total_spent?.toLocaleString()} total for ${updated.name} ✓`);
+    showToast(`Payment ${payment?.status || "saved"} for ${updated.name} ✓`);
   }
 
   async function handleImportPhone() {
@@ -501,7 +545,7 @@ export function CustomersTab({ business }) {
         </div>
       )}
 
-      {logSaleFor  && <LogSaleModal  customer={logSaleFor}  onClose={() => setLogSaleFor(null)}  onLogged={handleSaleLogged} />}
+      {logSaleFor  && <LogSaleModal  business={business} customer={logSaleFor}  onClose={() => setLogSaleFor(null)}  onLogged={handleSaleLogged} />}
       {whatsAppFor && <WhatsAppModal customer={whatsAppFor} onClose={() => setWhatsAppFor(null)} />}
       {importContacts && <ImportPreviewModal contacts={importContacts} onConfirm={handleConfirmImport} onCancel={() => setImportContacts(null)} importing={importing} />}
 

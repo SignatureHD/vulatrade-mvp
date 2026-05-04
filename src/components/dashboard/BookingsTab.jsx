@@ -431,7 +431,7 @@ export function BookingsTab({ business }) {
   const todayCount    = bookings.filter((b) => b.booking_date === today && b.status === "confirmed").length;
   const upcomingCount = bookings.filter((b) => b.booking_date > today  && b.status === "confirmed").length;
   const doneCount     = bookings.filter((b) => b.status === "done").length;
-  const revenue       = bookings.filter((b) => b.status === "done" && b.price).reduce((s, b) => s + (b.price || 0), 0);
+  const cancelledCount = bookings.filter((b) => b.status === "cancelled").length;
 
   if (!business?.id) return (
     <div style={{ textAlign:"center", padding:"80px 24px" }}>
@@ -468,7 +468,7 @@ export function BookingsTab({ business }) {
           { label:"Today",    value: todayCount },
           { label:"Upcoming", value: upcomingCount },
           { label:"Done",     value: doneCount },
-          { label:"Revenue",  value: `R${revenue.toLocaleString()}` },
+          { label:"Cancelled", value: cancelledCount },
         ].map((s) => (
           <div key={s.label} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"14px", padding:"14px 16px" }}>
             <div style={{ fontSize:"10px", color:"#aaa", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"6px" }}>{s.label}</div>
