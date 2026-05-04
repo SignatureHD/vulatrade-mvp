@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { LIME, DARK, inputStyle } from "../constants";
 import { supabase } from "../lib/supabase";
 
-export function AuthScreen() {
-  const [mode, setMode] = useState("signin");
+export function AuthScreen({ initialMode = "signin" }) {
+  const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
