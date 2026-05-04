@@ -25,7 +25,7 @@ const OFF_WHITE = "#FDFCFB";
 const SECTION_BG = "#f4f4f0";
 const CARD_BORDER = "#e8e8e4";
 
-function PhonePreview({ onDemo }) {
+function PhonePreview({ onSignup }) {
   return (
     <div style={{
       background: "#111",
@@ -53,7 +53,7 @@ function PhonePreview({ onDemo }) {
             <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: DARK }} /> Live
           </div>
         </div>
-        <button onClick={onDemo} style={{ background: LIME, color: DARK, border: "none", borderRadius: "10px", padding: "11px", fontSize: "11px", fontWeight: 800, width: "calc(100% - 28px)", margin: "12px 14px 6px", display: "block", textAlign: "center", cursor: "pointer" }}>
+        <button onClick={onSignup} style={{ background: LIME, color: DARK, border: "none", borderRadius: "10px", padding: "11px", fontSize: "11px", fontWeight: 800, width: "calc(100% - 28px)", margin: "12px 14px 6px", display: "block", textAlign: "center", cursor: "pointer" }}>
           Enquire or Order
         </button>
         {products.map((p) => (
@@ -74,8 +74,13 @@ function PhonePreview({ onDemo }) {
   );
 }
 
-export default function LandingPage({ onDemo }) {
+export default function LandingPage({ onSignup, onSignin }) {
   const [menuOpen, setMenuOpen] = useState(false);
+
+  function scrollToHowItWorks() {
+    document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
+    setMenuOpen(false);
+  }
 
   return (
     <div style={{ background: DARK, minHeight: "100vh", color: "#fff", fontFamily: "'Inter', -apple-system, sans-serif" }}>
@@ -140,7 +145,7 @@ export default function LandingPage({ onDemo }) {
           ))}
         </div>
 
-        <button className="nav-cta" onClick={onDemo} style={{ backgroundColor: LIME, color: "#fff", border: "none", borderRadius: "999px", padding: "13px 32px", fontSize: "14px", fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}>
+        <button className="nav-cta" onClick={onSignup} style={{ backgroundColor: LIME, color: "#fff", border: "none", borderRadius: "999px", padding: "13px 32px", fontSize: "14px", fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}>
           Get Started
         </button>
 
@@ -160,8 +165,11 @@ export default function LandingPage({ onDemo }) {
             {link}
           </a>
         ))}
-        <button onClick={onDemo} style={{ backgroundColor: LIME, color: DARK, border: "none", borderRadius: "999px", padding: "14px", fontSize: "15px", fontWeight: 800, cursor: "pointer", marginTop: "8px" }}>
+        <button onClick={onSignup} style={{ backgroundColor: LIME, color: DARK, border: "none", borderRadius: "999px", padding: "14px", fontSize: "15px", fontWeight: 800, cursor: "pointer", marginTop: "8px" }}>
           Get Started Free
+        </button>
+        <button onClick={onSignin} style={{ background: "transparent", color: "#555", border: "none", padding: "8px 0", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}>
+          Already have an account?
         </button>
       </div>
 
@@ -182,11 +190,14 @@ export default function LandingPage({ onDemo }) {
         </p>
 
         <div className="hero-buttons" style={{ display: "flex", gap: "12px", justifyContent: "center", marginBottom: "52px", flexWrap: "wrap", padding: "0 20px" }}>
-          <button onClick={onDemo} style={{ backgroundColor: LIME, color: DARK, border: "none", borderRadius: "999px", padding: "18px 40px", fontSize: "17px", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap" }}>
+          <button onClick={onSignup} style={{ backgroundColor: LIME, color: DARK, border: "none", borderRadius: "999px", padding: "18px 40px", fontSize: "17px", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap" }}>
             Set up your business free →
           </button>
-          <button onClick={onDemo} style={{ backgroundColor: "transparent", color: LIME, border: `2px solid ${LIME}`, borderRadius: "999px", padding: "16px 36px", fontSize: "16px", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+          <button onClick={scrollToHowItWorks} style={{ backgroundColor: "transparent", color: LIME, border: `2px solid ${LIME}`, borderRadius: "999px", padding: "16px 36px", fontSize: "16px", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
             See how it works
+          </button>
+          <button onClick={onSignin} style={{ backgroundColor: "transparent", color: "#777", border: "none", padding: "16px 12px", fontSize: "14px", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+            Already have an account?
           </button>
         </div>
 
@@ -227,7 +238,7 @@ export default function LandingPage({ onDemo }) {
 
         {/* Phone centred on mobile */}
         <div className="phone-scene" style={{ display: "flex", justifyContent: "center", alignItems: "center", paddingBottom: "32px" }}>
-          <PhonePreview onDemo={onDemo} />
+          <PhonePreview onSignup={onSignup} />
         </div>
 
         {/* Desktop: full phone scene with float cards */}
@@ -245,7 +256,7 @@ export default function LandingPage({ onDemo }) {
               <div style={{ fontSize: "11px", color: "#999", marginTop: "4px" }}>{c.sub}</div>
             </div>
           ))}
-          <PhonePreview onDemo={onDemo} />
+          <PhonePreview onSignup={onSignup} />
           <div style={{ position: "absolute", bottom: "80px", left: "20px", minWidth: "155px", background: "#fff", borderRadius: "18px", padding: "14px 18px", zIndex: 6, boxShadow: "0 12px 40px rgba(0,0,0,0.28)" }}>
             <div style={{ color: "#f59e0b", fontSize: "12px", letterSpacing: "2px", marginBottom: "5px" }}>★★★★★</div>
             <div style={{ fontSize: "12px", fontWeight: 700, color: DARK, lineHeight: 1.4 }}>"Best nail tech in Soweto!"</div>
@@ -345,10 +356,10 @@ export default function LandingPage({ onDemo }) {
             Build your first business system with ready-made templates, AI-powered customer journeys, social tools and payment support.
           </p>
           <div className="cta-buttons" style={{ display: "flex", gap: "14px", justifyContent: "center", flexWrap: "wrap", padding: "0 20px" }}>
-            <button onClick={onDemo} style={{ backgroundColor: LIME, color: DARK, border: "none", borderRadius: "999px", padding: "18px 48px", fontSize: "17px", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap" }}>
+            <button onClick={onSignup} style={{ backgroundColor: LIME, color: DARK, border: "none", borderRadius: "999px", padding: "18px 48px", fontSize: "17px", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap" }}>
               Get Started Free
             </button>
-            <button onClick={onDemo} style={{ backgroundColor: "transparent", color: LIME, border: `2px solid ${LIME}`, borderRadius: "999px", padding: "16px 40px", fontSize: "17px", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+            <button onClick={scrollToHowItWorks} style={{ backgroundColor: "transparent", color: LIME, border: `2px solid ${LIME}`, borderRadius: "999px", padding: "16px 40px", fontSize: "17px", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
               Book a Demo
             </button>
           </div>
