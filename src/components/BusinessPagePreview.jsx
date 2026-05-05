@@ -2,73 +2,86 @@ import React from "react";
 import { BG_COLOURS, FONTS } from "../constants";
 import { injectFont } from "../utils";
 
+function readableTextOn(hex) {
+  if (!hex || !hex.startsWith("#") || hex.length < 7) return "#0d0d0d";
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? "#0d0d0d" : "#ffffff";
+}
+
 export function BusinessPagePreview({ form, products, logoUrl, isFullPage }) {
   const bg   = BG_COLOURS.find((c) => c.value === form.bgColour) || BG_COLOURS[0];
   const font = FONTS.find((f) => f.value === form.font) || FONTS[0];
   const whatsappUrl = form.whatsapp
     ? `https://wa.me/${form.whatsapp.replace(/\D/g, "")}?text=Hi! I found you on VulaTrade and would like to enquire.`
     : "#";
-  const activeProducts = products.filter((p) => p.is_active);
+  const activeProducts = products.filter((p) => p.is_active !== false);
+  const accentText = readableTextOn(bg.accent);
+  const mutedText = bg.text === "#ffffff" ? "rgba(255,255,255,0.68)" : "rgba(0,0,0,0.58)";
+  const faintText = bg.text === "#ffffff" ? "rgba(255,255,255,0.52)" : "rgba(0,0,0,0.44)";
 
   if (font.import) injectFont(font.import);
 
   const card = (
-    <div style={{ background:"#fff", borderRadius:isFullPage?"0":"32px", overflow:"hidden", width:isFullPage?"100%":"320px", maxWidth:isFullPage?"480px":"320px", boxShadow:isFullPage?"none":"0 24px 64px rgba(0,0,0,0.25)", fontFamily: font.value + ", 'Inter', sans-serif" }}>
+    <div style={{ background:"#f8f8f6", borderRadius:isFullPage?"0":"30px", overflow:"hidden", width:isFullPage?"100%":"330px", maxWidth:isFullPage?"560px":"330px", boxShadow:isFullPage?"none":"0 24px 64px rgba(0,0,0,0.25)", fontFamily: font.value + ", 'Inter', sans-serif" }}>
 
       {/* Header */}
-      <div style={{ background:bg.value, padding:"24px 20px 20px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:"14px", marginBottom:"14px" }}>
+      <div style={{ background:bg.value, padding:"24px 20px 22px", borderBottomLeftRadius:"24px", borderBottomRightRadius:"24px" }}>
+        <div style={{ display:"inline-flex", alignItems:"center", gap:"6px", background:bg.text === "#ffffff" ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.06)", border:`1px solid ${bg.accent}66`, color:bg.accent, borderRadius:"999px", padding:"6px 10px", fontSize:"9px", fontWeight:800, letterSpacing:"0.07em", textTransform:"uppercase", marginBottom:"16px" }}>
+          <span style={{ width:"5px", height:"5px", borderRadius:"50%", background:bg.accent }} />
+          Open for enquiries
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:"13px", marginBottom:"14px" }}>
           {logoUrl ? (
-            <img src={logoUrl} alt="logo" style={{ width:"56px", height:"56px", borderRadius:"16px", objectFit:"cover", border:`2px solid ${bg.accent}` }} />
+            <img src={logoUrl} alt="logo" style={{ width:"64px", height:"64px", borderRadius:"18px", objectFit:"cover", border:`2px solid ${bg.accent}`, boxShadow:"0 12px 28px rgba(0,0,0,0.18)" }} />
           ) : (
-            <div style={{ width:"56px", height:"56px", borderRadius:"16px", background:"rgba(255,255,255,0.1)", border:`2px solid ${bg.accent}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"26px" }}>
+            <div style={{ width:"64px", height:"64px", borderRadius:"18px", background:bg.text === "#ffffff" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)", border:`2px solid ${bg.accent}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"30px" }}>
               {form.icon || "⭐"}
             </div>
           )}
           <div>
-            <div style={{ fontSize:"9px", color:bg.accent, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:"3px" }}>AI Business Page</div>
-            <div style={{ fontSize:"22px", fontWeight:800, color:bg.text, lineHeight:1.1 }}>{form.name || "Your Business Name"}</div>
-            <div style={{ fontSize:"11px", color: bg.text === "#ffffff" ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.4)", marginTop:"3px" }}>
+            <div style={{ fontSize:"25px", fontWeight:900, color:bg.text, lineHeight:1.02, letterSpacing:"0" }}>{form.name || "Your Business Name"}</div>
+            <div style={{ fontSize:"11px", color:faintText, marginTop:"6px", fontWeight:700 }}>
               {form.category || "Business type"}{form.area ? ` · ${form.area}` : ""}
             </div>
           </div>
         </div>
         {form.description && (
-          <div style={{ fontSize:"12px", color: bg.text === "#ffffff" ? "rgba(255,255,255,0.65)" : "rgba(0,0,0,0.55)", lineHeight:1.6, marginBottom:"14px" }}>
+          <div style={{ fontSize:"12px", color:mutedText, lineHeight:1.65, marginBottom:"14px" }}>
             {form.description}
           </div>
         )}
-        <div style={{ display:"inline-flex", alignItems:"center", gap:"5px", background:bg.accent, color:"#0d0d0d", fontSize:"9px", fontWeight:700, padding:"4px 10px", borderRadius:"8px" }}>
-          <div style={{ width:"5px", height:"5px", borderRadius:"50%", background:"#0d0d0d" }} /> Live
-        </div>
+        <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"
+          style={{ display:"block", background:bg.accent, color:accentText, textAlign:"center", padding:"13px 14px", fontSize:"13px", fontWeight:900, textDecoration:"none", borderRadius:"14px", boxShadow:`0 10px 24px ${bg.accent}30` }}>
+          Enquire on WhatsApp
+        </a>
       </div>
-
-      {/* WhatsApp CTA */}
-      <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"
-        style={{ display:"block", background:bg.accent, color:"#0d0d0d", textAlign:"center", padding:"14px", fontSize:"14px", fontWeight:800, textDecoration:"none", margin:"14px 14px 4px" }}>
-        💬 Enquire on WhatsApp
-      </a>
 
       {/* Products */}
       {activeProducts.length > 0 && (
-        <div style={{ padding:"8px 0 16px" }}>
+        <div style={{ padding:"16px 14px 18px" }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"10px" }}>
+            <div style={{ fontSize:"15px", fontWeight:900, color:"#0d0d0d" }}>Services & prices</div>
+            <div style={{ fontSize:"10px", color:"#888", background:"#fff", border:"1px solid #eeeeea", borderRadius:"999px", padding:"5px 8px", fontWeight:800 }}>{activeProducts.length} item{activeProducts.length !== 1 ? "s" : ""}</div>
+          </div>
           {activeProducts.map((p) => {
             const imgVal = p.image || p.icon || "🛍️";
             const isUrl  = imgVal.startsWith("http");
             return (
-              <div key={p.id} style={{ display:"flex", alignItems:"center", gap:"12px", padding:"10px 16px", borderBottom:"1px solid #f5f5f5" }}>
+              <div key={p.id} style={{ display:"flex", alignItems:"center", gap:"10px", padding:"10px", border:"1px solid #eeeeea", borderRadius:"16px", background:"#fff", marginBottom:"8px", boxShadow:"0 6px 16px rgba(15,23,42,0.04)" }}>
                 {isUrl ? (
-                  <img src={imgVal} alt={p.name} style={{ width:"44px", height:"44px", borderRadius:"10px", objectFit:"cover", flexShrink:0, border:"1px solid #f0f0f0" }} />
+                  <img src={imgVal} alt={p.name} style={{ width:"52px", height:"52px", borderRadius:"14px", objectFit:"cover", flexShrink:0, border:"1px solid #f0f0f0" }} />
                 ) : (
-                  <div style={{ width:"44px", height:"44px", background:"#f5f5f5", borderRadius:"10px", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"20px", flexShrink:0 }}>
+                  <div style={{ width:"52px", height:"52px", background:"#f5f5f3", borderRadius:"14px", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"22px", flexShrink:0 }}>
                     {imgVal}
                   </div>
                 )}
                 <div style={{ flex:1 }}>
-                  <div style={{ fontSize:"13px", fontWeight:700, color:"#0d0d0d" }}>{p.name}</div>
-                  {p.description && <div style={{ fontSize:"11px", color:"#aaa", marginTop:"1px" }}>{p.description}</div>}
+                  <div style={{ fontSize:"13px", fontWeight:850, color:"#0d0d0d" }}>{p.name}</div>
+                  {p.description && <div style={{ fontSize:"11px", color:"#888", marginTop:"2px", lineHeight:1.35 }}>{p.description}</div>}
                 </div>
-                <div style={{ fontSize:"14px", fontWeight:800, color:"#0d0d0d" }}>R{p.price}</div>
+                <div style={{ fontSize:"12px", fontWeight:900, color:"#0d0d0d", background:`${bg.accent}18`, border:`1px solid ${bg.accent}40`, borderRadius:"999px", padding:"6px 8px" }}>R{p.price}</div>
               </div>
             );
           })}
@@ -79,8 +92,10 @@ export function BusinessPagePreview({ form, products, logoUrl, isFullPage }) {
       )}
 
       {/* Footer */}
-      <div style={{ padding:"12px 16px", borderTop:"1px solid #f5f5f5", textAlign:"center" }}>
-        <div style={{ fontSize:"10px", color:"#ccc" }}>Powered by <span style={{ color:"#5a9a00", fontWeight:700 }}>VulaTrade</span></div>
+      <div style={{ padding:"0 16px 18px", textAlign:"center" }}>
+        <div style={{ display:"inline-flex", background:"#fff", border:"1px solid #eeeeea", borderRadius:"999px", padding:"8px 12px", fontSize:"10px", color:"#aaa", fontWeight:700 }}>
+          Powered by <span style={{ color:bg.accent, fontWeight:900, marginLeft:"4px" }}>VulaTrade</span>
+        </div>
       </div>
     </div>
   );

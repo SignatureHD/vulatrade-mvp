@@ -58,6 +58,14 @@ function resolvePageTheme(business) {
   return { value: DARK, text: "#ffffff", accent: FALLBACK_ACCENT };
 }
 
+function readableTextOn(hex) {
+  if (!hex || !hex.startsWith("#") || hex.length < 7) return DARK;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? DARK : "#ffffff";
+}
+
 function ProductImage({ product }) {
   const image = product.image || product.icon || "🛍️";
   const isUrl = typeof image === "string" && image.startsWith("http");
@@ -66,14 +74,14 @@ function ProductImage({ product }) {
     return (
       <img
         src={image}
-        alt=""
-        style={{ width: "52px", height: "52px", borderRadius: "12px", objectFit: "cover", border: "1px solid #eeeeea", flexShrink: 0 }}
+        alt={product.name}
+        style={{ width: "66px", height: "66px", borderRadius: "18px", objectFit: "cover", border: "1px solid #eeeeea", flexShrink: 0 }}
       />
     );
   }
 
   return (
-    <div style={{ width: "52px", height: "52px", borderRadius: "12px", background: "#f5f5f3", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", flexShrink: 0 }}>
+    <div style={{ width: "66px", height: "66px", borderRadius: "18px", background: "#f5f5f3", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", flexShrink: 0 }}>
       {image}
     </div>
   );
@@ -160,94 +168,110 @@ export default function PublicBusinessPage({ slug }) {
   const links = socialLinks(business);
   const activeProducts = products.filter((p) => p.is_active !== false);
   const pageTheme = resolvePageTheme(business);
+  const accentText = readableTextOn(pageTheme.accent);
   const mutedHeaderText = pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.66)" : "rgba(0,0,0,0.58)";
   const faintHeaderText = pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.52)" : "rgba(0,0,0,0.45)";
+  const logoCardBg = pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)";
+  const heroGlow = `${pageTheme.accent}24`;
 
   return (
-    <main style={{ minHeight: "100vh", background: "#f5f5f3", fontFamily: "'Inter', -apple-system, sans-serif", color: DARK }}>
-      <div style={{ maxWidth: "520px", margin: "0 auto", background: "#fff", minHeight: "100vh" }}>
-        <section style={{ background: pageTheme.value, color: pageTheme.text, padding: "24px 20px 28px", borderBottomLeftRadius: "28px", borderBottomRightRadius: "28px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "20px" }}>
-            {logoUrl ? (
-              <img src={logoUrl} alt={`${business.name} logo`} style={{ width: "72px", height: "72px", borderRadius: "18px", objectFit: "cover", border: `2px solid ${pageTheme.accent}` }} />
-            ) : (
-              <div style={{ width: "72px", height: "72px", borderRadius: "18px", background: pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border: `2px solid ${pageTheme.accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "32px" }}>
-                {business.background_style || "⭐"}
+    <main style={{ minHeight: "100vh", background: "linear-gradient(180deg, #eef1f4 0%, #f8f8f6 46%, #ffffff 100%)", fontFamily: "'Inter', -apple-system, sans-serif", color: DARK, padding: "18px" }}>
+      <div style={{ width: "100%", maxWidth: "760px", margin: "0 auto" }}>
+        <section style={{ position: "relative", overflow: "hidden", background: pageTheme.value, color: pageTheme.text, padding: "26px 22px 24px", borderRadius: "30px", boxShadow: "0 22px 70px rgba(15,23,42,0.22)" }}>
+          <div style={{ position: "absolute", inset: "-40% -25% auto auto", width: "220px", height: "220px", borderRadius: "50%", background: heroGlow, filter: "blur(4px)" }} />
+          <div style={{ position: "relative" }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.06)", border: `1px solid ${pageTheme.accent}66`, color: pageTheme.accent, borderRadius: "999px", padding: "7px 11px", fontSize: "11px", fontWeight: 850, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "22px" }}>
+              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: pageTheme.accent }} />
+              Open for enquiries
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "18px" }}>
+              {logoUrl ? (
+                <img src={logoUrl} alt={`${business.name} logo`} style={{ width: "84px", height: "84px", borderRadius: "24px", objectFit: "cover", border: `2px solid ${pageTheme.accent}`, boxShadow: "0 14px 36px rgba(0,0,0,0.22)" }} />
+              ) : (
+                <div style={{ width: "84px", height: "84px", borderRadius: "24px", background: logoCardBg, border: `2px solid ${pageTheme.accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "38px", boxShadow: "0 14px 36px rgba(0,0,0,0.16)" }}>
+                  {business.background_style || "⭐"}
+                </div>
+              )}
+              <div style={{ minWidth: 0 }}>
+                <h1 style={{ fontSize: "clamp(34px, 7vw, 54px)", lineHeight: 0.95, margin: "0 0 10px", fontWeight: 950, letterSpacing: "0" }}>{business.name}</h1>
+                <p style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: "6px", margin: 0, fontSize: "13px", color: faintHeaderText, fontWeight: 750 }}>
+                  <span>{business.category || "Local business"}</span>
+                  {business.area && <span style={{ opacity: 0.55 }}>•</span>}
+                  {business.area && <span>{business.area}</span>}
+                </p>
+              </div>
+            </div>
+
+            {business.description && (
+              <p style={{ fontSize: "16px", lineHeight: 1.7, color: mutedHeaderText, margin: "0 0 22px", maxWidth: "620px" }}>{business.description}</p>
+            )}
+
+            <div style={{ display: "grid", gridTemplateColumns: business.whatsapp && phone ? "1fr auto" : "1fr", gap: "10px", alignItems: "stretch" }}>
+              {business.whatsapp && (
+                <a href={whatsappLink(business.whatsapp, business.name)} target="_blank" rel="noopener noreferrer"
+                  style={{ textAlign: "center", background: pageTheme.accent, color: accentText, borderRadius: "16px", padding: "15px 18px", fontSize: "15px", fontWeight: 950, textDecoration: "none", boxShadow: `0 12px 30px ${pageTheme.accent}36` }}>
+                  Enquire on WhatsApp
+                </a>
+              )}
+              {phone && (
+                <a href={`tel:${phone.replace(/\s/g, "")}`}
+                  style={{ textAlign: "center", background: pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)", color: pageTheme.accent, border: `1.5px solid ${pageTheme.accent}`, borderRadius: "16px", padding: "14px 18px", fontSize: "15px", fontWeight: 850, textDecoration: "none", minWidth: "92px" }}>
+                  Call
+                </a>
+              )}
+            </div>
+
+            {links.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "14px" }}>
+                {links.map((link) => (
+                  <a key={link.label} href={normaliseUrl(link.url)} target="_blank" rel="noopener noreferrer"
+                    style={{ background: pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)", border: `1px solid ${pageTheme.accent}55`, borderRadius: "999px", padding: "8px 12px", fontSize: "12px", fontWeight: 850, color: pageTheme.text, textDecoration: "none" }}>
+                    {link.label}
+                  </a>
+                ))}
               </div>
             )}
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: "11px", color: pageTheme.accent, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "5px" }}>Open for enquiries</div>
-              <h1 style={{ fontSize: "30px", lineHeight: 1.05, margin: 0, fontWeight: 900 }}>{business.name}</h1>
-              <p style={{ margin: "7px 0 0", fontSize: "13px", color: faintHeaderText }}>
-                {business.category || "Local business"}{business.area ? ` · ${business.area}` : ""}
-              </p>
-            </div>
-          </div>
-
-          {business.description && (
-            <p style={{ fontSize: "15px", lineHeight: 1.65, color: mutedHeaderText, margin: "0 0 20px" }}>{business.description}</p>
-          )}
-
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-            {business.whatsapp && (
-              <a href={whatsappLink(business.whatsapp, business.name)} target="_blank" rel="noopener noreferrer"
-                style={{ flex: "1 1 180px", textAlign: "center", background: pageTheme.accent, color: DARK, borderRadius: "14px", padding: "14px 16px", fontSize: "15px", fontWeight: 900, textDecoration: "none" }}>
-                Enquire on WhatsApp
-              </a>
-            )}
-            {phone && (
-              <a href={`tel:${phone.replace(/\s/g, "")}`}
-                style={{ flex: "1 1 120px", textAlign: "center", background: "transparent", color: pageTheme.accent, border: `1.5px solid ${pageTheme.accent}`, borderRadius: "14px", padding: "13px 16px", fontSize: "15px", fontWeight: 800, textDecoration: "none" }}>
-                Call
-              </a>
-            )}
           </div>
         </section>
 
-        <section style={{ padding: "24px 20px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
-            <h2 style={{ fontSize: "18px", fontWeight: 900, margin: 0 }}>Services</h2>
-            <span style={{ fontSize: "12px", color: "#aaa", fontWeight: 700 }}>{activeProducts.length} item{activeProducts.length !== 1 ? "s" : ""}</span>
-          </div>
-
-          {activeProducts.length === 0 ? (
-            <div style={{ background: "#f8f8f6", borderRadius: "16px", padding: "24px", textAlign: "center", color: "#888", fontSize: "14px" }}>
-              Services will appear here soon.
+        <section style={{ padding: "26px 0 0" }}>
+          <div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "26px", padding: "20px", boxShadow: "0 14px 42px rgba(15,23,42,0.06)" }}>
+            <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "12px", marginBottom: "18px" }}>
+              <div>
+                <div style={{ color: pageTheme.accent, fontSize: "11px", fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>What we offer</div>
+                <h2 style={{ fontSize: "22px", fontWeight: 950, margin: 0, letterSpacing: "0" }}>Services & prices</h2>
+              </div>
+              <span style={{ background: "#f8f8f6", border: "1px solid #eeeeea", borderRadius: "999px", padding: "7px 10px", fontSize: "12px", color: "#777", fontWeight: 800, whiteSpace: "nowrap" }}>{activeProducts.length} item{activeProducts.length !== 1 ? "s" : ""}</span>
             </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {activeProducts.map((product) => (
-                <div key={product.id || product.name} style={{ display: "flex", alignItems: "center", gap: "12px", border: "1px solid #eeeeea", borderRadius: "16px", padding: "12px" }}>
-                  <ProductImage product={product} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: "15px", fontWeight: 850, color: DARK }}>{product.name}</div>
-                    {product.description && <div style={{ fontSize: "12px", color: "#888", lineHeight: 1.45, marginTop: "3px" }}>{product.description}</div>}
+
+            {activeProducts.length === 0 ? (
+              <div style={{ background: "#f8f8f6", border: "1px dashed #d8d8d4", borderRadius: "18px", padding: "28px", textAlign: "center", color: "#888", fontSize: "14px" }}>
+                Services will appear here soon.
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: "12px" }}>
+                {activeProducts.map((product) => (
+                  <div key={product.id || product.name} style={{ display: "flex", alignItems: "center", gap: "14px", border: "1px solid #eeeeea", borderRadius: "20px", padding: "14px", background: "linear-gradient(180deg, #ffffff 0%, #fbfbfa 100%)", boxShadow: "0 8px 22px rgba(15,23,42,0.04)" }}>
+                    <ProductImage product={product} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "16px", fontWeight: 900, color: DARK, marginBottom: product.description ? "4px" : 0 }}>{product.name}</div>
+                      {product.description && <div style={{ fontSize: "13px", color: "#777", lineHeight: 1.5 }}>{product.description}</div>}
+                    </div>
+                    {Number(product.price) > 0 && (
+                      <div style={{ background: `${pageTheme.accent}18`, border: `1px solid ${pageTheme.accent}40`, color: DARK, borderRadius: "999px", padding: "8px 10px", fontSize: "14px", fontWeight: 950, whiteSpace: "nowrap" }}>R{Number(product.price).toLocaleString()}</div>
+                    )}
                   </div>
-                  {Number(product.price) > 0 && (
-                    <div style={{ fontSize: "15px", fontWeight: 900, color: DARK, whiteSpace: "nowrap" }}>R{Number(product.price).toLocaleString()}</div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </section>
 
-        {links.length > 0 && (
-          <section style={{ padding: "0 20px 24px" }}>
-            <h2 style={{ fontSize: "15px", fontWeight: 900, margin: "0 0 12px" }}>Find us online</h2>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-              {links.map((link) => (
-                <a key={link.label} href={normaliseUrl(link.url)} target="_blank" rel="noopener noreferrer"
-                  style={{ border: "1px solid #e0e0dc", borderRadius: "999px", padding: "9px 13px", fontSize: "13px", fontWeight: 800, color: DARK, textDecoration: "none" }}>
-                  {link.label}
-                </a>
-              ))}
-            </div>
-          </section>
-        )}
-
-        <footer style={{ borderTop: "1px solid #eeeeea", padding: "18px 20px 24px", textAlign: "center" }}>
-          <div style={{ fontSize: "11px", color: "#aaa", fontWeight: 700 }}>Powered by <span style={{ color: pageTheme.accent }}>VulaTrade</span></div>
+        <footer style={{ padding: "22px 0 8px", textAlign: "center" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "#fff", border: "1px solid #eeeeea", borderRadius: "999px", padding: "10px 14px", boxShadow: "0 8px 24px rgba(15,23,42,0.05)", fontSize: "12px", color: "#888", fontWeight: 800 }}>
+            Powered by <span style={{ color: pageTheme.accent, fontWeight: 950 }}>VulaTrade</span>
+          </div>
         </footer>
       </div>
     </main>
