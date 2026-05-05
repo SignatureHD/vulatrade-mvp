@@ -6,7 +6,7 @@ import { DashboardHome } from "../components/dashboard/DashboardHome";
 import { SetupTab } from "../components/dashboard/SetupTab";
 import { CustomersTab } from "../components/dashboard/CustomersTab";
 import { BookingsTab } from "../components/dashboard/BookingsTab";
-import { TemplatesTab, PageTab, ComingSoon } from "../components/dashboard/OtherTabs";
+import { TemplatesTab, PageTab, MoneyTab, ComingSoon } from "../components/dashboard/OtherTabs";
 
 export default function Dashboard({ authMode = "signin", onBack }) {
   const [user, setUser]           = useState(null);
@@ -72,6 +72,8 @@ export default function Dashboard({ authMode = "signin", onBack }) {
         return <CustomersTab business={business} />;
       case "Bookings":
         return <BookingsTab business={business} />;
+      case "Money":
+        return <MoneyTab business={business} />;
       default:
         return <ComingSoon tab={tab} />;
     }
@@ -124,8 +126,8 @@ export default function Dashboard({ authMode = "signin", onBack }) {
 
       {/* ── MOBILE BOTTOM TAB BAR ── */}
       <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#fff", borderTop: "1px solid #eeeeea", display: "flex", zIndex: 100, paddingBottom: "env(safe-area-inset-bottom)" }}>
-        {["Dashboard", "Customers", "Bookings", "Messages", "Setup"].map((t) => {
-          const ICONS = { Dashboard: "Home", Customers: "People", Bookings: "Book", Messages: "Msg", Setup: "Setup" };
+        {["Dashboard", "Customers", "Bookings", "Money", "Setup"].map((t) => {
+          const ICONS = { Dashboard: "Home", Customers: "People", Bookings: "Book", Money: "R", Setup: "Setup" };
           const active = tab === t;
           return (
             <button key={t} onClick={() => setTab(t)}

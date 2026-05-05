@@ -72,7 +72,11 @@ export const CATEGORIES = [
 ];
 
 export const PAYMENT_METHODS = [
-  "Cash", "EFT / Bank Transfer", "SnapScan", "Zapper", "Yoco", "PayFast", "Other",
+  "Cash", "EFT", "Card", "Yoco", "PayFast", "Other",
+];
+
+export const PAYMENT_STATUSES = [
+  "Paid", "Unpaid", "Deposit paid",
 ];
 
 export const ICON_TEMPLATES = {

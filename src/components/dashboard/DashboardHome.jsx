@@ -20,9 +20,10 @@ export function DashboardHome({ user, business, setTab }) {
     if (!business?.id) { setLoading(false); return; }
 
     async function loadAll() {
-      const [{ data: customers }, { data: bookings }] = await Promise.all([
+      const [{ data: customers }, { data: bookings }, { data: payments }] = await Promise.all([
         supabase.from("customers").select("*").eq("business_id", business.id),
         supabase.from("bookings").select("*").eq("business_id", business.id),
+        supabase.from("payments").select("*").eq("business_id", business.id),
       ]);
 
       const now            = new Date();
@@ -38,19 +39,22 @@ export function DashboardHome({ user, business, setTab }) {
       const todayBookings  = bookings?.filter((b) => b.booking_date === today && b.status === "confirmed") || [];
       const upcomingSoon   = bookings?.filter((b) => b.booking_date > today && b.booking_date <= threeDaysAhead && b.status === "confirmed") || [];
       const doneBookings   = bookings?.filter((b) => b.status === "done") || [];
+      const revenuePayments = (payments || []).filter((p) => p.status === "Paid" || p.status === "Deposit paid");
+      const unpaidPayments  = (payments || []).filter((p) => p.status === "Unpaid");
+      const customerById    = Object.fromEntries((customers || []).map((c) => [c.id, c]));
 
-      const thisMonthRevenue = doneBookings
-        .filter((b) => b.booking_date >= thisMonthStart)
-        .reduce((s, b) => s + (b.price || 0), 0)
-        + (customers || []).reduce((s, c) => s + (c.total_spent || 0), 0);
+      const thisMonthRevenue = revenuePayments
+        .filter((p) => (p.created_at || "").slice(0, 10) >= thisMonthStart)
+        .reduce((s, p) => s + (p.amount || 0), 0);
 
-      const lastMonthRevenue = doneBookings
-        .filter((b) => b.booking_date >= lastMonthStart && b.booking_date <= lastMonthEnd)
-        .reduce((s, b) => s + (b.price || 0), 0);
+      const lastMonthRevenue = revenuePayments
+        .filter((p) => {
+          const d = (p.created_at || "").slice(0, 10);
+          return d >= lastMonthStart && d <= lastMonthEnd;
+        })
+        .reduce((s, p) => s + (p.amount || 0), 0);
 
-      const totalEarned =
-        doneBookings.reduce((s, b) => s + (b.price || 0), 0) +
-        (customers || []).reduce((s, c) => s + (c.total_spent || 0), 0);
+      const totalEarned = revenuePayments.reduce((s, p) => s + (p.amount || 0), 0);
 
       const needsContact = (customers || []).filter((c) => {
         if (c.status === "lead") return false;
@@ -91,9 +95,9 @@ export function DashboardHome({ user, business, setTab }) {
         const d = new Date();
         d.setMonth(d.getMonth() - (5 - i));
         const ym = d.toISOString().slice(0, 7);
-        const val = doneBookings
-          .filter((b) => b.booking_date?.startsWith(ym))
-          .reduce((s, b) => s + (b.price || 0), 0);
+        const val = revenuePayments
+          .filter((p) => p.created_at?.startsWith(ym))
+          .reduce((s, p) => s + (p.amount || 0), 0);
         return { label: d.toLocaleDateString("en-ZA", { month: "short" }), value: val };
       });
 
@@ -102,9 +106,8 @@ export function DashboardHome({ user, business, setTab }) {
       const celebrated = JSON.parse(localStorage.getItem(celebrationKey) || "{}");
       let newCelebration = null;
 
-      const lastSale = doneBookings
-        .filter((b) => b.price > 0)
-        .sort((a, b) => (b.updated_at || b.booking_date).localeCompare(a.updated_at || a.booking_date))[0];
+      const lastSale = revenuePayments
+        .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))[0];
 
       if (totalCustomers >= 50 && !celebrated.fifty_customers)
         newCelebration = { key:"fifty_customers", title:"50 customers", msg:`${business.name} now has 50 customers. That is a real, growing business.` };
@@ -113,7 +116,7 @@ export function DashboardHome({ user, business, setTab }) {
       else if (totalCustomers >= 10 && !celebrated.ten_customers)
         newCelebration = { key:"ten_customers", title:"10 customers", msg:"Ten people have trusted you with their money. Time to turn your best ones into VIPs." };
       else if (lastSale && !celebrated[`sale_${lastSale.id}`])
-        newCelebration = { key:`sale_${lastSale.id}`, title:`R${lastSale.price} earned`, msg:`${lastSale.customer_name} paid. Well done — every sale counts.` };
+        newCelebration = { key:`sale_${lastSale.id}`, title:`R${lastSale.amount} earned`, msg:`${customerById[lastSale.customer_id]?.name || "A customer"} paid. Well done — every sale counts.` };
       else if (doneBookings.length >= 1 && !celebrated.first_booking)
         newCelebration = { key:"first_booking", title:"First booking completed", msg:"You showed up and delivered. That is what it takes." };
       else if (totalCustomers >= 1 && !celebrated.first_customer)
@@ -143,7 +146,7 @@ export function DashboardHome({ user, business, setTab }) {
       setData({
         totalCustomers, leads, todayBookings, upcomingSoon,
         needsContact, atRisk, followUpNudges, topService,
-        thisMonthRevenue, lastMonthRevenue, monthlyRevenue,
+        thisMonthRevenue, lastMonthRevenue, monthlyRevenue, unpaidPayments,
         doneBookings, totalEarned, liveBanner,
       });
 
@@ -224,9 +227,9 @@ export function DashboardHome({ user, business, setTab }) {
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))", gap:"10px" }}>
             {[
               { label:"Today's bookings", value:data.todayBookings.length, sub:data.todayBookings.length===0?"Free day":`${data.todayBookings.length} appointment${data.todayBookings.length!==1?"s":""}`, onClick:()=>setTab("Bookings"), highlight:data.todayBookings.length>0 },
-              { label:"Revenue this month", value:`R${data.thisMonthRevenue.toLocaleString()}`, sub:data.lastMonthRevenue>0?`${revenueUp?"▲":"▼"} vs R${data.lastMonthRevenue.toLocaleString()} last month`:"Mark bookings done to track", subColor:data.lastMonthRevenue>0?(revenueUp?"#5a9a00":"#cc3300"):"#bbb" },
+              { label:"Revenue this month", value:`R${data.thisMonthRevenue.toLocaleString()}`, sub:data.lastMonthRevenue>0?`${revenueUp?"▲":"▼"} vs R${data.lastMonthRevenue.toLocaleString()} last month`:"Log payments to track", subColor:data.lastMonthRevenue>0?(revenueUp?"#5a9a00":"#cc3300"):"#bbb", onClick:()=>setTab("Money") },
               { label:"Customers", value:data.totalCustomers, sub:data.leads.length>0?`${data.leads.length} lead${data.leads.length!==1?"s":""} to convert`:"No leads waiting", onClick:()=>setTab("Customers") },
-              { label:"Needs follow-up", value:data.needsContact.length+data.atRisk.length, sub:data.needsContact.length+data.atRisk.length>0?"Tap to see who":"All caught up", subColor:data.needsContact.length+data.atRisk.length>0?"#f59e0b":"#5a9a00", onClick:()=>setTab("Customers") },
+              { label:"Needs follow-up", value:data.needsContact.length+data.atRisk.length+data.unpaidPayments.length, sub:data.unpaidPayments.length>0?`${data.unpaidPayments.length} unpaid payment${data.unpaidPayments.length!==1?"s":""}`:data.needsContact.length+data.atRisk.length>0?"Tap to see who":"All caught up", subColor:data.needsContact.length+data.atRisk.length+data.unpaidPayments.length>0?"#f59e0b":"#5a9a00", onClick:()=>data.unpaidPayments.length>0?setTab("Money"):setTab("Customers") },
             ].map((s) => (
               <div key={s.label} onClick={s.onClick}
                 style={{ background:"#fff", border:`1.5px solid ${s.highlight ? LIME : "#eeeeea"}`, borderRadius:"16px", padding:"18px", cursor:s.onClick?"pointer":"default" }}
@@ -323,6 +326,21 @@ export function DashboardHome({ user, business, setTab }) {
                 </>
               ) : (
                 <>
+                  {data.unpaidPayments.length > 0 && (
+                    <div style={{ background:"#fff8ee", border:"1px solid #f0d080", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"14px" }}>
+                      <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:"#f0d000", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:DARK, flexShrink:0, fontSize:"13px" }}>R</div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:"13px", fontWeight:700, color:DARK, marginBottom:"2px" }}>
+                          {data.unpaidPayments.length} unpaid payment{data.unpaidPayments.length!==1?"s":""} to follow up
+                        </div>
+                        <div style={{ fontSize:"12px", color:"#9a7a00" }}>Check Money before closing out today.</div>
+                      </div>
+                      <button onClick={() => setTab("Money")}
+                        style={{ padding:"8px 14px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"12px", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
+                        View payments
+                      </button>
+                    </div>
+                  )}
                   {data.followUpNudges.length > 0 && (
                     <div style={{ background:"#f8f8f6", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"14px" }}>
                       <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:LIME, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:DARK, flexShrink:0, fontSize:"13px" }}>TY</div>
@@ -389,7 +407,7 @@ export function DashboardHome({ user, business, setTab }) {
                       </button>
                     </div>
                   )}
-                  {data.followUpNudges.length === 0 && data.atRisk.length === 0 && data.leads.length === 0 && data.needsContact.length === 0 && (
+                  {data.unpaidPayments.length === 0 && data.followUpNudges.length === 0 && data.atRisk.length === 0 && data.leads.length === 0 && data.needsContact.length === 0 && (
                     <div style={{ background:"#f0ffe0", border:"1px solid #c3e66a", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"12px" }}>
                       <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:LIME, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:DARK, flexShrink:0, fontSize:"13px" }}>✓</div>
                       <div style={{ flex:1 }}>
@@ -456,11 +474,11 @@ export function DashboardHome({ user, business, setTab }) {
               <div style={{ fontSize:"15px", fontWeight:800, color:DARK, marginBottom:"12px" }}>Revenue trend</div>
               <div style={{ background:"#f8f8f6", borderRadius:"14px", padding:"20px", textAlign:"center" }}>
                 <div style={{ fontSize:"13px", color:"#888", marginBottom:"14px", lineHeight:1.6 }}>
-                  No revenue logged yet. Mark bookings as done to start tracking.
+                  No revenue logged yet. Log payments to start tracking.
                 </div>
                 <div style={{ display:"flex", gap:"8px", justifyContent:"center", flexWrap:"wrap" }}>
-                  <button onClick={() => setTab("Bookings")} style={{ padding:"8px 16px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"12px", fontWeight:700, cursor:"pointer" }}>Go to bookings</button>
-                  <button onClick={() => setTab("Customers")} style={{ padding:"8px 16px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>Log a sale</button>
+                  <button onClick={() => setTab("Money")} style={{ padding:"8px 16px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"12px", fontWeight:700, cursor:"pointer" }}>Go to Money</button>
+                  <button onClick={() => setTab("Customers")} style={{ padding:"8px 16px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>Log from customer</button>
                 </div>
               </div>
             </div>
