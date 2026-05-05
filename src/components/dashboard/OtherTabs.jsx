@@ -61,6 +61,27 @@ export function PageTab({ business, products, logoUrl }) {
 
   const shareUrl = `${window.location.origin}/b/${business.slug}`;
 
+  async function copyShareLink() {
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(shareUrl);
+      alert("Link copied!");
+      return;
+    }
+    window.prompt("Copy your business page link:", shareUrl);
+  }
+
+  async function shareBusinessPage() {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: business.name, text: `View ${business.name} on VulaTrade`, url: shareUrl });
+        return;
+      }
+      await copyShareLink();
+    } catch (err) {
+      if (err?.name !== "AbortError") await copyShareLink();
+    }
+  }
+
   return (
     <div>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"24px" }}>
@@ -68,10 +89,16 @@ export function PageTab({ business, products, logoUrl }) {
           <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"4px" }}>Your Business Page</h2>
           <p style={{ fontSize:"13px", color:"#888" }}>This is what your customers see when you share your link.</p>
         </div>
-        <button onClick={() => { navigator.clipboard.writeText(shareUrl); alert("Link copied!"); }}
-          style={{ backgroundColor:LIME, color:DARK, border:"none", borderRadius:"10px", padding:"10px 18px", fontSize:"13px", fontWeight:700, cursor:"pointer" }}>
-          Copy share link
-        </button>
+        <div style={{ display:"flex", gap:"8px", flexWrap:"wrap", justifyContent:"flex-end" }}>
+          <button onClick={shareBusinessPage}
+            style={{ backgroundColor:LIME, color:DARK, border:"none", borderRadius:"10px", padding:"10px 18px", fontSize:"13px", fontWeight:700, cursor:"pointer" }}>
+            Share
+          </button>
+          <button onClick={copyShareLink}
+            style={{ background:"#fff", color:"#555", border:"1.5px solid #e0e0e0", borderRadius:"10px", padding:"10px 18px", fontSize:"13px", fontWeight:700, cursor:"pointer" }}>
+            Copy link
+          </button>
+        </div>
       </div>
       <div style={{ background:"#e8e8e4", borderRadius:"12px", padding:"10px 14px", fontSize:"13px", color:"#555", marginBottom:"24px", display:"flex", alignItems:"center", gap:"8px" }}>
         🔗 <span style={{ fontWeight:600 }}>{shareUrl}</span>
