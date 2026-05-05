@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { DARK, LIME } from "../constants";
+import { BG_COLOURS, DARK } from "../constants";
 import { supabase } from "../lib/supabase";
+
+const FALLBACK_ACCENT = "#2563eb";
 
 const NOMSA_FALLBACK = {
   business: {
@@ -13,6 +15,7 @@ const NOMSA_FALLBACK = {
     phone: "+27821234567",
     catalogue: "",
     background_style: "💅",
+    theme: FALLBACK_ACCENT,
     instagram: "https://instagram.com/",
   },
   products: [
@@ -41,6 +44,18 @@ function socialLinks(business) {
     { label: "TikTok", url: business.tiktok || business.tiktok_url },
     { label: "Website", url: business.website || business.website_url },
   ].filter((item) => item.url);
+}
+
+function resolvePageTheme(business) {
+  const savedTheme = business?.theme || business?.bgColour || business?.bg_colour || business?.accent_colour || business?.accentColor || "";
+  const savedLower = typeof savedTheme === "string" ? savedTheme.toLowerCase() : "";
+  const matched = BG_COLOURS.find((c) => c.value === savedTheme || c.name.toLowerCase() === savedLower);
+
+  if (matched) return matched;
+  if (savedTheme && typeof savedTheme === "string" && savedTheme.startsWith("#")) {
+    return { value: DARK, text: "#ffffff", accent: savedTheme };
+  }
+  return { value: DARK, text: "#ffffff", accent: FALLBACK_ACCENT };
 }
 
 function ProductImage({ product }) {
@@ -131,10 +146,10 @@ export default function PublicBusinessPage({ slug }) {
     return (
       <div style={{ minHeight: "100vh", background: "#f5f5f3", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'Inter', -apple-system, sans-serif" }}>
         <div style={{ width: "100%", maxWidth: "360px", background: "#fff", border: "1px solid #eeeeea", borderRadius: "18px", padding: "28px", textAlign: "center" }}>
-          <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: DARK, color: LIME, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontWeight: 900 }}>VT</div>
+          <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: DARK, color: FALLBACK_ACCENT, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontWeight: 900 }}>VT</div>
           <h1 style={{ fontSize: "22px", fontWeight: 900, color: DARK, marginBottom: "8px" }}>Page not found</h1>
           <p style={{ fontSize: "14px", color: "#888", lineHeight: 1.6, marginBottom: "18px" }}>This VulaTrade business page is not available yet.</p>
-          <a href="/" style={{ display: "inline-block", background: DARK, color: LIME, borderRadius: "12px", padding: "12px 18px", fontSize: "14px", fontWeight: 800, textDecoration: "none" }}>Go to VulaTrade</a>
+          <a href="/" style={{ display: "inline-block", background: DARK, color: FALLBACK_ACCENT, borderRadius: "12px", padding: "12px 18px", fontSize: "14px", fontWeight: 800, textDecoration: "none" }}>Go to VulaTrade</a>
         </div>
       </div>
     );
@@ -144,42 +159,45 @@ export default function PublicBusinessPage({ slug }) {
   const phone = business.phone || business.call_number || "";
   const links = socialLinks(business);
   const activeProducts = products.filter((p) => p.is_active !== false);
+  const pageTheme = resolvePageTheme(business);
+  const mutedHeaderText = pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.66)" : "rgba(0,0,0,0.58)";
+  const faintHeaderText = pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.52)" : "rgba(0,0,0,0.45)";
 
   return (
     <main style={{ minHeight: "100vh", background: "#f5f5f3", fontFamily: "'Inter', -apple-system, sans-serif", color: DARK }}>
       <div style={{ maxWidth: "520px", margin: "0 auto", background: "#fff", minHeight: "100vh" }}>
-        <section style={{ background: DARK, color: "#fff", padding: "24px 20px 28px", borderBottomLeftRadius: "28px", borderBottomRightRadius: "28px" }}>
+        <section style={{ background: pageTheme.value, color: pageTheme.text, padding: "24px 20px 28px", borderBottomLeftRadius: "28px", borderBottomRightRadius: "28px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "20px" }}>
             {logoUrl ? (
-              <img src={logoUrl} alt={`${business.name} logo`} style={{ width: "72px", height: "72px", borderRadius: "18px", objectFit: "cover", border: `2px solid ${LIME}` }} />
+              <img src={logoUrl} alt={`${business.name} logo`} style={{ width: "72px", height: "72px", borderRadius: "18px", objectFit: "cover", border: `2px solid ${pageTheme.accent}` }} />
             ) : (
-              <div style={{ width: "72px", height: "72px", borderRadius: "18px", background: "rgba(255,255,255,0.08)", border: `2px solid ${LIME}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "32px" }}>
+              <div style={{ width: "72px", height: "72px", borderRadius: "18px", background: pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border: `2px solid ${pageTheme.accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "32px" }}>
                 {business.background_style || "⭐"}
               </div>
             )}
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: "11px", color: LIME, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "5px" }}>Open for enquiries</div>
+              <div style={{ fontSize: "11px", color: pageTheme.accent, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "5px" }}>Open for enquiries</div>
               <h1 style={{ fontSize: "30px", lineHeight: 1.05, margin: 0, fontWeight: 900 }}>{business.name}</h1>
-              <p style={{ margin: "7px 0 0", fontSize: "13px", color: "rgba(255,255,255,0.58)" }}>
+              <p style={{ margin: "7px 0 0", fontSize: "13px", color: faintHeaderText }}>
                 {business.category || "Local business"}{business.area ? ` · ${business.area}` : ""}
               </p>
             </div>
           </div>
 
           {business.description && (
-            <p style={{ fontSize: "15px", lineHeight: 1.65, color: "rgba(255,255,255,0.72)", margin: "0 0 20px" }}>{business.description}</p>
+            <p style={{ fontSize: "15px", lineHeight: 1.65, color: mutedHeaderText, margin: "0 0 20px" }}>{business.description}</p>
           )}
 
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
             {business.whatsapp && (
               <a href={whatsappLink(business.whatsapp, business.name)} target="_blank" rel="noopener noreferrer"
-                style={{ flex: "1 1 180px", textAlign: "center", background: LIME, color: DARK, borderRadius: "14px", padding: "14px 16px", fontSize: "15px", fontWeight: 900, textDecoration: "none" }}>
-                WhatsApp enquiry
+                style={{ flex: "1 1 180px", textAlign: "center", background: pageTheme.accent, color: DARK, borderRadius: "14px", padding: "14px 16px", fontSize: "15px", fontWeight: 900, textDecoration: "none" }}>
+                Enquire on WhatsApp
               </a>
             )}
             {phone && (
               <a href={`tel:${phone.replace(/\s/g, "")}`}
-                style={{ flex: "1 1 120px", textAlign: "center", background: "transparent", color: LIME, border: `1.5px solid ${LIME}`, borderRadius: "14px", padding: "13px 16px", fontSize: "15px", fontWeight: 800, textDecoration: "none" }}>
+                style={{ flex: "1 1 120px", textAlign: "center", background: "transparent", color: pageTheme.accent, border: `1.5px solid ${pageTheme.accent}`, borderRadius: "14px", padding: "13px 16px", fontSize: "15px", fontWeight: 800, textDecoration: "none" }}>
                 Call
               </a>
             )}
@@ -229,7 +247,7 @@ export default function PublicBusinessPage({ slug }) {
         )}
 
         <footer style={{ borderTop: "1px solid #eeeeea", padding: "18px 20px 24px", textAlign: "center" }}>
-          <div style={{ fontSize: "11px", color: "#aaa", fontWeight: 700 }}>Powered by <span style={{ color: "#5a9a00" }}>VulaTrade</span></div>
+          <div style={{ fontSize: "11px", color: "#aaa", fontWeight: 700 }}>Powered by <span style={{ color: pageTheme.accent }}>VulaTrade</span></div>
         </footer>
       </div>
     </main>
