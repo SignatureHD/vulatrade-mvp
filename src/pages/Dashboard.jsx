@@ -8,7 +8,7 @@ import { CustomersTab } from "../components/dashboard/CustomersTab";
 import { BookingsTab } from "../components/dashboard/BookingsTab";
 import { TemplatesTab, PageTab, MoneyTab, ComingSoon } from "../components/dashboard/OtherTabs";
 
-export default function Dashboard({ onBack }) {
+export default function Dashboard({ authMode = "signin", onBack }) {
   const [user, setUser]           = useState(null);
   const [tab, setTab]             = useState("Dashboard");
   const [business, setBusiness]   = useState(null);
@@ -45,7 +45,7 @@ export default function Dashboard({ onBack }) {
     });
   }, [user]);
 
-  if (!user) return <AuthScreen />;
+  if (!user) return <AuthScreen initialMode={authMode} />;
 
   function renderTab() {
     switch (tab) {

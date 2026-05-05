@@ -5,15 +5,28 @@ import PublicBusinessPage from "./pages/PublicBusinessPage";
 
 export default function App() {
   const [view, setView] = useState("landing"); // "landing" | "dashboard"
-  const publicBusinessMatch = window.location.pathname.match(/^\/b\/([^/]+)\/?$/);
+  const publicBusinessMatch = window.location.pathname.match(/^\/b\/([^\/]+)\/?$/);
 
   if (publicBusinessMatch) {
     return <PublicBusinessPage slug={decodeURIComponent(publicBusinessMatch[1])} />;
   }
 
-  if (view === "dashboard") {
-    return <Dashboard onBack={() => setView("landing")} />;
+  const [authMode, setAuthMode] = useState("signin");
+
+  function openAuth(mode) {
+    setAuthMode(mode);
+    setView("dashboard");
+  }
   }
 
-  return <LandingPage onDemo={() => setView("dashboard")} />;
+  if (view === "dashboard") {
+    return <Dashboard authMode={authMode} onBack={() => setView("landing")} />;
+  }
+
+  return (
+    <LandingPage
+      onSignup={() => openAuth("signup")}
+      onSignin={() => openAuth("signin")}
+    />
+  );
 }
