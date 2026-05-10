@@ -1,24 +1,36 @@
 // ── DESIGN TOKENS ──────────────────────────────────────────
-export const LIME = "#a3e635";
-export const DARK = "#0d0d0d";
+export const PINK = "#ea4c89";
+export const PINK_DARK = "#d93f7b";
+export const SOFT_PINK = "#fde8f1";
+export const LIGHT_PINK_BORDER = "#f8b8d2";
+export const VERY_LIGHT_PINK = "#fff5f9";
+
+// Kept as a compatibility alias for existing components.
+export const LIME = PINK;
+export const DARK = "#202021";
+export const PALE_GREEN = SOFT_PINK;
+export const OFF_WHITE = "#fbfbfb";
+export const SOFT_BORDER = "#eeeeea";
 export const MAX_IMAGES = 6;
 
 export const inputStyle = {
-  border: "1.5px solid #e8e8e8",
-  borderRadius: "12px",
-  padding: "12px 14px",
+  border: `1.5px solid ${SOFT_BORDER}`,
+  borderRadius: "14px",
+  padding: "13px 15px",
   fontSize: "14px",
   outline: "none",
   width: "100%",
   boxSizing: "border-box",
   fontFamily: "inherit",
+  background: "#fff",
+  color: DARK,
 };
 
 export const labelStyle = {
   fontSize: "12px",
-  fontWeight: 600,
-  color: "#555",
-  marginBottom: "6px",
+  fontWeight: 800,
+  color: "#454545",
+  marginBottom: "7px",
   display: "block",
 };
 
@@ -48,14 +60,14 @@ export function planLabel(plan) {
 
 // ── COLOUR & FONT TIERS ────────────────────────────────────
 export const BG_COLOURS = [
-  { name: "Dark",   value: "#0d0d0d", text: "#ffffff", accent: "#a3e635", plan: "free" },
-  { name: "Forest", value: "#14200a", text: "#ffffff", accent: "#a3e635", plan: "free" },
-  { name: "Navy",   value: "#0a1628", text: "#ffffff", accent: "#7eb8f7", plan: "free" },
+  { name: "Vula Pink", value: PINK, text: "#ffffff", accent: SOFT_PINK, plan: "free" },
+  { name: "Charcoal",   value: DARK, text: "#ffffff", accent: PINK, plan: "free" },
+  { name: "Soft Pink", value: SOFT_PINK, text: DARK, accent: PINK, plan: "free" },
   { name: "Coral",  value: "#7a2020", text: "#ffffff", accent: "#f9a8a8", plan: "starter" },
   { name: "Warm",   value: "#1a0f0a", text: "#ffffff", accent: "#f0a050", plan: "starter" },
   { name: "Slate",  value: "#1a1f2e", text: "#ffffff", accent: "#90c0f0", plan: "starter" },
   { name: "Purple", value: "#2a1040", text: "#ffffff", accent: "#c4a0f7", plan: "pro" },
-  { name: "Cream",  value: "#fdfcf7", text: "#1a1a1a", accent: "#3d7a00", plan: "pro" },
+  { name: "Cream",  value: "#fdfcf7", text: "#202021", accent: "#3d7a00", plan: "pro" },
 ];
 
 export const FONTS = [
@@ -101,10 +113,10 @@ export const PRODUCT_ICONS = [
 
 // ── CUSTOMER STATUSES ──────────────────────────────────────
 export const CUSTOMER_STATUSES = [
-  { value: "lead",    label: "Lead",    color: "#666",    bg: "#f5f5f3", border: "#d8d8d4", desc: "Interested but hasn't booked yet" },
-  { value: "new",     label: "New",     color: "#444",    bg: "#eeeeea", border: "#c8c8c4", desc: "Booked once" },
-  { value: "regular", label: "Regular", color: "#1a1a1a", bg: "#e0e0dc", border: "#b8b8b4", desc: "Comes back regularly" },
-  { value: "vip",     label: "VIP",     color: "#0d0d0d", bg: "#a3e635", border: "#8bc620", desc: "Your best customers" },
+  { value: "lead",    label: "Lead",    color: "#767b81", bg: "#f8f8f8", border: "#d4d7db", desc: "Interested but hasn't booked yet" },
+  { value: "new",     label: "New",     color: DARK, bg: SOFT_PINK, border: LIGHT_PINK_BORDER, desc: "Booked once" },
+  { value: "regular", label: "Regular", color: PINK_DARK, bg: SOFT_PINK, border: PINK, desc: "Comes back regularly" },
+  { value: "vip",     label: "VIP",     color: "#202021", bg: "#fff8e7", border: "#ffb60a", desc: "Your best customers" },
 ];
 
 export function statusConfig(val) {
@@ -119,8 +131,8 @@ export const BOOKING_TIMES = [
 ];
 
 export const BOOKING_STATUS_CONFIG = {
-  confirmed: { label: "Confirmed", color: "#1a1a1a", bg: "#eeeeea",  border: "#c8c8c4" },
-  done:      { label: "Done",      color: "#3a6b00", bg: "#f0ffe0",  border: "#a3e635" },
+  confirmed: { label: "Confirmed", color: DARK, bg: SOFT_PINK,  border: LIGHT_PINK_BORDER },
+  done:      { label: "Done",      color: PINK_DARK, bg: SOFT_PINK,  border: PINK },
   cancelled: { label: "Cancelled", color: "#cc3300", bg: "#fff5f5",  border: "#ffd0d0" },
 };
 

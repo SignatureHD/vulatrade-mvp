@@ -1,16 +1,58 @@
 import React, { useEffect, useState } from "react";
-import { LIME, DARK, TABS } from "../constants";
+import {
+  ChartNoAxesColumn,
+  FileText,
+  Globe,
+  Home,
+  LayoutDashboard,
+  Menu,
+  MessageCircle,
+  Package,
+  ReceiptText,
+  Settings,
+  Sparkles,
+  Star,
+  Store,
+  Users,
+  WalletCards,
+} from "lucide-react";
+import { DARK, TABS } from "../constants";
 import { supabase } from "../lib/supabase";
 import { AuthScreen } from "../components/AuthScreen";
+import Logo from "../components/Logo";
 import { DashboardHome } from "../components/dashboard/DashboardHome";
 import { SetupTab } from "../components/dashboard/SetupTab";
 import { CustomersTab } from "../components/dashboard/CustomersTab";
 import { BookingsTab } from "../components/dashboard/BookingsTab";
 import { TemplatesTab, PageTab, MoneyTab, ComingSoon } from "../components/dashboard/OtherTabs";
 
-export default function Dashboard({ authMode = "signin", onBack }) {
+const BRAND = "#ea4c89";
+
+const DESKTOP_TAB_CONFIG = {
+  Dashboard: { icon: LayoutDashboard, label: "Dashboard" },
+  Templates: { icon: Sparkles, label: "Business Types" },
+  Setup: { icon: Settings, label: "Settings" },
+  Page: { icon: Globe, label: "Public Page" },
+  Customers: { icon: Users, label: "Customers" },
+  Bookings: { icon: ReceiptText, label: "Sales" },
+  Messages: { icon: MessageCircle, label: "Reviews" },
+  Growth: { icon: FileText, label: "Business File" },
+  Money: { icon: WalletCards, label: "Expenses" },
+  Vuke: { icon: Store, label: "Vuke" },
+  Plans: { icon: Star, label: "Plans" },
+};
+
+const MOBILE_TABS = [
+  { tab: "Dashboard", label: "Home", icon: Home },
+  { tab: "Money", label: "Sales", icon: ReceiptText },
+  { tab: "Setup", label: "Products", icon: Package },
+  { tab: "Customers", label: "Customers", icon: Users },
+  { tab: "Page", label: "More", icon: Menu },
+];
+
+export default function Dashboard({ authMode = "signin", initialTab = "Dashboard", onBack }) {
   const [user, setUser]           = useState(null);
-  const [tab, setTab]             = useState("Dashboard");
+  const [tab, setTab]             = useState(initialTab);
   const [business, setBusiness]   = useState(null);
   const [prefilledTemplate, setPrefilledTemplate] = useState(null);
   const [products, setProducts]   = useState([]);
@@ -24,6 +66,10 @@ export default function Dashboard({ authMode = "signin", onBack }) {
     });
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
 
   // ── LOAD BUSINESS + PRODUCTS ───────────────────────────────
   useEffect(() => {
@@ -80,13 +126,12 @@ export default function Dashboard({ authMode = "signin", onBack }) {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f5f5f3", fontFamily: "'Inter', -apple-system, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#fbfbfb", fontFamily: "'Inter', -apple-system, sans-serif" }}>
 
       {/* ── TOP NAV ── */}
       <div style={{ background: "#fff", borderBottom: "1px solid #eeeeea", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 50 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div style={{ width: "32px", height: "32px", background: DARK, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 900, color: LIME }}>VT</div>
-          <span style={{ fontSize: "14px", fontWeight: 800, color: DARK }}>VulaTrade</span>
+          <Logo size="small" />
           {business?.name && (
             <span style={{ fontSize: "12px", color: "#bbb", marginLeft: "2px", display: "none" }} className="desktop-only">
               · {business.name}
@@ -96,7 +141,7 @@ export default function Dashboard({ authMode = "signin", onBack }) {
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <button
             onClick={async () => { await supabase.auth.signOut(); onBack(); }}
-            style={{ fontSize: "12px", color: "#888", background: "transparent", border: "1px solid #e0e0e0", borderRadius: "8px", padding: "6px 10px", cursor: "pointer" }}
+            style={{ fontSize: "12px", color: "#454545", background: "#fff", border: "1px solid #eeeeea", borderRadius: "10px", padding: "7px 12px", cursor: "pointer", fontWeight: 700 }}
           >
             Sign out
           </button>
@@ -110,12 +155,19 @@ export default function Dashboard({ authMode = "signin", onBack }) {
           style={{ width: "200px", background: "#fff", borderRight: "1px solid #eeeeea", padding: "16px 10px", flexShrink: 0, display: "none" }}
           id="desktop-sidebar"
         >
-          {TABS.map((t) => (
-            <button key={t} onClick={() => setTab(t)}
-              style={{ width: "100%", textAlign: "left", padding: "10px 14px", borderRadius: "10px", fontSize: "13px", fontWeight: tab === t ? 700 : 500, background: tab === t ? DARK : "transparent", color: tab === t ? LIME : "#555", border: "none", cursor: "pointer", marginBottom: "2px", display: "block" }}>
-              {t}
-            </button>
-          ))}
+          <div style={{ fontSize: "12px", fontWeight: 800, color: "#767b81", margin: "4px 12px 12px" }}>Quick Access</div>
+          {TABS.map((t) => {
+            const config = DESKTOP_TAB_CONFIG[t] || { icon: ChartNoAxesColumn, label: t };
+            const Icon = config.icon;
+            const active = tab === t;
+            return (
+              <button key={t} onClick={() => setTab(t)}
+                style={{ width: "100%", textAlign: "left", padding: "11px 12px", borderRadius: "10px", fontSize: "13px", fontWeight: active ? 800 : 650, background: active ? "#fde8f1" : "transparent", color: active ? BRAND : "#5f6670", border: "none", cursor: "pointer", marginBottom: "3px", display: "flex", alignItems: "center", gap: "12px" }}>
+                <Icon size={19} strokeWidth={2.2} color={active ? BRAND : "#767b81"} />
+                <span>{config.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* ── MAIN CONTENT ── */}
@@ -126,19 +178,18 @@ export default function Dashboard({ authMode = "signin", onBack }) {
 
       {/* ── MOBILE BOTTOM TAB BAR ── */}
       <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#fff", borderTop: "1px solid #eeeeea", display: "flex", zIndex: 100, paddingBottom: "env(safe-area-inset-bottom)" }}>
-        {["Dashboard", "Customers", "Bookings", "Money", "Setup"].map((t) => {
-          const ICONS = { Dashboard: "Home", Customers: "People", Bookings: "Book", Money: "R", Setup: "Setup" };
-          const active = tab === t;
+        {MOBILE_TABS.map((item) => {
+          const active = tab === item.tab;
+          const Icon = item.icon;
           return (
-            <button key={t} onClick={() => setTab(t)}
-              style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "8px 4px", border: "none", background: "transparent", cursor: "pointer", gap: "3px" }}>
-              <div style={{ fontSize: "10px", fontWeight: 700, lineHeight: 1, color: active ? DARK : "#ccc" }}>
-                {ICONS[t]}
+            <button key={item.tab} onClick={() => setTab(item.tab)}
+              style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "8px 4px", border: "none", background: "transparent", cursor: "pointer", gap: "4px" }}>
+              <div style={{ width: "28px", height: "28px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: active ? "#fde8f1" : "transparent" }}>
+                <Icon size={19} strokeWidth={2.2} color={active ? BRAND : "#767b81"} />
               </div>
-              <div style={{ fontSize: "10px", fontWeight: active ? 800 : 500, color: active ? DARK : "#aaa", lineHeight: 1 }}>
-                {t}
+              <div style={{ fontSize: "10px", fontWeight: active ? 800 : 600, color: active ? BRAND : "#767b81", lineHeight: 1 }}>
+                {item.label}
               </div>
-              {active && <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: LIME, marginTop: "1px" }} />}
             </button>
           );
         })}

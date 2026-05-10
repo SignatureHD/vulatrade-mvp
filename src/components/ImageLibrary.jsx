@@ -32,7 +32,7 @@ export function ImageLibrary({ userId, images, setImages, uploading, setUploadin
   }
 
   return (
-    <div style={{ background:"#f8f8f6", border:"1.5px solid #e8e8e4", borderRadius:"16px", padding:"20px" }}>
+    <div style={{ background:"#fbfbfb", border:"1.5px solid #eeeeea", borderRadius:"16px", padding:"20px" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"6px" }}>
         <div>
           <div style={{ fontSize:"15px", fontWeight:700, color:DARK }}>Product Image Library</div>
@@ -47,7 +47,7 @@ export function ImageLibrary({ userId, images, setImages, uploading, setUploadin
         <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleUpload} />
       </div>
       {atLimit && (
-        <div style={{ fontSize:"12px", color:"#888", background:"#fff", border:"1px solid #e0e0dc", borderRadius:"10px", padding:"8px 12px", marginBottom:"12px" }}>
+        <div style={{ fontSize:"12px", color:"#888", background:"#fff", border:"1px solid #d4d7db", borderRadius:"10px", padding:"8px 12px", marginBottom:"12px" }}>
           📦 {MAX_IMAGES}-image limit reached. Delete one to add another. Higher limits on paid plans.
         </div>
       )}
@@ -60,7 +60,7 @@ export function ImageLibrary({ userId, images, setImages, uploading, setUploadin
       ) : (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(6, 1fr)", gap:"8px", marginTop:"14px" }}>
           {images.map((img) => (
-            <div key={img.path} style={{ position:"relative", aspectRatio:"1", borderRadius:"10px", overflow:"hidden", border:"1.5px solid #e0e0dc" }}>
+            <div key={img.path} style={{ position:"relative", aspectRatio:"1", borderRadius:"10px", overflow:"hidden", border:"1.5px solid #d4d7db" }}>
               <img src={img.url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
               <button onClick={() => handleDelete(img)}
                 style={{ position:"absolute", top:"4px", right:"4px", width:"20px", height:"20px", borderRadius:"50%", background:"rgba(0,0,0,0.65)", border:"none", color:"#fff", fontSize:"13px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>
@@ -94,7 +94,7 @@ export function ProductImagePicker({ images, selectedImage, selectedIcon, onImag
   return (
     <div>
       <label style={{ fontSize:"12px", fontWeight:600, color:"#555", marginBottom:"6px", display:"block" }}>Product visual</label>
-      <div style={{ background:"#f8f8f6", border:"1.5px solid #e0e0dc", borderRadius:"12px", padding:"12px" }}>
+      <div style={{ background:"#fbfbfb", border:"1.5px solid #d4d7db", borderRadius:"12px", padding:"12px" }}>
         <div style={{ display:"flex", gap:"4px", marginBottom:"12px", background:"#efefed", borderRadius:"10px", padding:"3px", width:"fit-content" }}>
           {tabBtn("image","📷 Photo")}
           {tabBtn("icon","😀 Icon")}
@@ -119,7 +119,7 @@ export function ProductImagePicker({ images, selectedImage, selectedIcon, onImag
                 )}
               </div>
             )}
-            {selectedImage && <div style={{ marginTop:"8px", fontSize:"11px", color:"#5a9a00" }}>✓ Photo selected — shows on your page</div>}
+            {selectedImage && <div style={{ marginTop:"8px", fontSize:"11px", color:"#d93f7b" }}>✓ Photo selected — shows on your page</div>}
           </div>
         )}
         {tab === "icon" && (

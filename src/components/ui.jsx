@@ -64,7 +64,7 @@ export function ColourPicker({ value, onChange, onViewPlans }) {
                   border: selected ? `3px solid ${LIME}` : "3px solid transparent",
                   cursor:"pointer",
                   outline:"none",
-                  boxShadow: selected ? "0 0 0 2px #fff, 0 0 0 4px #a3e635" : "none",
+                  boxShadow: selected ? "0 0 0 2px #fff, 0 0 0 4px #ea4c89" : "none",
                   opacity: locked ? 0.5 : 1,
                   filter: locked ? "grayscale(20%)" : "none",
                 }}

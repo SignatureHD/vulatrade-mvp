@@ -82,6 +82,15 @@ create table if not exists public.reviews (
   created_at timestamptz default now()
 );
 
+create table if not exists public.demo_access_numbers (
+  id uuid primary key default gen_random_uuid(),
+  phone_number text unique not null,
+  name text,
+  business_name text,
+  is_active boolean default true,
+  created_at timestamp with time zone default now()
+);
+
 alter table public.profiles enable row level security;
 alter table public.businesses enable row level security;
 alter table public.products enable row level security;
@@ -89,6 +98,7 @@ alter table public.customers enable row level security;
 alter table public.message_templates enable row level security;
 alter table public.payments enable row level security;
 alter table public.reviews enable row level security;
+alter table public.demo_access_numbers enable row level security;
 
 create policy "profiles select own" on public.profiles for select using (auth.uid() = id);
 create policy "profiles insert own" on public.profiles for insert with check (auth.uid() = id);
@@ -123,3 +133,34 @@ create policy "reviews public approved" on public.reviews for select using (appr
 create policy "reviews owner insert" on public.reviews for insert with check (exists (select 1 from public.businesses b where b.id = reviews.business_id and b.user_id = auth.uid()));
 create policy "reviews owner update" on public.reviews for update using (exists (select 1 from public.businesses b where b.id = reviews.business_id and b.user_id = auth.uid()));
 create policy "reviews owner delete" on public.reviews for delete using (exists (select 1 from public.businesses b where b.id = reviews.business_id and b.user_id = auth.uid()));
+
+create or replace function public.check_demo_access_number(input_phone_number text)
+returns table (
+  approved boolean,
+  phone_number text,
+  name text,
+  business_name text
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select
+    exists (
+      select 1
+      from public.demo_access_numbers dan
+      where dan.phone_number = input_phone_number
+        and dan.is_active = true
+    ) as approved,
+    input_phone_number as phone_number,
+    dan.name,
+    dan.business_name
+  from (select 1) seed
+  left join public.demo_access_numbers dan
+    on dan.phone_number = input_phone_number
+   and dan.is_active = true
+  limit 1;
+$$;
+
+revoke all on function public.check_demo_access_number(text) from public;
+grant execute on function public.check_demo_access_number(text) to anon, authenticated;

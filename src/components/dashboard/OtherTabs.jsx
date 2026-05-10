@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Copy, Globe, MessageCircle, Pencil, Share2 } from "lucide-react";
 import { LIME, DARK, PAYMENT_METHODS, PAYMENT_STATUSES, inputStyle, labelStyle } from "../../constants";
 import { TEMPLATES } from "../../data/demoData";
 import { supabase } from "../../lib/supabase";
@@ -37,7 +38,7 @@ export function TemplatesTab({ business, setTab, setPrefilledTemplate }) {
               </div>
             )}
             <button onClick={(e) => { e.stopPropagation(); handleUse(t); }}
-              style={{ backgroundColor:selected===t.id?LIME:DARK, color:selected===t.id?DARK:LIME, border:"none", borderRadius:"10px", padding:"10px 18px", fontSize:"13px", fontWeight:700, cursor:"pointer", width:"100%" }}>
+              style={{ backgroundColor:selected===t.id?LIME:DARK, color:selected===t.id?"#fff":"#fff", border:"none", borderRadius:"10px", padding:"10px 18px", fontSize:"13px", fontWeight:700, cursor:"pointer", width:"100%" }}>
               Use this template →
             </button>
           </div>
@@ -91,20 +92,42 @@ export function PageTab({ business, products, logoUrl }) {
         </div>
         <div style={{ display:"flex", gap:"8px", flexWrap:"wrap", justifyContent:"flex-end" }}>
           <button onClick={shareBusinessPage}
-            style={{ backgroundColor:LIME, color:DARK, border:"none", borderRadius:"10px", padding:"10px 18px", fontSize:"13px", fontWeight:700, cursor:"pointer" }}>
+            style={{ backgroundColor:"#ea4c89", color:"#fff", border:"none", borderRadius:"10px", padding:"10px 18px", fontSize:"13px", fontWeight:700, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:"8px" }}>
+            <Share2 size={16} strokeWidth={2.2} />
             Share
           </button>
           <button onClick={copyShareLink}
-            style={{ background:"#fff", color:"#555", border:"1.5px solid #e0e0e0", borderRadius:"10px", padding:"10px 18px", fontSize:"13px", fontWeight:700, cursor:"pointer" }}>
+            style={{ background:"#fff", color:"#555", border:"1.5px solid #e0e0e0", borderRadius:"10px", padding:"10px 18px", fontSize:"13px", fontWeight:700, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:"8px" }}>
+            <Copy size={16} strokeWidth={2.2} />
             Copy link
           </button>
         </div>
       </div>
-      <div style={{ background:"#e8e8e4", borderRadius:"12px", padding:"10px 14px", fontSize:"13px", color:"#555", marginBottom:"24px", display:"flex", alignItems:"center", gap:"8px" }}>
-        🔗 <span style={{ fontWeight:600 }}>{shareUrl}</span>
+      <div style={{ background:"#eeeeea", borderRadius:"12px", padding:"10px 14px", fontSize:"13px", color:"#555", marginBottom:"24px", display:"flex", alignItems:"center", gap:"8px" }}>
+        <Globe size={17} strokeWidth={2.2} color="#ea4c89" /> <span style={{ fontWeight:600 }}>{shareUrl}</span>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:"10px", marginBottom:"24px" }}>
+        {[
+          { icon:Globe, label:"Public page", sub:"Share your VulaTrade link" },
+          { icon:MessageCircle, label:"WhatsApp enquiry", sub:"Customers can message you" },
+          { icon:Pencil, label:"Edit page", sub:"Update details in Setup" },
+        ].map((item) => {
+          const Icon = item.icon;
+          return (
+            <div key={item.label} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"16px", padding:"14px", display:"flex", alignItems:"center", gap:"12px" }}>
+              <span style={{ width:"38px", height:"38px", borderRadius:"50%", background:"#fde8f1", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                <Icon size={18} strokeWidth={2.2} color="#ea4c89" />
+              </span>
+              <span>
+                <span style={{ display:"block", fontSize:"13px", fontWeight:800, color:DARK }}>{item.label}</span>
+                <span style={{ display:"block", fontSize:"11px", color:"#888", marginTop:"2px" }}>{item.sub}</span>
+              </span>
+            </div>
+          );
+        })}
       </div>
       <BusinessPagePreview
-        form={{ name:business.name, category:business.category, area:business.area, description:business.description, whatsapp:business.whatsapp, bgColour:business.theme||"#0d0d0d", icon:business.background_style||"⭐", font:business.font||"Inter" }}
+        form={{ name:business.name, category:business.category, area:business.area, description:business.description, whatsapp:business.whatsapp, bgColour:business.theme||"#202021", icon:business.background_style||"⭐", font:business.font||"Inter" }}
         products={products} logoUrl={logoUrl} isFullPage={false}
       />
     </div>
@@ -205,7 +228,7 @@ function PaymentForm({ business, customers, onSaved }) {
           <input style={inputStyle} placeholder="Optional" value={form.reference} onChange={(e) => upd("reference", e.target.value)} />
         </div>
         <button onClick={handleSave} disabled={!valid || saving}
-          style={{ backgroundColor:valid ? LIME : "#e0e0e0", color:valid ? DARK : "#aaa", border:"none", borderRadius:"12px", padding:"13px 20px", fontSize:"14px", fontWeight:800, cursor:valid ? "pointer" : "not-allowed" }}>
+          style={{ backgroundColor:valid ? LIME : "#e0e0e0", color:valid ? "#fff" : "#aaa", border:"none", borderRadius:"12px", padding:"13px 20px", fontSize:"14px", fontWeight:800, cursor:valid ? "pointer" : "not-allowed" }}>
           {saving ? "Saving…" : "Save payment"}
         </button>
       </div>
@@ -296,8 +319,8 @@ export function MoneyTab({ business }) {
         {loading ? (
           <div style={{ textAlign:"center", padding:"40px", color:"#aaa" }}>Loading…</div>
         ) : payments.length === 0 ? (
-          <div style={{ background:"#f8f8f6", borderRadius:"14px", padding:"24px", textAlign:"center", color:"#888", fontSize:"13px" }}>
-            No payments logged yet.
+          <div style={{ background:"#fbfbfb", borderRadius:"14px", padding:"24px", textAlign:"center", color:"#888", fontSize:"13px" }}>
+            No sales recorded yet. Start building your business file by adding today's sales.
           </div>
         ) : (
           <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>

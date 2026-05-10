@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { BG_COLOURS, DARK } from "../constants";
+import { BG_COLOURS, DARK, LIME } from "../constants";
 import { supabase } from "../lib/supabase";
+import Logo from "../components/Logo";
 
-const FALLBACK_ACCENT = "#2563eb";
+const FALLBACK_ACCENT = "#ea4c89";
 
 const NOMSA_FALLBACK = {
   business: {
@@ -81,7 +82,7 @@ function ProductImage({ product }) {
   }
 
   return (
-    <div style={{ width: "66px", height: "66px", borderRadius: "18px", background: "#f5f5f3", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", flexShrink: 0 }}>
+    <div style={{ width: "66px", height: "66px", borderRadius: "18px", background: "#fbfbfb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", flexShrink: 0 }}>
       {image}
     </div>
   );
@@ -90,6 +91,7 @@ function ProductImage({ product }) {
 export default function PublicBusinessPage({ slug }) {
   const [business, setBusiness] = useState(null);
   const [products, setProducts] = useState([]);
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -116,10 +118,19 @@ export default function PublicBusinessPage({ slug }) {
           .eq("is_active", true)
           .order("created_at");
 
+        const { data: foundReviews, error: reviewsError } = await supabase
+          .from("reviews")
+          .select("*")
+          .eq("business_id", foundBusiness.id)
+          .eq("approved", true)
+          .order("created_at", { ascending: false });
+
         if (productsError) console.error("Public products load:", productsError);
+        if (reviewsError) console.error("Public reviews load:", reviewsError);
         if (!cancelled) {
           setBusiness(foundBusiness);
           setProducts(foundProducts || []);
+          setReviews(foundReviews || []);
           setLoading(false);
         }
         return;
@@ -130,6 +141,7 @@ export default function PublicBusinessPage({ slug }) {
       if (slug === "nomsa-nails") {
         setBusiness(NOMSA_FALLBACK.business);
         setProducts(NOMSA_FALLBACK.products);
+        setReviews([]);
         setLoading(false);
         return;
       }
@@ -144,7 +156,7 @@ export default function PublicBusinessPage({ slug }) {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", background: "#f5f5f3", display: "flex", alignItems: "center", justifyContent: "center", color: "#888", fontFamily: "'Inter', -apple-system, sans-serif" }}>
+      <div style={{ minHeight: "100vh", background: "#fbfbfb", display: "flex", alignItems: "center", justifyContent: "center", color: "#888", fontFamily: "'Inter', -apple-system, sans-serif" }}>
         Loading business page…
       </div>
     );
@@ -152,12 +164,14 @@ export default function PublicBusinessPage({ slug }) {
 
   if (notFound || !business) {
     return (
-      <div style={{ minHeight: "100vh", background: "#f5f5f3", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'Inter', -apple-system, sans-serif" }}>
-        <div style={{ width: "100%", maxWidth: "360px", background: "#fff", border: "1px solid #eeeeea", borderRadius: "18px", padding: "28px", textAlign: "center" }}>
-          <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: DARK, color: FALLBACK_ACCENT, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontWeight: 900 }}>VT</div>
+      <div style={{ minHeight: "100vh", background: "#fbfbfb", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", fontFamily: "'Inter', -apple-system, sans-serif" }}>
+        <div style={{ width: "100%", maxWidth: "360px", background: "#fff", border: "1px solid #eeeeea", borderRadius: "26px", padding: "28px", textAlign: "center", boxShadow:"0 18px 50px rgba(32,32,33,0.08)" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
+            <Logo size="compact" iconOnly />
+          </div>
           <h1 style={{ fontSize: "22px", fontWeight: 900, color: DARK, marginBottom: "8px" }}>Page not found</h1>
           <p style={{ fontSize: "14px", color: "#888", lineHeight: 1.6, marginBottom: "18px" }}>This VulaTrade business page is not available yet.</p>
-          <a href="/" style={{ display: "inline-block", background: DARK, color: FALLBACK_ACCENT, borderRadius: "12px", padding: "12px 18px", fontSize: "14px", fontWeight: 800, textDecoration: "none" }}>Go to VulaTrade</a>
+          <a href="/" style={{ display: "inline-block", background: LIME, color: "#fff", borderRadius: "14px", padding: "12px 18px", fontSize: "14px", fontWeight: 800, textDecoration: "none" }}>Go to VulaTrade</a>
         </div>
       </div>
     );
@@ -175,9 +189,9 @@ export default function PublicBusinessPage({ slug }) {
   const heroGlow = `${pageTheme.accent}24`;
 
   return (
-    <main style={{ minHeight: "100vh", background: "linear-gradient(180deg, #eef1f4 0%, #f8f8f6 46%, #ffffff 100%)", fontFamily: "'Inter', -apple-system, sans-serif", color: DARK, padding: "18px" }}>
+    <main style={{ minHeight: "100vh", background: "linear-gradient(180deg, #fbfbfb 0%, #f8f8f8 46%, #ffffff 100%)", fontFamily: "'Inter', -apple-system, sans-serif", color: DARK, padding: "18px" }}>
       <div style={{ width: "100%", maxWidth: "760px", margin: "0 auto" }}>
-        <section style={{ position: "relative", overflow: "hidden", background: pageTheme.value, color: pageTheme.text, padding: "26px 22px 24px", borderRadius: "30px", boxShadow: "0 22px 70px rgba(15,23,42,0.22)" }}>
+        <section style={{ position: "relative", overflow: "hidden", background: pageTheme.value, color: pageTheme.text, padding: "26px 22px 24px", borderRadius: "34px", boxShadow: "0 22px 70px rgba(32,32,33,0.14)" }}>
           <div style={{ position: "absolute", inset: "-40% -25% auto auto", width: "220px", height: "220px", borderRadius: "50%", background: heroGlow, filter: "blur(4px)" }} />
           <div style={{ position: "relative" }}>
             <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.06)", border: `1px solid ${pageTheme.accent}66`, color: pageTheme.accent, borderRadius: "999px", padding: "7px 11px", fontSize: "11px", fontWeight: 850, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "22px" }}>
@@ -235,6 +249,24 @@ export default function PublicBusinessPage({ slug }) {
           </div>
         </section>
 
+        {reviews.length > 0 && (
+          <section style={{ padding: "18px 0 0" }}>
+            <div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "26px", padding: "20px", boxShadow: "0 14px 42px rgba(15,23,42,0.06)" }}>
+              <div style={{ color: pageTheme.accent, fontSize: "11px", fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>Customer reviews</div>
+              <h2 style={{ fontSize: "22px", fontWeight: 950, margin: "0 0 14px", letterSpacing: "0" }}>What customers say</h2>
+              <div style={{ display:"grid", gap:"10px" }}>
+                {reviews.slice(0, 3).map((review) => (
+                  <div key={review.id} style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"18px", padding:"14px" }}>
+                    <div style={{ color:"#ffb60a", fontSize:"14px", marginBottom:"6px" }}>{"★".repeat(review.rating || 5)}</div>
+                    <div style={{ fontSize:"14px", color:DARK, lineHeight:1.6, fontWeight:650 }}>{review.review_text}</div>
+                    <div style={{ fontSize:"12px", color:"#767b81", marginTop:"8px", fontWeight:800 }}>{review.customer_name}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
         <section style={{ padding: "26px 0 0" }}>
           <div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "26px", padding: "20px", boxShadow: "0 14px 42px rgba(15,23,42,0.06)" }}>
             <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "12px", marginBottom: "18px" }}>
@@ -242,11 +274,11 @@ export default function PublicBusinessPage({ slug }) {
                 <div style={{ color: pageTheme.accent, fontSize: "11px", fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>What we offer</div>
                 <h2 style={{ fontSize: "22px", fontWeight: 950, margin: 0, letterSpacing: "0" }}>Services & prices</h2>
               </div>
-              <span style={{ background: "#f8f8f6", border: "1px solid #eeeeea", borderRadius: "999px", padding: "7px 10px", fontSize: "12px", color: "#777", fontWeight: 800, whiteSpace: "nowrap" }}>{activeProducts.length} item{activeProducts.length !== 1 ? "s" : ""}</span>
+              <span style={{ background: "#fbfbfb", border: "1px solid #eeeeea", borderRadius: "999px", padding: "7px 10px", fontSize: "12px", color: "#777", fontWeight: 800, whiteSpace: "nowrap" }}>{activeProducts.length} item{activeProducts.length !== 1 ? "s" : ""}</span>
             </div>
 
             {activeProducts.length === 0 ? (
-              <div style={{ background: "#f8f8f6", border: "1px dashed #d8d8d4", borderRadius: "18px", padding: "28px", textAlign: "center", color: "#888", fontSize: "14px" }}>
+              <div style={{ background: "#fbfbfb", border: "1px dashed #d8d8d4", borderRadius: "18px", padding: "28px", textAlign: "center", color: "#888", fontSize: "14px" }}>
                 Services will appear here soon.
               </div>
             ) : (
@@ -269,8 +301,9 @@ export default function PublicBusinessPage({ slug }) {
         </section>
 
         <footer style={{ padding: "22px 0 8px", textAlign: "center" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "#fff", border: "1px solid #eeeeea", borderRadius: "999px", padding: "10px 14px", boxShadow: "0 8px 24px rgba(15,23,42,0.05)", fontSize: "12px", color: "#888", fontWeight: 800 }}>
-            Powered by <span style={{ color: pageTheme.accent, fontWeight: 950 }}>VulaTrade</span>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "#fff", border: "1px solid #eeeeea", borderRadius: "999px", padding: "8px 14px", boxShadow: "0 8px 24px rgba(15,23,42,0.05)", fontSize: "12px", color: "#888", fontWeight: 800 }}>
+            <span>Powered by</span>
+            <Logo size="small" />
           </div>
         </footer>
       </div>

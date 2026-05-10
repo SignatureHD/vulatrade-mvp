@@ -1,6 +1,48 @@
 import React, { useEffect, useState } from "react";
+import {
+  Banknote,
+  CheckCircle,
+  Circle,
+  Download,
+  FileCheck,
+  Globe,
+  Package,
+  PlusCircle,
+  ReceiptText,
+  UserPlus,
+  Users,
+  WalletCards,
+} from "lucide-react";
 import { LIME, DARK } from "../../constants";
 import { supabase } from "../../lib/supabase";
+
+const GREEN = "#ea4c89";
+
+function SoftIcon({ icon: Icon, color = GREEN, bg = "#fde8f1", size = 20 }) {
+  return (
+    <span style={{ width:"42px", height:"42px", borderRadius:"50%", background:bg, display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+      <Icon size={size} strokeWidth={2.2} color={color} />
+    </span>
+  );
+}
+
+function QuickAction({ icon: Icon, label, onClick, accent = GREEN }) {
+  const showPlus = label.startsWith("Add ");
+  return (
+    <button onClick={onClick}
+      style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:"8px", background:"transparent", border:"none", cursor:"pointer", minWidth:"86px", padding:"4px" }}>
+      <span style={{ width:"58px", height:"58px", borderRadius:"50%", background:"#fde8f1", display:"flex", alignItems:"center", justifyContent:"center", color:accent, position:"relative" }}>
+        <Icon size={25} strokeWidth={2.2} color={accent} />
+        {showPlus && (
+          <span style={{ position:"absolute", right:"4px", bottom:"4px", width:"20px", height:"20px", borderRadius:"50%", background:"#fff", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 12px rgba(32,32,33,0.12)" }}>
+            <PlusCircle size={16} strokeWidth={2.4} color={accent} />
+          </span>
+        )}
+      </span>
+      <span style={{ fontSize:"11px", fontWeight:700, color:DARK, lineHeight:1.25, textAlign:"center" }}>{label}</span>
+    </button>
+  );
+}
 
 export function DashboardHome({ user, business, setTab }) {
   const [data, setData]               = useState(null);
@@ -174,7 +216,7 @@ export function DashboardHome({ user, business, setTab }) {
           Pick a template and launch in minutes. Your customers will be able to find you, book you, and pay you.
         </div>
         <button onClick={() => setTab("Templates")}
-          style={{ backgroundColor:LIME, color:DARK, border:"none", borderRadius:"12px", padding:"12px 24px", fontSize:"14px", fontWeight:800, cursor:"pointer" }}>
+          style={{ backgroundColor:LIME, color:"#fff", border:"none", borderRadius:"12px", padding:"12px 24px", fontSize:"14px", fontWeight:800, cursor:"pointer" }}>
           Browse templates
         </button>
       </div>
@@ -226,20 +268,63 @@ export function DashboardHome({ user, business, setTab }) {
           {/* Stat cards */}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))", gap:"10px" }}>
             {[
-              { label:"Today's bookings", value:data.todayBookings.length, sub:data.todayBookings.length===0?"Free day":`${data.todayBookings.length} appointment${data.todayBookings.length!==1?"s":""}`, onClick:()=>setTab("Bookings"), highlight:data.todayBookings.length>0 },
-              { label:"Revenue this month", value:`R${data.thisMonthRevenue.toLocaleString()}`, sub:data.lastMonthRevenue>0?`${revenueUp?"▲":"▼"} vs R${data.lastMonthRevenue.toLocaleString()} last month`:"Log payments to track", subColor:data.lastMonthRevenue>0?(revenueUp?"#5a9a00":"#cc3300"):"#bbb", onClick:()=>setTab("Money") },
-              { label:"Customers", value:data.totalCustomers, sub:data.leads.length>0?`${data.leads.length} lead${data.leads.length!==1?"s":""} to convert`:"No leads waiting", onClick:()=>setTab("Customers") },
-              { label:"Needs follow-up", value:data.needsContact.length+data.atRisk.length+data.unpaidPayments.length, sub:data.unpaidPayments.length>0?`${data.unpaidPayments.length} unpaid payment${data.unpaidPayments.length!==1?"s":""}`:data.needsContact.length+data.atRisk.length>0?"Tap to see who":"All caught up", subColor:data.needsContact.length+data.atRisk.length+data.unpaidPayments.length>0?"#f59e0b":"#5a9a00", onClick:()=>data.unpaidPayments.length>0?setTab("Money"):setTab("Customers") },
+              { label:"Total Sales", value:`R${data.thisMonthRevenue.toLocaleString()}`, sub:data.lastMonthRevenue>0?`${revenueUp?"▲":"▼"} vs R${data.lastMonthRevenue.toLocaleString()} last month`:"Log payments to track", subColor:data.lastMonthRevenue>0?(revenueUp?"#d93f7b":"#cc3300"):"#bbb", onClick:()=>setTab("Money"), icon:Banknote },
+              { label:"Products / Services", value:data.todayBookings.length, sub:data.todayBookings.length===0?"No sales today":`${data.todayBookings.length} appointment${data.todayBookings.length!==1?"s":""} today`, onClick:()=>setTab("Setup"), highlight:data.todayBookings.length>0, icon:Package, bg:"#edf5fe", color:"#0267ff" },
+              { label:"Customers", value:data.totalCustomers, sub:data.leads.length>0?`${data.leads.length} lead${data.leads.length!==1?"s":""} to convert`:"No leads waiting", onClick:()=>setTab("Customers"), icon:Users, bg:"#fff8e7", color:"#d89b00" },
+              { label:"Business File Progress", value:data.needsContact.length+data.atRisk.length+data.unpaidPayments.length === 0 ? "Ready" : data.needsContact.length+data.atRisk.length+data.unpaidPayments.length, sub:data.unpaidPayments.length>0?`${data.unpaidPayments.length} unpaid payment${data.unpaidPayments.length!==1?"s":""}`:data.needsContact.length+data.atRisk.length>0?"Actions to complete":"All caught up", subColor:data.needsContact.length+data.atRisk.length+data.unpaidPayments.length>0?"#f59e0b":"#d93f7b", onClick:()=>data.unpaidPayments.length>0?setTab("Money"):setTab("Customers"), icon:FileCheck, bg:"#fbe6ea", color:"#d90429" },
             ].map((s) => (
               <div key={s.label} onClick={s.onClick}
                 style={{ background:"#fff", border:`1.5px solid ${s.highlight ? LIME : "#eeeeea"}`, borderRadius:"16px", padding:"18px", cursor:s.onClick?"pointer":"default" }}
                 onMouseEnter={(e) => { if (s.onClick) e.currentTarget.style.borderColor = DARK; }}
                 onMouseLeave={(e) => { if (s.onClick) e.currentTarget.style.borderColor = s.highlight ? LIME : "#eeeeea"; }}>
-                <div style={{ fontSize:"10px", color:"#aaa", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"8px" }}>{s.label}</div>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"12px", marginBottom:"12px" }}>
+                  <div style={{ fontSize:"10px", color:"#aaa", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.06em" }}>{s.label}</div>
+                  <SoftIcon icon={s.icon} bg={s.bg || "#fde8f1"} color={s.color || GREEN} size={19} />
+                </div>
                 <div style={{ fontSize:"28px", fontWeight:900, color:DARK, lineHeight:1, marginBottom:"6px" }}>{s.value}</div>
                 <div style={{ fontSize:"11px", color:s.subColor||"#bbb", fontWeight:600 }}>{s.sub}</div>
               </div>
             ))}
+          </div>
+
+          {/* Quick actions */}
+          <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"20px" }}>
+            <div style={{ fontSize:"15px", fontWeight:800, color:DARK, marginBottom:"16px" }}>Quick actions</div>
+            <div style={{ display:"flex", gap:"14px", overflowX:"auto", paddingBottom:"2px" }}>
+              <QuickAction icon={ReceiptText} label="Add Sale" onClick={() => setTab("Money")} />
+              <QuickAction icon={Package} label="Add Product / Service" onClick={() => setTab("Setup")} accent="#0267ff" />
+              <QuickAction icon={UserPlus} label="Add Customer" onClick={() => setTab("Customers")} accent="#d89b00" />
+              <QuickAction icon={WalletCards} label="Add Expense" onClick={() => setTab("Money")} accent="#d93f7b" />
+              <QuickAction icon={Globe} label="View Public Page" onClick={() => setTab("Page")} accent="#ea4c89" />
+              <QuickAction icon={Download} label="Download Business File" onClick={() => setTab("Growth")} accent="#767b81" />
+            </div>
+          </div>
+
+          {/* Business file checklist */}
+          <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"20px" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"16px" }}>
+              <SoftIcon icon={FileCheck} />
+              <div>
+                <div style={{ fontSize:"15px", fontWeight:800, color:DARK }}>Business File checklist</div>
+                <div style={{ fontSize:"12px", color:"#888", marginTop:"2px" }}>Small records that make your business easier to prove.</div>
+              </div>
+            </div>
+            <div style={{ display:"grid", gap:"10px" }}>
+              {[
+                { label:"Business profile created", done:Boolean(business?.name) },
+                { label:"Public page ready", done:Boolean(business?.slug) },
+                { label:"Customers added", done:data.totalCustomers > 0 },
+                { label:"Sales recorded", done:data.totalEarned > 0 },
+              ].map((item) => {
+                const Icon = item.done ? CheckCircle : Circle;
+                return (
+                  <div key={item.label} style={{ display:"flex", alignItems:"center", gap:"10px", fontSize:"13px", fontWeight:700, color:item.done?DARK:"#888" }}>
+                    <Icon size={19} strokeWidth={2.2} color={item.done ? GREEN : "#c6cbd1"} />
+                    {item.label}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Today's appointments */}
@@ -249,7 +334,7 @@ export function DashboardHome({ user, business, setTab }) {
               <button onClick={() => setTab("Bookings")} style={{ fontSize:"12px", color:"#aaa", background:"transparent", border:"none", cursor:"pointer", fontWeight:600 }}>View all</button>
             </div>
             {data.todayBookings.length === 0 ? (
-              <div style={{ background:"#f8f8f6", borderRadius:"14px", padding:"20px", textAlign:"center" }}>
+              <div style={{ background:"#fbfbfb", borderRadius:"14px", padding:"20px", textAlign:"center" }}>
                 <div style={{ fontSize:"13px", color:"#888", marginBottom:"14px", lineHeight:1.6 }}>
                   No appointments today — a good time to reach out to customers or plan ahead.
                 </div>
@@ -263,7 +348,7 @@ export function DashboardHome({ user, business, setTab }) {
                 {data.todayBookings
                   .sort((a, b) => (a.booking_time || "").localeCompare(b.booking_time || ""))
                   .map((b) => (
-                    <div key={b.id} style={{ display:"flex", alignItems:"center", gap:"14px", padding:"12px 16px", background:"#f8f8f6", borderRadius:"12px" }}>
+                    <div key={b.id} style={{ display:"flex", alignItems:"center", gap:"14px", padding:"12px 16px", background:"#fbfbfb", borderRadius:"12px" }}>
                       <div style={{ textAlign:"center", minWidth:"44px", background:LIME, borderRadius:"10px", padding:"6px 0" }}>
                         <div style={{ fontSize:"13px", fontWeight:900, color:DARK }}>{b.booking_time || "—"}</div>
                       </div>
@@ -311,8 +396,8 @@ export function DashboardHome({ user, business, setTab }) {
                     { n:2, title:"Share your business page", sub:"Send your link on WhatsApp so customers can find you", btn:"View page", tab:"Page", primary:false },
                     { n:3, title:"Book your first appointment", sub:"Add a booking and start tracking your schedule", btn:"Add booking", tab:"Bookings", primary:false },
                   ].map((step) => (
-                    <div key={step.n} style={{ background:"#f8f8f6", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"14px" }}>
-                      <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:step.primary?LIME:"#e0e0dc", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:DARK, flexShrink:0, fontSize:"16px" }}>{step.n}</div>
+                    <div key={step.n} style={{ background:"#fbfbfb", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"14px" }}>
+                      <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:step.primary?LIME:"#d4d7db", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:DARK, flexShrink:0, fontSize:"16px" }}>{step.n}</div>
                       <div style={{ flex:1 }}>
                         <div style={{ fontSize:"13px", fontWeight:700, color:DARK, marginBottom:"2px" }}>{step.title}</div>
                         <div style={{ fontSize:"12px", color:"#aaa" }}>{step.sub}</div>
@@ -342,7 +427,7 @@ export function DashboardHome({ user, business, setTab }) {
                     </div>
                   )}
                   {data.followUpNudges.length > 0 && (
-                    <div style={{ background:"#f8f8f6", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"14px" }}>
+                    <div style={{ background:"#fbfbfb", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"14px" }}>
                       <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:LIME, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:DARK, flexShrink:0, fontSize:"13px" }}>TY</div>
                       <div style={{ flex:1 }}>
                         <div style={{ fontSize:"13px", fontWeight:700, color:DARK, marginBottom:"2px" }}>
@@ -374,8 +459,8 @@ export function DashboardHome({ user, business, setTab }) {
                     </div>
                   )}
                   {data.leads.length > 0 && (
-                    <div style={{ background:"#f8f8f6", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"14px" }}>
-                      <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:"#e0e0dc", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:DARK, flexShrink:0, fontSize:"13px" }}>→</div>
+                    <div style={{ background:"#fbfbfb", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"14px" }}>
+                      <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:"#d4d7db", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:DARK, flexShrink:0, fontSize:"13px" }}>→</div>
                       <div style={{ flex:1 }}>
                         <div style={{ fontSize:"13px", fontWeight:700, color:DARK, marginBottom:"2px" }}>
                           {data.leads.length} lead{data.leads.length!==1?"s":""} {data.leads.length===1?"has":"have"} not booked yet
@@ -391,8 +476,8 @@ export function DashboardHome({ user, business, setTab }) {
                     </div>
                   )}
                   {data.needsContact.length > 0 && (
-                    <div style={{ background:"#f8f8f6", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"14px" }}>
-                      <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:"#e0e0dc", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:DARK, flexShrink:0, fontSize:"13px" }}>30</div>
+                    <div style={{ background:"#fbfbfb", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"14px" }}>
+                      <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:"#d4d7db", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:DARK, flexShrink:0, fontSize:"13px" }}>30</div>
                       <div style={{ flex:1 }}>
                         <div style={{ fontSize:"13px", fontWeight:700, color:DARK, marginBottom:"2px" }}>
                           {data.needsContact.length} customer{data.needsContact.length!==1?"s":""} not contacted in 30+ days
@@ -408,14 +493,14 @@ export function DashboardHome({ user, business, setTab }) {
                     </div>
                   )}
                   {data.unpaidPayments.length === 0 && data.followUpNudges.length === 0 && data.atRisk.length === 0 && data.leads.length === 0 && data.needsContact.length === 0 && (
-                    <div style={{ background:"#f0ffe0", border:"1px solid #c3e66a", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"12px" }}>
+                    <div style={{ background:"#fff5f9", border:"1px solid #f8b8d2", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"12px" }}>
                       <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:LIME, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:DARK, flexShrink:0, fontSize:"13px" }}>✓</div>
                       <div style={{ flex:1 }}>
-                        <div style={{ fontSize:"13px", color:"#3a6b00", fontWeight:700 }}>You are all caught up</div>
-                        <div style={{ fontSize:"12px", color:"#5a9a00", marginTop:"2px" }}>Share your page on WhatsApp to keep new customers coming in</div>
+                        <div style={{ fontSize:"13px", color:"#d93f7b", fontWeight:700 }}>You are all caught up</div>
+                        <div style={{ fontSize:"12px", color:"#d93f7b", marginTop:"2px" }}>Share your page on WhatsApp to keep new customers coming in</div>
                       </div>
                       <button onClick={() => setTab("Page")}
-                        style={{ padding:"6px 12px", borderRadius:"8px", border:"none", background:"#3a6b00", color:"#fff", fontSize:"11px", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
+                        style={{ padding:"6px 12px", borderRadius:"8px", border:"none", background:"#d93f7b", color:"#fff", fontSize:"11px", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
                         Share page
                       </button>
                     </div>
@@ -442,7 +527,7 @@ export function DashboardHome({ user, business, setTab }) {
             <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"20px" }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"16px" }}>
                 <div style={{ fontSize:"15px", fontWeight:800, color:DARK }}>Revenue — last 6 months</div>
-                <div style={{ fontSize:"13px", fontWeight:700, color: revenueUp ? "#5a9a00" : "#cc3300" }}>
+                <div style={{ fontSize:"13px", fontWeight:700, color: revenueUp ? "#d93f7b" : "#cc3300" }}>
                   {revenueUp ? "▲" : "▼"} {data.lastMonthRevenue > 0
                     ? `${Math.abs(Math.round(((data.thisMonthRevenue - data.lastMonthRevenue) / data.lastMonthRevenue) * 100))}% vs last month`
                     : "First month"}
@@ -460,7 +545,7 @@ export function DashboardHome({ user, business, setTab }) {
                           <div style={{ fontSize:"10px", color:"#888", fontWeight:700 }}>
                             {m.value > 0 ? `R${m.value >= 1000 ? Math.round(m.value/1000)+"k" : m.value}` : ""}
                           </div>
-                          <div style={{ width:"100%", height:`${h}px`, borderRadius:"6px 6px 0 0", background: isLast ? LIME : "#e0e0dc" }} />
+                          <div style={{ width:"100%", height:`${h}px`, borderRadius:"6px 6px 0 0", background: isLast ? LIME : "#d4d7db" }} />
                           <div style={{ fontSize:"10px", color: isLast ? DARK : "#bbb", fontWeight: isLast ? 800 : 500 }}>{m.label}</div>
                         </div>
                       );
@@ -472,7 +557,7 @@ export function DashboardHome({ user, business, setTab }) {
           ) : (
             <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"20px" }}>
               <div style={{ fontSize:"15px", fontWeight:800, color:DARK, marginBottom:"12px" }}>Revenue trend</div>
-              <div style={{ background:"#f8f8f6", borderRadius:"14px", padding:"20px", textAlign:"center" }}>
+              <div style={{ background:"#fbfbfb", borderRadius:"14px", padding:"20px", textAlign:"center" }}>
                 <div style={{ fontSize:"13px", color:"#888", marginBottom:"14px", lineHeight:1.6 }}>
                   No revenue logged yet. Log payments to start tracking.
                 </div>

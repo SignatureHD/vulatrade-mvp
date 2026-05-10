@@ -124,7 +124,7 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
       </div>
 
       {adding && (
-        <div style={{ background:"#f8f8f6", border:"1.5px solid #e0e0dc", borderRadius:"14px", padding:"18px", marginBottom:"14px" }}>
+        <div style={{ background:"#fbfbfb", border:"1.5px solid #d4d7db", borderRadius:"14px", padding:"18px", marginBottom:"14px" }}>
           <div style={{ fontSize:"14px", fontWeight:700, color:DARK, marginBottom:"14px" }}>New product or service</div>
           <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
             <input style={inputStyle} placeholder="Name e.g. Gel overlay" value={newProduct.name} onChange={(e) => setNewProduct({...newProduct, name:e.target.value})} />
@@ -134,7 +134,7 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
               onImageSelect={(url) => setNewProduct((p) => ({...p, image:url}))}
               onIconSelect={(ic) => setNewProduct((p) => ({...p, icon:ic, image:null}))} />
             <div style={{ display:"flex", gap:"8px" }}>
-              <button onClick={handleAdd} disabled={saving} style={{ backgroundColor:LIME, color:DARK, border:"none", borderRadius:"10px", padding:"10px 20px", fontSize:"13px", fontWeight:700, cursor:"pointer", flex:1 }}>{saving?"Saving...":"Save product"}</button>
+              <button onClick={handleAdd} disabled={saving} style={{ backgroundColor:LIME, color:"#fff", border:"none", borderRadius:"10px", padding:"10px 20px", fontSize:"13px", fontWeight:700, cursor:"pointer", flex:1 }}>{saving?"Saving...":"Save product"}</button>
               <button onClick={() => { setAdding(false); setNewProduct({name:"",price:"",description:"",icon:"🛍️",image:null}); }} style={{ background:"#fff", color:"#888", border:"1.5px solid #e0e0e0", borderRadius:"10px", padding:"10px 16px", fontSize:"13px", cursor:"pointer" }}>Cancel</button>
             </div>
           </div>
@@ -143,14 +143,14 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
 
       {loading ? <div style={{ fontSize:"13px", color:"#aaa", padding:"20px 0" }}>Loading...</div> :
         products.length === 0 ? (
-          <div style={{ background:"#f8f8f6", border:"1.5px dashed #ddd", borderRadius:"14px", padding:"32px", textAlign:"center" }}>
+          <div style={{ background:"#fbfbfb", border:"1.5px dashed #ddd", borderRadius:"14px", padding:"32px", textAlign:"center" }}>
             <div style={{ fontSize:"28px", marginBottom:"10px" }}>🛍️</div>
-            <div style={{ fontSize:"14px", fontWeight:600, color:"#888" }}>No products yet</div>
+            <div style={{ fontSize:"14px", fontWeight:700, color:DARK }}>No products yet. Add your first product or service.</div>
           </div>
         ) : (
           <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
             {products.map((p) => (
-              <div key={p.id} style={{ background:"#fff", border:`1.5px solid ${editingId===p.id?LIME:"#e8e8e4"}`, borderRadius:"14px", padding:"14px 18px", opacity:p.is_active?1:0.55 }}>
+              <div key={p.id} style={{ background:"#fff", border:`1.5px solid ${editingId===p.id?LIME:"#eeeeea"}`, borderRadius:"14px", padding:"14px 18px", opacity:p.is_active?1:0.55 }}>
                 {editingId===p.id ? (
                   <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
                     <input style={inputStyle} value={editForm.name} onChange={(e) => setEditForm({...editForm,name:e.target.value})} placeholder="Product name" />
@@ -160,7 +160,7 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
                       onImageSelect={(url) => setEditForm((f) => ({...f,image:url}))}
                       onIconSelect={(ic) => setEditForm((f) => ({...f,icon:ic,image:null}))} />
                     <div style={{ display:"flex", gap:"8px" }}>
-                      <button onClick={() => handleSaveEdit(p.id)} style={{ backgroundColor:LIME, color:DARK, border:"none", borderRadius:"10px", padding:"9px 18px", fontSize:"13px", fontWeight:700, cursor:"pointer", flex:1 }}>Save</button>
+                      <button onClick={() => handleSaveEdit(p.id)} style={{ backgroundColor:LIME, color:"#fff", border:"none", borderRadius:"10px", padding:"9px 18px", fontSize:"13px", fontWeight:700, cursor:"pointer", flex:1 }}>Save</button>
                       <button onClick={() => setEditingId(null)} style={{ background:"#fff", color:"#888", border:"1.5px solid #e0e0e0", borderRadius:"10px", padding:"9px 14px", fontSize:"13px", cursor:"pointer" }}>Cancel</button>
                     </div>
                   </div>
@@ -173,8 +173,8 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
                     </div>
                     <div style={{ fontSize:"16px", fontWeight:900, color:DARK, minWidth:"55px", textAlign:"right" }}>R{p.price}</div>
                     <div style={{ display:"flex", flexWrap:"wrap", gap:"4px" }}>
-                      <button onClick={() => { setEditingId(p.id); const isUrl=p.image&&p.image.startsWith("http"); setEditForm({name:p.name,price:p.price,description:p.description||"",icon:isUrl?"🛍️":(p.image||p.icon||"🛍️"),image:isUrl?p.image:null}); }} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:"#f8f8f6", color:"#555", cursor:"pointer", fontWeight:600 }}>Edit</button>
-                      <button onClick={() => handleToggleActive(p)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:p.is_active?"#f0ffe0":"#f5f5f5", color:p.is_active?"#3a6b00":"#aaa", cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>{p.is_active?"Active":"Hidden"}</button>
+                      <button onClick={() => { setEditingId(p.id); const isUrl=p.image&&p.image.startsWith("http"); setEditForm({name:p.name,price:p.price,description:p.description||"",icon:isUrl?"🛍️":(p.image||p.icon||"🛍️"),image:isUrl?p.image:null}); }} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:"#fbfbfb", color:"#555", cursor:"pointer", fontWeight:600 }}>Edit</button>
+                      <button onClick={() => handleToggleActive(p)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:p.is_active?"#fff5f9":"#f5f5f5", color:p.is_active?"#d93f7b":"#aaa", cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>{p.is_active?"Active":"Hidden"}</button>
                       <button onClick={() => handleDelete(p.id)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #ffd0d0", background:"#fff5f5", color:"#cc3300", cursor:"pointer", fontWeight:600 }}>Delete</button>
                     </div>
                   </div>
@@ -197,7 +197,7 @@ export function SetupTab({ user, business, setBusiness, prefilledTemplate, setPr
     description: business?.description  || "",
     whatsapp:    business?.whatsapp     || "",
     payment:     business?.payment      || "",
-    bgColour:    business?.theme        || "#0d0d0d",
+    bgColour:    business?.theme        || "#202021",
     icon:        business?.background_style || "⭐",
     font:        business?.font         || "Inter",
   });
@@ -277,7 +277,7 @@ export function SetupTab({ user, business, setBusiness, prefilledTemplate, setPr
     <div style={{ display:"flex", gap:"40px", alignItems:"flex-start", position:"relative" }}>
       {/* Mobile preview overlay */}
       {showMobilePreview && (
-        <div style={{ position:"fixed", inset:0, background:"#f5f5f3", zIndex:200, overflowY:"auto", padding:"16px" }}>
+        <div style={{ position:"fixed", inset:0, background:"#fbfbfb", zIndex:200, overflowY:"auto", padding:"16px" }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"16px" }}>
             <div style={{ fontSize:"15px", fontWeight:800, color:DARK }}>Live Preview</div>
             <button onClick={() => setShowMobilePreview(false)}
@@ -291,7 +291,7 @@ export function SetupTab({ user, business, setBusiness, prefilledTemplate, setPr
 
       <div style={{ flex:1, minWidth:0 }}>
         {/* Sticky save bar */}
-        <div style={{ position:"sticky", top:0, background:"#f5f5f3", zIndex:10, paddingBottom:"16px", paddingTop:"4px" }}>
+        <div style={{ position:"sticky", top:0, background:"#fbfbfb", zIndex:10, paddingBottom:"16px", paddingTop:"4px" }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
             <div>
               <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Business Setup</h2>
@@ -302,7 +302,7 @@ export function SetupTab({ user, business, setBusiness, prefilledTemplate, setPr
                 style={{ padding:"12px 16px", borderRadius:"12px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"13px", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
                 Preview
               </button>
-              <button onClick={handleSave} disabled={saving} style={{ backgroundColor:saving?"#ccc":saved?"#e8f5d0":LIME, color:saving?"#fff":saved?"#3a6b00":DARK, border:saved?"1.5px solid #a3e635":"none", borderRadius:"12px", padding:"12px 24px", fontSize:"14px", fontWeight:800, cursor:saving?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
+              <button onClick={handleSave} disabled={saving} style={{ backgroundColor:saving?"#ccc":saved?"#fff5f9":LIME, color:saving?"#fff":saved?"#d93f7b":"#fff", border:saved?"1.5px solid #ea4c89":"none", borderRadius:"12px", padding:"12px 24px", fontSize:"14px", fontWeight:800, cursor:saving?"not-allowed":"pointer", whiteSpace:"nowrap" }}>
                 {saving?"Saving...":saved?"✓ Saved":"Save Business"}
               </button>
             </div>

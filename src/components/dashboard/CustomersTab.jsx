@@ -19,7 +19,7 @@ function ImportPreviewModal({ contacts, onConfirm, onCancel, importing }) {
         <div style={{ overflowY:"auto", flex:1, display:"flex", flexDirection:"column", gap:"6px", marginBottom:"16px" }}>
           {contacts.map((c, i) => (
             <div key={i} onClick={() => toggle(i)}
-              style={{ display:"flex", alignItems:"center", gap:"12px", padding:"10px 14px", borderRadius:"12px", border:`1.5px solid ${selected.has(i) ? LIME : "#e0e0e0"}`, background:selected.has(i) ? "#f7ffe0" : "#fff", cursor:"pointer" }}>
+              style={{ display:"flex", alignItems:"center", gap:"12px", padding:"10px 14px", borderRadius:"12px", border:`1.5px solid ${selected.has(i) ? LIME : "#e0e0e0"}`, background:selected.has(i) ? "#fff5f9" : "#fff", cursor:"pointer" }}>
               <div style={{ width:"18px", height:"18px", borderRadius:"5px", border:`2px solid ${selected.has(i) ? LIME : "#ccc"}`, background:selected.has(i) ? LIME : "#fff", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"11px", fontWeight:800 }}>
                 {selected.has(i) ? "✓" : ""}
               </div>
@@ -32,7 +32,7 @@ function ImportPreviewModal({ contacts, onConfirm, onCancel, importing }) {
         </div>
         <div style={{ display:"flex", gap:"8px" }}>
           <button onClick={() => onConfirm(toImport)} disabled={toImport.length === 0 || importing}
-            style={{ flex:1, backgroundColor:toImport.length > 0 ? LIME : "#e0e0e0", color:toImport.length > 0 ? DARK : "#aaa", border:"none", borderRadius:"12px", padding:"13px", fontSize:"14px", fontWeight:800, cursor:toImport.length > 0 ? "pointer" : "not-allowed" }}>
+            style={{ flex:1, backgroundColor:toImport.length > 0 ? LIME : "#e0e0e0", color:toImport.length > 0 ? "#fff" : "#aaa", border:"none", borderRadius:"12px", padding:"13px", fontSize:"14px", fontWeight:800, cursor:toImport.length > 0 ? "pointer" : "not-allowed" }}>
             {importing ? "Importing…" : `Import ${toImport.length} contact${toImport.length !== 1 ? "s" : ""}`}
           </button>
           <button onClick={onCancel} style={{ padding:"13px 18px", borderRadius:"12px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#888", fontSize:"14px", cursor:"pointer" }}>Cancel</button>
@@ -90,7 +90,7 @@ function LogSaleModal({ business, customer, onClose, onLogged }) {
       <div style={{ background:"#fff", borderRadius:"24px", padding:"32px", width:"100%", maxWidth:"380px", boxShadow:"0 20px 60px rgba(0,0,0,0.25)" }}>
         <h3 style={{ fontSize:"18px", fontWeight:800, color:DARK, marginBottom:"4px" }}>Log a sale</h3>
         <p style={{ fontSize:"13px", color:"#aaa", marginBottom:"24px" }}>Payment from <strong>{customer.name}</strong></p>
-        {customer.status === "lead" && <div style={{ fontSize:"12px", color:"#555", background:"#f5f5f3", border:"1px solid #d8d8d4", borderRadius:"8px", padding:"8px 12px", marginBottom:"16px" }}>Logging a sale will automatically move them from Lead → New</div>}
+        {customer.status === "lead" && <div style={{ fontSize:"12px", color:"#555", background:"#fbfbfb", border:"1px solid #d8d8d4", borderRadius:"8px", padding:"8px 12px", marginBottom:"16px" }}>Logging a sale will automatically move them from Lead → New</div>}
         <label style={labelStyle}>Amount (R)</label>
         <input style={{ ...inputStyle, fontSize:"28px", fontWeight:800, marginBottom:"20px", textAlign:"center" }}
           type="number" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus />
@@ -112,7 +112,7 @@ function LogSaleModal({ business, customer, onClose, onLogged }) {
         <input style={{ ...inputStyle, marginBottom:"20px" }} placeholder="Optional" value={reference} onChange={(e) => setReference(e.target.value)} />
         <div style={{ display:"flex", gap:"8px" }}>
           <button onClick={handleLog} disabled={!amount || saving}
-            style={{ flex:1, backgroundColor:amount ? LIME : "#e0e0e0", color:amount ? DARK : "#aaa", border:"none", borderRadius:"12px", padding:"13px", fontSize:"14px", fontWeight:800, cursor:amount ? "pointer" : "not-allowed" }}>
+            style={{ flex:1, backgroundColor:amount ? LIME : "#e0e0e0", color:amount ? "#fff" : "#aaa", border:"none", borderRadius:"12px", padding:"13px", fontSize:"14px", fontWeight:800, cursor:amount ? "pointer" : "not-allowed" }}>
             {saving ? "Saving…" : "Log sale"}
           </button>
           <button onClick={onClose} style={{ padding:"13px 18px", borderRadius:"12px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#888", fontSize:"14px", cursor:"pointer" }}>Cancel</button>
@@ -208,16 +208,16 @@ function CustomerForm({ initial = {}, onSave, onCancel, saving, businessProducts
               const isUrl  = imgVal.startsWith("http");
               return (
                 <button key={p.id} onClick={() => toggleProduct(p.name)}
-                  style={{ display:"flex", alignItems:"center", gap:"8px", padding:"8px 14px", borderRadius:"12px", border:`1.5px solid ${selected ? LIME : "#e0e0e0"}`, background:selected ? "#f7ffe0" : "#fff", cursor:"pointer" }}>
+                  style={{ display:"flex", alignItems:"center", gap:"8px", padding:"8px 14px", borderRadius:"12px", border:`1.5px solid ${selected ? LIME : "#e0e0e0"}`, background:selected ? "#fff5f9" : "#fff", cursor:"pointer" }}>
                   {isUrl ? <img src={imgVal} alt="" style={{ width:"20px", height:"20px", borderRadius:"5px", objectFit:"cover" }} /> : <span style={{ fontSize:"16px" }}>{imgVal}</span>}
-                  <span style={{ fontSize:"13px", fontWeight:700, color:selected ? "#3a6b00" : "#555" }}>{p.name}</span>
+                  <span style={{ fontSize:"13px", fontWeight:700, color:selected ? "#d93f7b" : "#555" }}>{p.name}</span>
                   {selected && <span style={{ fontSize:"11px", color:LIME }}>✓</span>}
                 </button>
               );
             })}
           </div>
           {form.interested_in.length > 0 && (
-            <div style={{ fontSize:"11px", color:"#5a9a00", marginTop:"5px" }}>
+            <div style={{ fontSize:"11px", color:"#d93f7b", marginTop:"5px" }}>
               {form.interested_in.length} service{form.interested_in.length !== 1 ? "s" : ""} selected
             </div>
           )}
@@ -226,7 +226,7 @@ function CustomerForm({ initial = {}, onSave, onCancel, saving, businessProducts
       <div><label style={labelStyle}>Notes</label><textarea style={{ ...inputStyle, minHeight:"72px", resize:"vertical" }} placeholder="Allergies, preferences, anything useful…" value={form.notes} onChange={(e) => upd("notes", e.target.value)} /></div>
       <div style={{ display:"flex", gap:"8px" }}>
         <button onClick={() => onSave(form)} disabled={!valid || saving}
-          style={{ flex:1, backgroundColor:valid ? LIME : "#e0e0e0", color:valid ? DARK : "#aaa", border:"none", borderRadius:"12px", padding:"13px", fontSize:"14px", fontWeight:800, cursor:valid ? "pointer" : "not-allowed" }}>
+          style={{ flex:1, backgroundColor:valid ? LIME : "#e0e0e0", color:valid ? "#fff" : "#aaa", border:"none", borderRadius:"12px", padding:"13px", fontSize:"14px", fontWeight:800, cursor:valid ? "pointer" : "not-allowed" }}>
           {saving ? "Saving…" : "Save customer"}
         </button>
         <button onClick={onCancel} style={{ padding:"13px 18px", borderRadius:"12px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#888", fontSize:"14px", cursor:"pointer" }}>Cancel</button>
@@ -271,7 +271,7 @@ function CustomerCard({ customer, onEdit, onDelete, onLogSale, onWhatsApp, onSta
               <div style={{ fontSize:"11px", color:"#aaa", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"6px" }}>Interested in</div>
               <div style={{ display:"flex", flexWrap:"wrap", gap:"6px" }}>
                 {customer.interested_in.map((item) => (
-                  <span key={item} style={{ fontSize:"12px", fontWeight:600, color:"#3a6b00", background:"#f7ffe0", border:"1px solid #c3e66a", borderRadius:"8px", padding:"3px 10px" }}>{item}</span>
+                  <span key={item} style={{ fontSize:"12px", fontWeight:600, color:"#d93f7b", background:"#fff5f9", border:"1px solid #f8b8d2", borderRadius:"8px", padding:"3px 10px" }}>{item}</span>
                 ))}
               </div>
             </div>
@@ -517,10 +517,10 @@ export function CustomersTab({ business }) {
         <div style={{ textAlign:"center", padding:"64px 24px" }}>
           <div style={{ fontSize:"44px", marginBottom:"14px" }}>👥</div>
           <h3 style={{ fontSize:"20px", fontWeight:800, color:DARK, marginBottom:"8px" }}>No customers yet</h3>
-          <p style={{ fontSize:"14px", color:"#aaa", marginBottom:"32px" }}>Add your first customer{CONTACT_PICKER_SUPPORTED ? " or import from your phone contacts" : ""}.</p>
+          <p style={{ fontSize:"14px", color:"#767b81", marginBottom:"32px" }}>Add your first customer to start tracking repeat buyers.</p>
           <div style={{ display:"flex", flexDirection:"column", gap:"10px", maxWidth:"280px", margin:"0 auto" }}>
             {CONTACT_PICKER_SUPPORTED && (
-              <button onClick={handleImportPhone} style={{ backgroundColor:LIME, color:DARK, border:"none", borderRadius:"12px", padding:"13px 20px", fontSize:"14px", fontWeight:700, cursor:"pointer" }}>Import contacts contacts</button>
+              <button onClick={handleImportPhone} style={{ backgroundColor:LIME, color:"#fff", border:"none", borderRadius:"12px", padding:"13px 20px", fontSize:"14px", fontWeight:700, cursor:"pointer" }}>Import contacts</button>
             )}
             <button onClick={() => setMode("add")} style={{ backgroundColor:CONTACT_PICKER_SUPPORTED?"#fff":DARK, color:CONTACT_PICKER_SUPPORTED?DARK:LIME, border:CONTACT_PICKER_SUPPORTED?"1.5px solid #e0e0e0":"none", borderRadius:"12px", padding:"13px 20px", fontSize:"14px", fontWeight:700, cursor:"pointer" }}>+ Add customer manually</button>
           </div>

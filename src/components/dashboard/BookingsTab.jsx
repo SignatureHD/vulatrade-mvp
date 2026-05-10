@@ -30,27 +30,27 @@ function CustomerSearchInput({ customers, value, onSelect }) {
 
   return (
     <div style={{ position:"relative" }}>
-      <input style={{ ...inputStyle, borderColor: isNew ? "#a3e635" : "#e8e8e8" }}
+      <input style={{ ...inputStyle, borderColor: isNew ? "#ea4c89" : "#e8e8e8" }}
         placeholder="Type customer name…" value={query} onChange={handleChange}
         onFocus={() => query.length > 0 && setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)} autoComplete="off" />
-      {isNew && <div style={{ fontSize:"11px", color:"#5a9a00", marginTop:"4px" }}>New customer — will be created automatically when you save</div>}
+      {isNew && <div style={{ fontSize:"11px", color:"#d93f7b", marginTop:"4px" }}>New customer — will be created automatically when you save</div>}
       {open && query.length > 0 && (
         <div style={{ position:"absolute", top:"100%", left:0, right:0, background:"#fff", border:"1.5px solid #e0e0e0", borderRadius:"12px", boxShadow:"0 8px 24px rgba(0,0,0,0.1)", zIndex:100, overflow:"hidden", marginTop:"4px" }}>
           {matches.map((c) => (
             <div key={c.id} onMouseDown={() => handleSelect(c)}
               style={{ padding:"10px 14px", cursor:"pointer", borderBottom:"1px solid #f5f5f5", display:"flex", flexDirection:"column", gap:"2px" }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "#f8f8f6"}
+              onMouseEnter={(e) => e.currentTarget.style.background = "#fbfbfb"}
               onMouseLeave={(e) => e.currentTarget.style.background = "#fff"}>
               <div style={{ fontSize:"14px", fontWeight:700, color:DARK }}>{c.name}</div>
               {c.whatsapp && <div style={{ fontSize:"12px", color:"#aaa" }}>{c.whatsapp}</div>}
-              {c.interested_in?.length > 0 && <div style={{ fontSize:"11px", color:"#5a9a00" }}>Interested in: {c.interested_in.join(", ")}</div>}
+              {c.interested_in?.length > 0 && <div style={{ fontSize:"11px", color:"#d93f7b" }}>Interested in: {c.interested_in.join(", ")}</div>}
             </div>
           ))}
           {matches.length === 0 && query.trim().length > 1 && (
             <div onMouseDown={handleCreateNew}
               style={{ padding:"12px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:"8px" }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "#f8f8f6"}
+              onMouseEnter={(e) => e.currentTarget.style.background = "#fbfbfb"}
               onMouseLeave={(e) => e.currentTarget.style.background = "#fff"}>
               <div style={{ width:"24px", height:"24px", borderRadius:"50%", background:LIME, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"14px", fontWeight:800, color:DARK, flexShrink:0 }}>+</div>
               <div>
@@ -125,13 +125,13 @@ function BookingForm({ initial, onSave, onCancel, saving, customers, products })
         <label style={labelStyle}>Service</label>
         {suggestedProducts.length > 0 && (
           <div style={{ marginBottom:"8px" }}>
-            {interestedIn.length > 0 && <div style={{ fontSize:"11px", color:"#5a9a00", fontWeight:600, marginBottom:"6px" }}>Based on what they want</div>}
+            {interestedIn.length > 0 && <div style={{ fontSize:"11px", color:"#d93f7b", fontWeight:600, marginBottom:"6px" }}>Based on what they want</div>}
             <div style={{ display:"flex", flexWrap:"wrap", gap:"6px" }}>
               {suggestedProducts.map((p) => {
                 const selected = (form.services || []).includes(p.name);
                 return (
                   <button key={p.id} onClick={() => handleServiceSelect(p)}
-                    style={{ padding:"8px 14px", borderRadius:"12px", fontSize:"13px", fontWeight:700, cursor:"pointer", border:`1.5px solid ${selected ? LIME : "#e0e0e0"}`, background:selected ? "#f7ffe0" : "#fff", color:selected ? "#3a6b00" : "#555" }}>
+                    style={{ padding:"8px 14px", borderRadius:"12px", fontSize:"13px", fontWeight:700, cursor:"pointer", border:`1.5px solid ${selected ? LIME : "#e0e0e0"}`, background:selected ? "#fff5f9" : "#fff", color:selected ? "#d93f7b" : "#555" }}>
                     {p.name} {p.price ? `· R${p.price}` : ""}{selected && " ✓"}
                   </button>
                 );
@@ -147,7 +147,7 @@ function BookingForm({ initial, onSave, onCancel, saving, customers, products })
                 const selected = (form.services || []).includes(p.name);
                 return (
                   <button key={p.id} onClick={() => handleServiceSelect(p)}
-                    style={{ padding:"8px 14px", borderRadius:"12px", fontSize:"13px", fontWeight:700, cursor:"pointer", border:`1.5px solid ${selected ? LIME : "#e0e0e0"}`, background:selected ? "#f7ffe0" : "#fff", color:selected ? "#3a6b00" : "#555" }}>
+                    style={{ padding:"8px 14px", borderRadius:"12px", fontSize:"13px", fontWeight:700, cursor:"pointer", border:`1.5px solid ${selected ? LIME : "#e0e0e0"}`, background:selected ? "#fff5f9" : "#fff", color:selected ? "#d93f7b" : "#555" }}>
                     {p.name} {p.price ? `· R${p.price}` : ""}
                   </button>
                 );
@@ -156,7 +156,7 @@ function BookingForm({ initial, onSave, onCancel, saving, customers, products })
           </details>
         )}
         {(form.services||[]).length > 0 && (
-          <div style={{ fontSize:"11px", color:"#5a9a00", marginTop:"6px", fontWeight:600 }}>
+          <div style={{ fontSize:"11px", color:"#d93f7b", marginTop:"6px", fontWeight:600 }}>
             {(form.services||[]).length} service{(form.services||[]).length !== 1 ? "s" : ""} selected · R{form.price || 0} total
           </div>
         )}
@@ -185,7 +185,7 @@ function BookingForm({ initial, onSave, onCancel, saving, customers, products })
       <div><label style={labelStyle}>Notes</label><input style={inputStyle} placeholder="Any extra details…" value={form.notes} onChange={(e) => upd("notes", e.target.value)} /></div>
       <div style={{ display:"flex", gap:"8px" }}>
         <button onClick={() => onSave(form)} disabled={!valid || saving}
-          style={{ flex:1, backgroundColor:valid ? LIME : "#e0e0e0", color:valid ? DARK : "#aaa", border:"none", borderRadius:"12px", padding:"13px", fontSize:"14px", fontWeight:800, cursor:valid ? "pointer" : "not-allowed" }}>
+          style={{ flex:1, backgroundColor:valid ? LIME : "#e0e0e0", color:valid ? "#fff" : "#aaa", border:"none", borderRadius:"12px", padding:"13px", fontSize:"14px", fontWeight:800, cursor:valid ? "pointer" : "not-allowed" }}>
           {saving ? "Saving…" : "Save booking"}
         </button>
         <button onClick={onCancel} style={{ padding:"13px 18px", borderRadius:"12px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#888", fontSize:"14px", cursor:"pointer" }}>Cancel</button>
@@ -214,13 +214,13 @@ function BookingCard({ booking, onStatusChange, onEdit, onDelete, onWhatsApp }) 
           {booking.service && <div style={{ fontSize:"13px", color:"#555", marginBottom:"4px" }}>{booking.service}</div>}
           <div style={{ display:"flex", gap:"12px", flexWrap:"wrap" }}>
             {booking.price > 0 && <span style={{ fontSize:"12px", color:"#888" }}>R{booking.price}</span>}
-            {booking.deposit > 0 && <span style={{ fontSize:"12px", color:"#5a9a00" }}>Deposit: R{booking.deposit}</span>}
+            {booking.deposit > 0 && <span style={{ fontSize:"12px", color:"#d93f7b" }}>Deposit: R{booking.deposit}</span>}
             {booking.notes && <span style={{ fontSize:"12px", color:"#aaa" }}>{booking.notes}</span>}
           </div>
         </div>
       </div>
       <div style={{ display:"flex", gap:"6px", marginTop:"14px", flexWrap:"wrap", borderTop:"1px solid #f5f5f5", paddingTop:"12px" }}>
-        {booking.status === "confirmed" && <button onClick={() => onStatusChange(booking, "done")} style={{ padding:"7px 14px", borderRadius:"10px", border:"1.5px solid #a3e635", background:"#f0ffe0", color:"#3a6b00", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>Mark done</button>}
+        {booking.status === "confirmed" && <button onClick={() => onStatusChange(booking, "done")} style={{ padding:"7px 14px", borderRadius:"10px", border:"1.5px solid #ea4c89", background:"#fff5f9", color:"#d93f7b", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>Mark done</button>}
         {booking.status !== "cancelled" && <button onClick={() => onWhatsApp(booking)} style={{ padding:"7px 14px", borderRadius:"10px", border:"none", background:"#25d366", color:"#fff", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>Reminder</button>}
         <button onClick={() => onEdit(booking)} style={{ padding:"7px 14px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>Edit</button>
         {booking.status === "confirmed" && <button onClick={() => onStatusChange(booking, "cancelled")} style={{ padding:"7px 14px", borderRadius:"10px", border:"1.5px solid #ffd0d0", background:"#fff5f5", color:"#cc3300", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>Cancel</button>}
@@ -318,12 +318,12 @@ function MiniCalendar({ bookings, selectedDate, onSelectDate, onNewBooking }) {
           return (
             <div key={dateStr} onClick={() => onSelectDate(dateStr)}
               style={{ borderRadius:"10px", padding:"6px 2px", textAlign:"center", cursor:"pointer", background: isSel ? DARK : isTod ? LIME : "transparent", transition:"background 0.1s" }}
-              onMouseEnter={(e) => { if (!isSel && !isTod) e.currentTarget.style.background = "#f5f5f3"; }}
+              onMouseEnter={(e) => { if (!isSel && !isTod) e.currentTarget.style.background = "#fbfbfb"; }}
               onMouseLeave={(e) => { if (!isSel && !isTod) e.currentTarget.style.background = "transparent"; }}>
               <div style={{ fontSize:"14px", fontWeight: isTod || isSel ? 800 : 500, color: isSel ? LIME : isTod ? DARK : isPast ? "#ccc" : DARK, lineHeight:1, marginBottom:"4px" }}>{day}</div>
               <div style={{ display:"flex", justifyContent:"center", gap:"2px", minHeight:"6px" }}>
                 {count > 0 && Array.from({ length: Math.min(count, 3) }).map((_, di) => (
-                  <div key={di} style={{ width:"4px", height:"4px", borderRadius:"50%", background: isSel ? LIME : isTod ? DARK : "#a3e635" }} />
+                  <div key={di} style={{ width:"4px", height:"4px", borderRadius:"50%", background: isSel ? LIME : isTod ? DARK : "#ea4c89" }} />
                 ))}
               </div>
             </div>
@@ -499,9 +499,9 @@ export function BookingsTab({ business }) {
             </div>
 
             {dayBookings.length === 0 ? (
-              <div style={{ background:"#fff", border:"1.5px dashed #e0e0dc", borderRadius:"16px", padding:"32px", textAlign:"center" }}>
+              <div style={{ background:"#fff", border:"1.5px dashed #d4d7db", borderRadius:"16px", padding:"32px", textAlign:"center" }}>
                 <div style={{ fontSize:"13px", color:"#bbb", marginBottom:"12px" }}>
-                  {selectedDate < today ? "No bookings on this day" : "Nothing booked yet for this day"}
+                  {selectedDate < today ? "No sales records on this day" : "No sales recorded yet. Add today's first sale or booking."}
                 </div>
                 {selectedDate >= today && (
                   <button onClick={() => { setNewBookingDate(selectedDate); setMode("add"); }}
@@ -530,7 +530,7 @@ export function BookingsTab({ business }) {
                   {upcomingBookings.map((b) => (
                     <div key={b.id} onClick={() => setSelectedDate(b.booking_date)}
                       style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"12px", padding:"10px 16px", display:"flex", alignItems:"center", gap:"12px", cursor:"pointer" }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = "#f8f8f6"}
+                      onMouseEnter={(e) => e.currentTarget.style.background = "#fbfbfb"}
                       onMouseLeave={(e) => e.currentTarget.style.background = "#fff"}>
                       <div style={{ textAlign:"center", minWidth:"40px" }}>
                         <div style={{ fontSize:"16px", fontWeight:900, color:DARK }}>{new Date(b.booking_date + "T00:00:00").getDate()}</div>
