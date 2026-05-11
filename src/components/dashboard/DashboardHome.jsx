@@ -62,11 +62,12 @@ export function DashboardHome({ user, business, setTab }) {
     if (!business?.id) { setLoading(false); return; }
 
     async function loadAll() {
-      const [{ data: customers }, { data: bookings }, { data: payments }, { data: expenses }] = await Promise.all([
+      const [{ data: customers }, { data: bookings }, { data: payments }, { data: expenses }, { data: products }] = await Promise.all([
         supabase.from("customers").select("*").eq("business_id", business.id),
         supabase.from("bookings").select("*").eq("business_id", business.id),
         supabase.from("payments").select("*").eq("business_id", business.id),
         supabase.from("expenses").select("*").eq("business_id", business.id),
+        supabase.from("products").select("*").eq("business_id", business.id),
       ]);
 
       const now            = new Date();
@@ -85,6 +86,7 @@ export function DashboardHome({ user, business, setTab }) {
       const revenuePayments = (payments || []).filter((p) => p.status === "Paid" || p.status === "Deposit paid");
       const unpaidPayments  = (payments || []).filter((p) => p.status === "Unpaid");
       const customerById    = Object.fromEntries((customers || []).map((c) => [c.id, c]));
+      const activeProducts  = (products || []).filter((p) => p.is_active !== false);
 
       const thisMonthRevenue = revenuePayments
         .filter((p) => (p.created_at || "").slice(0, 10) >= thisMonthStart)
@@ -192,7 +194,7 @@ export function DashboardHome({ user, business, setTab }) {
         totalCustomers, leads, todayBookings, upcomingSoon,
         needsContact, atRisk, followUpNudges, topService,
         thisMonthRevenue, lastMonthRevenue, monthlyRevenue, unpaidPayments,
-        doneBookings, totalEarned, totalExpenses, estimatedProfit, liveBanner,
+        doneBookings, totalEarned, totalExpenses, estimatedProfit, productCount: activeProducts.length, liveBanner,
       });
 
       if (newCelebration) setCelebration({ ...newCelebration, celebrationKey });
@@ -273,7 +275,7 @@ export function DashboardHome({ user, business, setTab }) {
 	            {[
 	              { label:"Total Sales", value:`R${data.thisMonthRevenue.toLocaleString()}`, sub:data.lastMonthRevenue>0?`${revenueUp?"▲":"▼"} vs R${data.lastMonthRevenue.toLocaleString()} last month`:"Record sales to track", subColor:data.lastMonthRevenue>0?(revenueUp?"#d93f7b":"#cc3300"):"#bbb", onClick:()=>setTab("Sales"), icon:Banknote },
 	              { label:"Estimated profit", value:`R${data.estimatedProfit.toLocaleString()}`, sub:data.totalExpenses>0?`After R${data.totalExpenses.toLocaleString()} expenses`:"Add expenses to estimate", subColor:data.estimatedProfit>=0?"#d93f7b":"#cc3300", onClick:()=>setTab("Expenses"), icon:WalletCards, bg:"#fff5f9", color:"#ea4c89" },
-	              { label:"Products / Services", value:data.todayBookings.length, sub:data.todayBookings.length===0?"Add what you sell":"Linked to today's bookings", onClick:()=>setTab("Products"), highlight:data.todayBookings.length>0, icon:Package, bg:"#edf5fe", color:"#0267ff" },
+	              { label:"Products / Services", value:data.productCount, sub:"Add what you sell", onClick:()=>setTab("Products"), highlight:data.productCount>0, icon:Package, bg:"#edf5fe", color:"#0267ff" },
 	              { label:"Customers", value:data.totalCustomers, sub:data.leads.length>0?`${data.leads.length} lead${data.leads.length!==1?"s":""} to convert`:"No leads waiting", onClick:()=>setTab("Customers"), icon:Users, bg:"#fff8e7", color:"#d89b00" },
               { label:"Business File Progress", value:data.needsContact.length+data.atRisk.length+data.unpaidPayments.length === 0 ? "Ready" : data.needsContact.length+data.atRisk.length+data.unpaidPayments.length, sub:data.unpaidPayments.length>0?`${data.unpaidPayments.length} unpaid payment${data.unpaidPayments.length!==1?"s":""}`:data.needsContact.length+data.atRisk.length>0?"Actions to complete":"All caught up", subColor:data.needsContact.length+data.atRisk.length+data.unpaidPayments.length>0?"#f59e0b":"#d93f7b", onClick:()=>setTab("BusinessFile"), icon:FileCheck, bg:"#fbe6ea", color:"#d90429" },
             ].map((s) => (
