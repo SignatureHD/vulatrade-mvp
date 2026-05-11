@@ -24,7 +24,7 @@ function routeFromPath(pathname) {
   if (pathname === "/settings") return { view: "dashboard", authMode: "signin", initialTab: "Settings" };
   if (pathname === "/money") return { view: "dashboard", authMode: "signin", initialTab: "Sales" };
   if (pathname === "/growth") return { view: "dashboard", authMode: "signin", initialTab: "BusinessFile" };
-  if (pathname === "/messages") return { view: "dashboard", authMode: "signin", initialTab: "Reviews" };
+  if (pathname === "/messages") return { view: "dashboard", authMode: "signin", initialTab: "Messages" };
   if (solutionRoutes[pathname]) return { view: "solution", solutionKey: solutionRoutes[pathname], authMode: "signin", initialTab: "Dashboard" };
   return { view: "landing", authMode: "signin", initialTab: "Dashboard" };
 }

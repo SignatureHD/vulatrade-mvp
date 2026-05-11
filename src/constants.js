@@ -37,7 +37,7 @@ export const labelStyle = {
 // ── TABS ───────────────────────────────────────────────────
 export const TABS = [
   "Dashboard", "Page", "Setup", "Products", "Customers",
-  "Bookings", "Sales", "Expenses", "Reviews",
+  "Messages", "Bookings", "Sales", "Expenses", "Reviews",
   "BusinessFile", "Vuke", "Plans", "Settings",
 ];
 

@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  MessageCircle,
   Package,
   ReceiptText,
   Settings,
@@ -27,6 +28,7 @@ import {
   BusinessFileTab,
   ComingSoon,
   ExpensesTab,
+  MessagesTab,
   PageTab,
   ReviewsTab,
   SalesTab,
@@ -43,6 +45,7 @@ const TAB_ROUTES = {
   Setup: "/setup",
   Products: "/products",
   Customers: "/customers",
+  Messages: "/messages",
   Bookings: "/bookings",
   Sales: "/sales",
   Expenses: "/expenses",
@@ -64,6 +67,7 @@ const NAV_GROUPS = [
       { tab: "Setup", label: "Setup", icon: Settings },
       { tab: "Products", label: "Products / Services", icon: Package },
       { tab: "Customers", label: "Customers", icon: Users },
+      { tab: "Messages", label: "Messages", icon: MessageCircle },
       { tab: "Bookings", label: "Bookings", icon: CalendarDays },
       { tab: "Sales", label: "Sales", icon: ReceiptText },
       { tab: "Expenses", label: "Expenses", icon: WalletCards },
@@ -94,6 +98,7 @@ const MOBILE_TABS = [
 const MORE_ITEMS = [
   { tab: "Page", label: "Public Page", icon: Globe },
   { tab: "Setup", label: "Setup", icon: Settings },
+  { tab: "Messages", label: "Messages", icon: MessageCircle },
   { tab: "Bookings", label: "Bookings", icon: CalendarDays },
   { tab: "Expenses", label: "Expenses", icon: WalletCards },
   { tab: "Reviews", label: "Reviews", icon: Star },
@@ -106,7 +111,6 @@ const MORE_ITEMS = [
 function normalizeTab(value) {
   if (value === "Money") return "Sales";
   if (value === "Growth") return "BusinessFile";
-  if (value === "Messages") return "Reviews";
   return value || "Dashboard";
 }
 
@@ -188,6 +192,8 @@ export default function Dashboard({ authMode = "signin", initialTab = "Dashboard
         return <PageTab business={business} products={products} logoUrl={logoUrl} />;
       case "Customers":
         return <CustomersTab business={business} />;
+      case "Messages":
+        return <MessagesTab business={business} />;
       case "Bookings":
         return <BookingsTab business={business} />;
       case "Sales":
