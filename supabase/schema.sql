@@ -2,6 +2,7 @@
 -- Run this inside Supabase SQL Editor.
 
 create extension if not exists "uuid-ossp";
+create extension if not exists "pgcrypto";
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -72,6 +73,25 @@ create table if not exists public.payments (
   created_at timestamptz default now()
 );
 
+create table if not exists public.expenses (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references public.businesses(id) on delete cascade,
+  name text not null,
+  amount numeric(12,2) not null check (amount > 0),
+  category text not null,
+  expense_date date not null default current_date,
+  payment_method text,
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists expenses_business_id_idx
+  on public.expenses (business_id);
+
+create index if not exists expenses_business_date_idx
+  on public.expenses (business_id, expense_date desc);
+
 create table if not exists public.reviews (
   id uuid primary key default uuid_generate_v4(),
   business_id uuid not null references public.businesses(id) on delete cascade,
@@ -97,6 +117,7 @@ alter table public.products enable row level security;
 alter table public.customers enable row level security;
 alter table public.message_templates enable row level security;
 alter table public.payments enable row level security;
+alter table public.expenses enable row level security;
 alter table public.reviews enable row level security;
 alter table public.demo_access_numbers enable row level security;
 
@@ -128,6 +149,11 @@ create policy "payments owner select" on public.payments for select using (exist
 create policy "payments owner insert" on public.payments for insert with check (exists (select 1 from public.businesses b where b.id = payments.business_id and b.user_id = auth.uid()));
 create policy "payments owner update" on public.payments for update using (exists (select 1 from public.businesses b where b.id = payments.business_id and b.user_id = auth.uid()));
 create policy "payments owner delete" on public.payments for delete using (exists (select 1 from public.businesses b where b.id = payments.business_id and b.user_id = auth.uid()));
+
+create policy "expenses owner select" on public.expenses for select using (exists (select 1 from public.businesses b where b.id = expenses.business_id and b.user_id = auth.uid()));
+create policy "expenses owner insert" on public.expenses for insert with check (exists (select 1 from public.businesses b where b.id = expenses.business_id and b.user_id = auth.uid()));
+create policy "expenses owner update" on public.expenses for update using (exists (select 1 from public.businesses b where b.id = expenses.business_id and b.user_id = auth.uid())) with check (exists (select 1 from public.businesses b where b.id = expenses.business_id and b.user_id = auth.uid()));
+create policy "expenses owner delete" on public.expenses for delete using (exists (select 1 from public.businesses b where b.id = expenses.business_id and b.user_id = auth.uid()));
 
 create policy "reviews public approved" on public.reviews for select using (approved = true);
 create policy "reviews owner insert" on public.reviews for insert with check (exists (select 1 from public.businesses b where b.id = reviews.business_id and b.user_id = auth.uid()));

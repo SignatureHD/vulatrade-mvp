@@ -528,7 +528,7 @@ export function SalesTab({ business }) {
   );
 }
 
-function ExpenseFormModal({ initialCategory, onSave, onClose }) {
+function ExpenseFormModal({ initialCategory, onSave, onClose, saving = false }) {
   const [form, setForm] = useState({
     name: "",
     amount: "",
@@ -549,7 +549,7 @@ function ExpenseFormModal({ initialCategory, onSave, onClose }) {
     if (!form.name.trim()) { setError("Expense name is required."); return; }
     if (!amount || amount <= 0) { setError("Amount must be greater than 0."); return; }
     if (!form.category.trim()) { setError("Category is required."); return; }
-    onSave({ ...form, id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), amount, created_at: new Date().toISOString() });
+    onSave({ ...form, amount });
   }
 
   return (
@@ -558,7 +558,7 @@ function ExpenseFormModal({ initialCategory, onSave, onClose }) {
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"12px", marginBottom:"18px" }}>
           <div>
             <h3 style={{ fontSize:"19px", fontWeight:900, color:DARK, marginBottom:"4px" }}>Add Expense</h3>
-            <p style={{ fontSize:"12px", color:"#888" }}>Record a business cost. This is saved locally for now.</p>
+            <p style={{ fontSize:"12px", color:"#888" }}>Record a business cost in your VulaTrade account.</p>
           </div>
           <button onClick={onClose} style={{ width:"36px", height:"36px", borderRadius:"50%", border:"1px solid #eeeeea", background:"#fff", color:"#767b81", fontSize:"18px", cursor:"pointer" }}>×</button>
         </div>
@@ -592,8 +592,8 @@ function ExpenseFormModal({ initialCategory, onSave, onClose }) {
           <textarea style={{ ...inputStyle, minHeight:"78px", resize:"vertical" }} placeholder="Optional details" value={form.notes} onChange={(e) => update("notes", e.target.value)} />
         </div>
         <div style={{ display:"flex", gap:"10px", flexWrap:"wrap" }}>
-          <button onClick={save} style={{ flex:"1 1 180px", background:"#ea4c89", color:"#fff", border:"none", borderRadius:"12px", padding:"13px 18px", fontSize:"14px", fontWeight:900, cursor:"pointer" }}>Save Expense</button>
-          <button onClick={onClose} style={{ flex:"1 1 120px", background:"#fff", color:"#555", border:"1.5px solid #e0e0e0", borderRadius:"12px", padding:"13px 18px", fontSize:"14px", fontWeight:800, cursor:"pointer" }}>Cancel</button>
+          <button onClick={save} disabled={saving} style={{ flex:"1 1 180px", background:"#ea4c89", color:"#fff", border:"none", borderRadius:"12px", padding:"13px 18px", fontSize:"14px", fontWeight:900, cursor:saving?"not-allowed":"pointer", opacity:saving?0.72:1 }}>{saving ? "Saving..." : "Save Expense"}</button>
+          <button onClick={onClose} disabled={saving} style={{ flex:"1 1 120px", background:"#fff", color:"#555", border:"1.5px solid #e0e0e0", borderRadius:"12px", padding:"13px 18px", fontSize:"14px", fontWeight:800, cursor:saving?"not-allowed":"pointer", opacity:saving?0.72:1 }}>Cancel</button>
         </div>
       </div>
     </div>
@@ -605,19 +605,81 @@ export function ExpensesTab({ business }) {
   const suggestedCategories = EXPENSE_SUGGESTIONS[businessType] || EXPENSE_SUGGESTIONS["General Business"];
   const [expenses, setExpenses] = useState([]);
   const [modalCategory, setModalCategory] = useState(null);
+  const [loadingExpenses, setLoadingExpenses] = useState(true);
+  const [savingExpense, setSavingExpense] = useState(false);
+  const [expenseError, setExpenseError] = useState("");
   const [toast, setToast] = useState("");
   const categories = Array.from(new Set([...suggestedCategories, ...STANDARD_EXPENSE_CATEGORIES]));
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const totalExpenses = expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+
+  async function loadExpenses() {
+    if (!business?.id) {
+      setExpenses([]);
+      setLoadingExpenses(false);
+      return;
+    }
+    setLoadingExpenses(true);
+    setExpenseError("");
+    const { data, error } = await supabase
+      .from("expenses")
+      .select("*")
+      .eq("business_id", business.id)
+      .order("expense_date", { ascending: false });
+
+    if (error) {
+      console.error("Load expenses:", error);
+      setExpenseError("Expenses could not be loaded. Please refresh and try again.");
+      setExpenses([]);
+    } else {
+      setExpenses(data || []);
+    }
+    setLoadingExpenses(false);
+  }
+
+  useEffect(() => {
+    loadExpenses();
+  }, [business?.id]);
 
   function openForm(category = "") {
     setModalCategory(category);
   }
 
-  function handleSaveExpense(expense) {
-    setExpenses((prev) => [expense, ...prev]);
+  async function handleSaveExpense(expense) {
+    if (!business?.id) {
+      setExpenseError("Create your business profile before adding expenses.");
+      return;
+    }
+    setSavingExpense(true);
+    setExpenseError("");
+
+    const payload = {
+      business_id: business.id,
+      name: expense.name.trim(),
+      amount: expense.amount,
+      category: expense.category.trim(),
+      expense_date: expense.date,
+      payment_method: expense.method,
+      notes: expense.notes.trim() || null,
+    };
+
+    const { data, error } = await supabase
+      .from("expenses")
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Save expense:", error);
+      setExpenseError("Expense could not be saved. Please check the details and try again.");
+      setSavingExpense(false);
+      return;
+    }
+
+    setExpenses((prev) => [data, ...prev]);
     setModalCategory(null);
     setToast("Expense saved. Your costs are easier to track now.");
     setTimeout(() => setToast(""), 2800);
+    setSavingExpense(false);
   }
 
   return (
@@ -641,6 +703,12 @@ export function ExpensesTab({ business }) {
           <div style={{ fontSize:"13px", color:"#777", lineHeight:1.55 }}>Tracking expenses helps you understand profit and strengthens your Business File over time.</div>
         </div>
       </div>
+
+      {expenseError && (
+        <div style={{ background:"#fff5f5", border:"1px solid #ffd0d0", color:"#cc3300", borderRadius:"14px", padding:"12px 14px", fontSize:"13px", fontWeight:700, marginBottom:"20px" }}>
+          {expenseError}
+        </div>
+      )}
 
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(150px, 1fr))", gap:"10px", marginBottom:"20px" }}>
         {[
@@ -681,7 +749,11 @@ export function ExpensesTab({ business }) {
       </div>
       <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"22px" }}>
         <div style={{ fontSize:"15px", fontWeight:800, color:DARK, marginBottom:"10px" }}>Recent expenses</div>
-        {expenses.length === 0 ? (
+        {loadingExpenses ? (
+          <div style={{ background:"#fbfbfb", borderRadius:"14px", padding:"24px", textAlign:"center", color:"#888", fontSize:"13px" }}>
+            Loading expenses...
+          </div>
+        ) : expenses.length === 0 ? (
           <div style={{ background:"#fbfbfb", borderRadius:"14px", padding:"24px", textAlign:"center", color:"#888", fontSize:"13px" }}>
             No expenses recorded yet. Add stock, transport, airtime or supplies to understand what your business really costs.
           </div>
@@ -694,17 +766,17 @@ export function ExpensesTab({ business }) {
                 </span>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize:"14px", fontWeight:900, color:DARK }}>{expense.name}</div>
-                  <div style={{ fontSize:"12px", color:"#888", marginTop:"2px" }}>{expense.category} · {expense.method} · {new Date(expense.date + "T00:00:00").toLocaleDateString("en-ZA", { day:"numeric", month:"short" })}</div>
+                  <div style={{ fontSize:"12px", color:"#888", marginTop:"2px" }}>{expense.category} · {expense.payment_method || "Other"} · {new Date((expense.expense_date || expense.created_at?.slice(0, 10) || todayInputValue()) + "T00:00:00").toLocaleDateString("en-ZA", { day:"numeric", month:"short" })}</div>
                   {expense.notes && <div style={{ fontSize:"12px", color:"#aaa", marginTop:"2px" }}>{expense.notes}</div>}
                 </div>
-                <div style={{ fontSize:"15px", fontWeight:900, color:DARK }}>R{expense.amount.toLocaleString()}</div>
+                <div style={{ fontSize:"15px", fontWeight:900, color:DARK }}>R{Number(expense.amount || 0).toLocaleString()}</div>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {modalCategory !== null && <ExpenseFormModal initialCategory={modalCategory} onSave={handleSaveExpense} onClose={() => setModalCategory(null)} />}
+      {modalCategory !== null && <ExpenseFormModal initialCategory={modalCategory} onSave={handleSaveExpense} onClose={() => setModalCategory(null)} saving={savingExpense} />}
       {toast && (
         <div style={{ position:"fixed", bottom:"86px", left:"50%", transform:"translateX(-50%)", background:DARK, color:"#fff", padding:"12px 20px", borderRadius:"999px", fontSize:"13px", fontWeight:800, zIndex:2000, boxShadow:"0 10px 30px rgba(32,32,33,0.2)", whiteSpace:"nowrap" }}>
           {toast}
@@ -1017,7 +1089,7 @@ export function MessagesTab({ business }) {
 }
 
 export function BusinessFileTab({ business, setTab }) {
-  const [stats, setStats] = useState({ customers:0, payments:0, salesTotal:0, bookings:0 });
+  const [stats, setStats] = useState({ customers:0, payments:0, salesTotal:0, bookings:0, expenses:0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1026,7 +1098,8 @@ export function BusinessFileTab({ business, setTab }) {
       supabase.from("customers").select("id").eq("business_id", business.id),
       supabase.from("payments").select("amount,status").eq("business_id", business.id),
       supabase.from("bookings").select("id,status").eq("business_id", business.id),
-    ]).then(([{ data: customers }, { data: payments }, { data: bookings }]) => {
+      supabase.from("expenses").select("id").eq("business_id", business.id),
+    ]).then(([{ data: customers }, { data: payments }, { data: bookings }, { data: expenses }]) => {
       const revenue = (payments || [])
         .filter((p) => p.status === "Paid" || p.status === "Deposit paid")
         .reduce((sum, p) => sum + (p.amount || 0), 0);
@@ -1035,6 +1108,7 @@ export function BusinessFileTab({ business, setTab }) {
         payments: payments?.length || 0,
         salesTotal: revenue,
         bookings: bookings?.filter((b) => b.status === "done").length || 0,
+        expenses: expenses?.length || 0,
       });
       setLoading(false);
     });
@@ -1045,6 +1119,7 @@ export function BusinessFileTab({ business, setTab }) {
     { label:"Public page ready", done:Boolean(business?.slug) },
     { label:"Customer activity recorded", done:stats.customers > 0 },
     { label:"Sales history started", done:stats.payments > 0 },
+    { label:"First expense recorded", done:stats.expenses > 0 },
     { label:"Completed work tracked", done:stats.bookings > 0 },
   ];
   const doneCount = checklist.filter((item) => item.done).length;
@@ -1078,6 +1153,7 @@ export function BusinessFileTab({ business, setTab }) {
           { label:"Sales history", value:`R${stats.salesTotal.toLocaleString()}`, icon:ReceiptText },
           { label:"Customer activity", value:stats.customers, icon:Users },
           { label:"Payment records", value:stats.payments, icon:WalletCards },
+          { label:"Expense records", value:stats.expenses, icon:FileCheck },
           { label:"Reviews", value:0, icon:Star },
         ].map((s) => {
           const Icon = s.icon;
