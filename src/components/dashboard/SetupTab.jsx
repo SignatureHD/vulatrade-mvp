@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Calculator, Info, PlusCircle, Trash2 } from "lucide-react";
 import { LIME, DARK, MAX_IMAGES, CATEGORIES, PAYMENT_METHODS, ICON_TEMPLATES, inputStyle, labelStyle } from "../../constants";
 import { compressImage, injectAllUnlockedFonts } from "../../utils";
 import { supabase } from "../../lib/supabase";
@@ -6,8 +7,191 @@ import { BusinessPagePreview } from "../BusinessPagePreview";
 import { ColourPicker, FontPicker } from "../ui";
 import { ImageLibrary, ProductImagePicker } from "../ImageLibrary";
 
+const COSTING_SUGGESTIONS = {
+  "Food / Catering": ["Ingredients", "Packaging", "Gas / Electricity", "Delivery", "Sauce / extras", "Labour time", "Other"],
+  "Hair / Beauty / Nails": ["Product used", "Consumables", "Chair rental", "Assistant / labour", "Transport", "Other"],
+  "Cleaning Services": ["Chemicals", "Gloves / PPE", "Transport", "Labour", "Equipment wear", "Other"],
+  "Mobile Car Wash": ["Water", "Soap / chemicals", "Cloths / sponges", "Transport", "Labour", "Other"],
+  "Clothing / Product Seller": ["Stock cost", "Packaging", "Courier / delivery", "Returns allowance", "Marketing", "Other"],
+  "Repairs / Home Services": ["Parts", "Tools / equipment wear", "Transport", "Labour", "Call-out cost", "Other"],
+  "General Business": ["Stock", "Supplies", "Transport", "Labour", "Packaging", "Other"],
+};
+
+const MARGIN_GUIDANCE = {
+  "Food / Catering": ["Cooked meals: 35%-50%", "Snacks/add-ons: 45%-65%", "Drinks/resale items: 20%-40%", "Catering/bulk orders: 30%-50%"],
+  "Hair / Beauty / Nails": ["Services: 50%-75%", "Product resale: 25%-50%"],
+  "Cleaning Services": ["Service jobs: 40%-65%", "Product/supply resale: 20%-40%"],
+  "Mobile Car Wash": ["Service jobs: 40%-65%"],
+  "Clothing / Product Seller": ["Clothing resale: 40%-60%", "Low-cost/high-volume items: 20%-40%"],
+  "Repairs / Home Services": ["Labour/service work: 50%-70%", "Parts resale: 20%-40%"],
+  "General Business": ["Suggested target: 35%-60%"],
+};
+
+function pricingBusinessType(category = "") {
+  const c = category.toLowerCase();
+  if (/(food|cater|kitchen|meal|fresh|produce)/.test(c)) return "Food / Catering";
+  if (/(nail|hair|barber|beauty|salon)/.test(c)) return "Hair / Beauty / Nails";
+  if (/clean/.test(c)) return "Cleaning Services";
+  if (/car wash|wash/.test(c)) return "Mobile Car Wash";
+  if (/(clothing|retail|product|seller|fashion)/.test(c)) return "Clothing / Product Seller";
+  if (/(repair|home service|maintenance|plumb|electric)/.test(c)) return "Repairs / Home Services";
+  return "General Business";
+}
+
+function emptyCostItem(name = "") {
+  return { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, name, amount: "" };
+}
+
+function normaliseCostItems(items = []) {
+  return items.map((item) => ({
+    id: item.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name: item.name || "",
+    amount: item.amount ?? "",
+  }));
+}
+
+function loadLocalCosting(businessId) {
+  if (!businessId) return {};
+  try {
+    return JSON.parse(localStorage.getItem(`vula_product_costing_${businessId}`) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveLocalCosting(businessId, productId, costItems) {
+  if (!businessId || !productId) return;
+  const stored = loadLocalCosting(businessId);
+  stored[productId] = normaliseCostItems(costItems);
+  localStorage.setItem(`vula_product_costing_${businessId}`, JSON.stringify(stored));
+}
+
+function removeLocalCosting(businessId, productId) {
+  if (!businessId || !productId) return;
+  const stored = loadLocalCosting(businessId);
+  delete stored[productId];
+  localStorage.setItem(`vula_product_costing_${businessId}`, JSON.stringify(stored));
+}
+
+function pricingStatus(grossMargin, businessType) {
+  if (grossMargin === null) return { label:"Add costs to check pricing", color:"#888", bg:"#fbfbfb", message:"Add estimated costs and a selling price to see profit, markup and margin." };
+  if (grossMargin > 40) return { label:"Good margin", color:"#d93f7b", bg:"#fff5f9", message:"Good margin. This item should leave room for profit if your other costs are controlled." };
+  if (grossMargin >= 25) return { label:"Watch margin", color:"#b7791f", bg:"#fff8e7", message:"This may work, but check your transport, data, packaging and other costs." };
+  const foodNote = businessType === "Food / Catering" ? " If delivery is included, this item may be underpriced." : "";
+  return { label:"Low margin", color:"#cc3300", bg:"#fff5f5", message:`This price may be too low. You may be working hard without keeping enough profit.${foodNote}` };
+}
+
+function PricingHelper({ price, costItems, setCostItems, businessCategory }) {
+  const businessType = pricingBusinessType(businessCategory);
+  const suggestions = COSTING_SUGGESTIONS[businessType] || COSTING_SUGGESTIONS["General Business"];
+  const guidance = MARGIN_GUIDANCE[businessType] || MARGIN_GUIDANCE["General Business"];
+  const sellingPrice = parseFloat(price) || 0;
+  const totalCost = costItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+  const estimatedProfit = sellingPrice - totalCost;
+  const markup = totalCost > 0 ? (estimatedProfit / totalCost) * 100 : null;
+  const grossMargin = sellingPrice > 0 ? (estimatedProfit / sellingPrice) * 100 : null;
+  const status = pricingStatus(grossMargin, businessType);
+
+  function updateItem(id, key, value) {
+    setCostItems(costItems.map((item) => item.id === id ? { ...item, [key]: value } : item));
+  }
+
+  function addItem(name = "") {
+    setCostItems([...costItems, emptyCostItem(name)]);
+  }
+
+  function removeItem(id) {
+    setCostItems(costItems.filter((item) => item.id !== id));
+  }
+
+  const lowMargin = grossMargin !== null && grossMargin < 25;
+
+  return (
+    <div style={{ background:"#fff", border:"1.5px solid #eeeeea", borderRadius:"16px", padding:"16px", marginTop:"4px" }}>
+      <div style={{ display:"flex", alignItems:"flex-start", gap:"10px", marginBottom:"12px" }}>
+        <span style={{ width:"38px", height:"38px", borderRadius:"50%", background:"#fde8f1", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+          <Calculator size={18} strokeWidth={2.2} color="#ea4c89" />
+        </span>
+        <div>
+          <div style={{ fontSize:"15px", fontWeight:900, color:DARK }}>Pricing Helper</div>
+          <div style={{ fontSize:"12px", color:"#888", lineHeight:1.45, marginTop:"2px" }}>Cost to Make estimates help you check if this price leaves enough profit.</div>
+        </div>
+      </div>
+
+      <div style={{ display:"flex", flexWrap:"wrap", gap:"7px", marginBottom:"14px" }}>
+        {suggestions.map((name) => (
+          <button key={name} type="button" onClick={() => addItem(name)}
+            style={{ border:"1.5px solid #f8b8d2", background:"#fff5f9", color:"#d93f7b", borderRadius:"999px", padding:"7px 10px", fontSize:"11px", fontWeight:800, cursor:"pointer" }}>
+            {name}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display:"flex", flexDirection:"column", gap:"8px", marginBottom:"12px" }}>
+        {costItems.length === 0 ? (
+          <div style={{ background:"#fbfbfb", borderRadius:"12px", padding:"13px", fontSize:"12px", color:"#888" }}>Add estimated ingredients, packaging, stock, labour or transport costs.</div>
+        ) : costItems.map((item) => (
+          <div key={item.id} style={{ display:"grid", gridTemplateColumns:"minmax(0, 1.3fr) minmax(86px, 0.7fr) 34px", gap:"8px", alignItems:"center" }}>
+            <input style={{ ...inputStyle, minWidth:0 }} placeholder="Cost item name" value={item.name} onChange={(e) => updateItem(item.id, "name", e.target.value)} />
+            <input style={{ ...inputStyle, minWidth:0 }} type="number" min="0" step="0.01" placeholder="Amount" value={item.amount} onChange={(e) => updateItem(item.id, "amount", e.target.value)} />
+            <button type="button" onClick={() => removeItem(item.id)} aria-label="Remove cost item"
+              style={{ width:"34px", height:"34px", borderRadius:"10px", border:"1px solid #ffd0d0", background:"#fff5f5", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+              <Trash2 size={15} strokeWidth={2.2} color="#cc3300" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <button type="button" onClick={() => addItem()} style={{ background:"#fff", color:"#ea4c89", border:"1.5px solid #f8b8d2", borderRadius:"12px", padding:"10px 12px", fontSize:"12px", fontWeight:900, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:"7px", marginBottom:"14px" }}>
+        <PlusCircle size={15} strokeWidth={2.2} />
+        Add cost item
+      </button>
+
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(128px, 1fr))", gap:"8px", marginBottom:"12px" }}>
+        {[
+          { label:"Total estimated cost", value:totalCost > 0 ? `R${totalCost.toLocaleString("en-ZA", { minimumFractionDigits:2, maximumFractionDigits:2 })}` : "Add costs" },
+          { label:"Estimated profit", value:sellingPrice > 0 && totalCost > 0 ? `R${estimatedProfit.toLocaleString("en-ZA", { minimumFractionDigits:2, maximumFractionDigits:2 })}` : "Needs price + costs" },
+          { label:"Markup", value:markup === null ? "Needs costs" : `${markup.toFixed(1)}%` },
+          { label:"Gross margin", value:grossMargin === null ? "Needs price" : `${grossMargin.toFixed(1)}%` },
+        ].map((item) => (
+          <div key={item.label} style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"12px", padding:"11px" }}>
+            <div style={{ fontSize:"10px", color:"#888", fontWeight:800, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:"5px" }}>{item.label}</div>
+            <div style={{ fontSize:"15px", color:DARK, fontWeight:900 }}>{item.value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background:status.bg, border:`1px solid ${status.color === "#cc3300" ? "#ffd0d0" : "#f8b8d2"}`, borderRadius:"14px", padding:"12px", marginBottom:"10px" }}>
+        <div style={{ fontSize:"13px", fontWeight:900, color:status.color, marginBottom:"4px" }}>{status.label}</div>
+        <div style={{ fontSize:"12px", color:"#666", lineHeight:1.45 }}>{status.message}</div>
+        {lowMargin && (
+          <div style={{ display:"flex", flexWrap:"wrap", gap:"6px", marginTop:"10px" }}>
+            {["Increase selling price", "Charge delivery separately", "Reduce packaging cost", "Buy in bulk", "Create a better-margin combo"].map((tip) => (
+              <span key={tip} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"999px", padding:"6px 8px", fontSize:"11px", color:"#777", fontWeight:700 }}>{tip}</span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ background:"#fbfbfb", borderRadius:"12px", padding:"12px", marginBottom:"10px" }}>
+        <div style={{ fontSize:"12px", fontWeight:900, color:DARK, marginBottom:"7px" }}>{businessType} margin guide</div>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:"6px" }}>
+          {guidance.map((item) => (
+            <span key={item} style={{ border:"1px solid #eeeeea", background:"#fff", borderRadius:"999px", padding:"6px 8px", fontSize:"11px", color:"#777", fontWeight:700 }}>{item}</span>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display:"flex", gap:"8px", alignItems:"flex-start", background:"#fff8e7", border:"1px solid #f4dfaa", borderRadius:"12px", padding:"10px 11px", fontSize:"11px", color:"#7a5e00", lineHeight:1.45 }}>
+        <Info size={15} strokeWidth={2.2} style={{ flexShrink:0, marginTop:"1px" }} />
+        <span>These are estimated costs for pricing. Actual expenses should still be recorded on the Expenses page. Pricing Helper saving will be connected once product costing storage is added.</span>
+      </div>
+    </div>
+  );
+}
+
 // ── PRODUCTS SECTION ───────────────────────────────────────
-export function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, onProductsChange, userId }) {
+export function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, onProductsChange, userId, businessCategory }) {
   const [products, setProducts]           = useState([]);
   const [images, setImages]               = useState([]);
   const [loadingImages, setLoadingImages] = useState(true);
@@ -17,7 +201,8 @@ export function ProductsSection({ businessId, prefilledProducts, onProductsPrefi
   const [saving, setSaving]               = useState(false);
   const [editingId, setEditingId]         = useState(null);
   const [editForm, setEditForm]           = useState({});
-  const [newProduct, setNewProduct]       = useState({ name:"", price:"", description:"", icon:"🛍️", image:null });
+  const [newProduct, setNewProduct]       = useState({ name:"", price:"", description:"", icon:"🛍️", image:null, costItems:[] });
+  const [localCosting, setLocalCosting]   = useState({});
 
   useEffect(() => {
     if (!userId) return;
@@ -39,10 +224,12 @@ export function ProductsSection({ businessId, prefilledProducts, onProductsPrefi
 
   useEffect(() => {
     if (!businessId) { setLoading(false); return; }
+    const storedCosting = loadLocalCosting(businessId);
+    setLocalCosting(storedCosting);
     supabase.from("products").select("*").eq("business_id", businessId).order("created_at")
       .then(({ data }) => {
         if (data) {
-          const mapped = data.map((p) => ({ ...p, icon: p.image && !p.image.startsWith("http") ? p.image : "🛍️" }));
+          const mapped = data.map((p) => ({ ...p, icon: p.image && !p.image.startsWith("http") ? p.image : "🛍️", costItems: storedCosting[p.id] || [] }));
           setProducts(mapped); onProductsChange && onProductsChange(mapped);
         }
         setLoading(false);
@@ -69,8 +256,11 @@ export function ProductsSection({ businessId, prefilledProducts, onProductsPrefi
     const imageValue = newProduct.image || newProduct.icon || "🛍️";
     const { data } = await supabase.from("products").insert([{ business_id:businessId, name:newProduct.name.trim(), price:parseFloat(newProduct.price), description:newProduct.description.trim(), image:imageValue, is_active:true }]).select().single();
     if (data) {
-      updateProducts([...products, { ...data, icon: data.image && !data.image.startsWith("http") ? data.image : "🛍️" }]);
-      setNewProduct({ name:"", price:"", description:"", icon:"🛍️", image:null });
+      saveLocalCosting(businessId, data.id, newProduct.costItems);
+      const nextCosting = { ...localCosting, [data.id]: normaliseCostItems(newProduct.costItems) };
+      setLocalCosting(nextCosting);
+      updateProducts([...products, { ...data, icon: data.image && !data.image.startsWith("http") ? data.image : "🛍️", costItems: nextCosting[data.id] }]);
+      setNewProduct({ name:"", price:"", description:"", icon:"🛍️", image:null, costItems:[] });
       setAdding(false);
     }
     setSaving(false);
@@ -79,19 +269,29 @@ export function ProductsSection({ businessId, prefilledProducts, onProductsPrefi
   async function handleDelete(id) {
     if (!window.confirm("Delete this product?")) return;
     await supabase.from("products").delete().eq("id", id);
+    removeLocalCosting(businessId, id);
+    const nextCosting = { ...localCosting };
+    delete nextCosting[id];
+    setLocalCosting(nextCosting);
     updateProducts(products.filter((p) => p.id !== id));
   }
 
   async function handleToggleActive(product) {
     const { data } = await supabase.from("products").update({ is_active:!product.is_active }).eq("id", product.id).select().single();
-    if (data) updateProducts(products.map((p) => p.id===data.id ? { ...data, icon: data.image && !data.image.startsWith("http") ? data.image : "🛍️" } : p));
+    if (data) updateProducts(products.map((p) => p.id===data.id ? { ...data, icon: data.image && !data.image.startsWith("http") ? data.image : "🛍️", costItems: localCosting[data.id] || p.costItems || [] } : p));
   }
 
   async function handleSaveEdit(id) {
     if (!editForm.name.trim() || !editForm.price) return;
     const imageValue = editForm.image || editForm.icon || "🛍️";
     const { data } = await supabase.from("products").update({ name:editForm.name.trim(), price:parseFloat(editForm.price), description:editForm.description.trim(), image:imageValue }).eq("id", id).select().single();
-    if (data) { updateProducts(products.map((p) => p.id===data.id ? { ...data, icon: data.image && !data.image.startsWith("http") ? data.image : "🛍️" } : p)); setEditingId(null); }
+    if (data) {
+      saveLocalCosting(businessId, id, editForm.costItems || []);
+      const nextCosting = { ...localCosting, [id]: normaliseCostItems(editForm.costItems || []) };
+      setLocalCosting(nextCosting);
+      updateProducts(products.map((p) => p.id===data.id ? { ...data, icon: data.image && !data.image.startsWith("http") ? data.image : "🛍️", costItems: nextCosting[id] } : p));
+      setEditingId(null);
+    }
   }
 
   function productThumb(p, size=40) {
@@ -129,13 +329,19 @@ export function ProductsSection({ businessId, prefilledProducts, onProductsPrefi
           <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
             <input style={inputStyle} placeholder="Name e.g. Gel overlay" value={newProduct.name} onChange={(e) => setNewProduct({...newProduct, name:e.target.value})} />
             <input style={inputStyle} type="number" placeholder="Price e.g. 220" value={newProduct.price} onChange={(e) => setNewProduct({...newProduct, price:e.target.value})} />
+            <PricingHelper
+              price={newProduct.price}
+              costItems={newProduct.costItems}
+              setCostItems={(items) => setNewProduct((p) => ({ ...p, costItems:items }))}
+              businessCategory={businessCategory}
+            />
             <input style={inputStyle} placeholder="Description (optional)" value={newProduct.description} onChange={(e) => setNewProduct({...newProduct, description:e.target.value})} />
             <ProductImagePicker images={images} selectedImage={newProduct.image} selectedIcon={newProduct.icon}
               onImageSelect={(url) => setNewProduct((p) => ({...p, image:url}))}
               onIconSelect={(ic) => setNewProduct((p) => ({...p, icon:ic, image:null}))} />
             <div style={{ display:"flex", gap:"8px" }}>
               <button onClick={handleAdd} disabled={saving} style={{ backgroundColor:LIME, color:"#fff", border:"none", borderRadius:"10px", padding:"10px 20px", fontSize:"13px", fontWeight:700, cursor:"pointer", flex:1 }}>{saving?"Saving...":"Save product"}</button>
-              <button onClick={() => { setAdding(false); setNewProduct({name:"",price:"",description:"",icon:"🛍️",image:null}); }} style={{ background:"#fff", color:"#888", border:"1.5px solid #e0e0e0", borderRadius:"10px", padding:"10px 16px", fontSize:"13px", cursor:"pointer" }}>Cancel</button>
+              <button onClick={() => { setAdding(false); setNewProduct({name:"",price:"",description:"",icon:"🛍️",image:null,costItems:[]}); }} style={{ background:"#fff", color:"#888", border:"1.5px solid #e0e0e0", borderRadius:"10px", padding:"10px 16px", fontSize:"13px", cursor:"pointer" }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -155,6 +361,12 @@ export function ProductsSection({ businessId, prefilledProducts, onProductsPrefi
                   <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
                     <input style={inputStyle} value={editForm.name} onChange={(e) => setEditForm({...editForm,name:e.target.value})} placeholder="Product name" />
                     <input style={inputStyle} type="number" value={editForm.price} onChange={(e) => setEditForm({...editForm,price:e.target.value})} placeholder="Price" />
+                    <PricingHelper
+                      price={editForm.price}
+                      costItems={editForm.costItems || []}
+                      setCostItems={(items) => setEditForm((f) => ({ ...f, costItems:items }))}
+                      businessCategory={businessCategory}
+                    />
                     <input style={inputStyle} value={editForm.description} onChange={(e) => setEditForm({...editForm,description:e.target.value})} placeholder="Description" />
                     <ProductImagePicker images={images} selectedImage={editForm.image} selectedIcon={editForm.icon}
                       onImageSelect={(url) => setEditForm((f) => ({...f,image:url}))}
@@ -173,7 +385,7 @@ export function ProductsSection({ businessId, prefilledProducts, onProductsPrefi
                     </div>
                     <div style={{ fontSize:"16px", fontWeight:900, color:DARK, minWidth:"55px", textAlign:"right" }}>R{p.price}</div>
                     <div style={{ display:"flex", flexWrap:"wrap", gap:"4px" }}>
-                      <button onClick={() => { setEditingId(p.id); const isUrl=p.image&&p.image.startsWith("http"); setEditForm({name:p.name,price:p.price,description:p.description||"",icon:isUrl?"🛍️":(p.image||p.icon||"🛍️"),image:isUrl?p.image:null}); }} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:"#fbfbfb", color:"#555", cursor:"pointer", fontWeight:600 }}>Edit</button>
+	                      <button onClick={() => { setEditingId(p.id); const isUrl=p.image&&p.image.startsWith("http"); setEditForm({name:p.name,price:p.price,description:p.description||"",icon:isUrl?"🛍️":(p.image||p.icon||"🛍️"),image:isUrl?p.image:null,costItems:normaliseCostItems(localCosting[p.id] || p.costItems || [])}); }} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:"#fbfbfb", color:"#555", cursor:"pointer", fontWeight:600 }}>Edit</button>
                       <button onClick={() => handleToggleActive(p)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:p.is_active?"#fff5f9":"#f5f5f5", color:p.is_active?"#d93f7b":"#aaa", cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>{p.is_active?"Active":"Hidden"}</button>
                       <button onClick={() => handleDelete(p.id)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #ffd0d0", background:"#fff5f5", color:"#cc3300", cursor:"pointer", fontWeight:600 }}>Delete</button>
                     </div>
@@ -200,6 +412,7 @@ export function ProductsTab({ user, business, setGlobalProducts }) {
         onProductsPrefilled={() => {}}
         onProductsChange={setGlobalProducts}
         userId={user.id}
+        businessCategory={business?.category}
       />
     </div>
   );
