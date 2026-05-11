@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { BG_COLOURS, DARK, LIME } from "../constants";
 import { supabase } from "../lib/supabase";
 import Logo from "../components/Logo";
+import { waLink } from "../utils";
 
 const FALLBACK_ACCENT = "#ea4c89";
 
@@ -34,8 +35,8 @@ function normaliseUrl(value) {
 
 function whatsappLink(number, businessName) {
   if (!number) return "#";
-  const text = `Hi! I found ${businessName} on VulaTrade and would like to enquire.`;
-  return `https://wa.me/${number.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
+  const text = `Hi ${businessName}, I'm interested in your products/services on VulaTrade.`;
+  return waLink(number, text);
 }
 
 function socialLinks(business) {

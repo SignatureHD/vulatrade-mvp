@@ -1,6 +1,6 @@
 import React from "react";
 import { BG_COLOURS, FONTS } from "../constants";
-import { injectFont } from "../utils";
+import { injectFont, waLink } from "../utils";
 import Logo from "./Logo";
 
 function readableTextOn(hex) {
@@ -14,8 +14,9 @@ function readableTextOn(hex) {
 export function BusinessPagePreview({ form, products, logoUrl, isFullPage }) {
   const bg   = BG_COLOURS.find((c) => c.value === form.bgColour) || BG_COLOURS[0];
   const font = FONTS.find((f) => f.value === form.font) || FONTS[0];
+  const message = `Hi ${form.name || "there"}, I'm interested in your products/services on VulaTrade.`;
   const whatsappUrl = form.whatsapp
-    ? `https://wa.me/${form.whatsapp.replace(/\D/g, "")}?text=Hi! I found you on VulaTrade and would like to enquire.`
+    ? waLink(form.whatsapp, message)
     : "#";
   const activeProducts = products.filter((p) => p.is_active !== false);
   const accentText = readableTextOn(bg.accent);

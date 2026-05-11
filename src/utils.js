@@ -55,8 +55,15 @@ export async function compressImage(file) {
 }
 
 // ── CUSTOMER HELPERS ───────────────────────────────────────
+export function normaliseWhatsappNumber(number = "") {
+  let digits = String(number).replace(/[\s()\-]/g, "").replace(/^\+/, "").replace(/\D/g, "");
+  if (digits.startsWith("0") && digits.length === 10) return `27${digits.slice(1)}`;
+  if (digits.startsWith("27")) return digits;
+  return digits;
+}
+
 export function waLink(number, message = "") {
-  const clean = number.replace(/\D/g, "");
+  const clean = normaliseWhatsappNumber(number);
   const msg = encodeURIComponent(message);
   return `https://wa.me/${clean}${msg ? `?text=${msg}` : ""}`;
 }

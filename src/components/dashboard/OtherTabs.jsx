@@ -243,7 +243,9 @@ export function PageTab({ business, products, logoUrl }) {
     );
   }
 
-  const shareUrl = `${window.location.origin}/b/${business.slug}`;
+  const isLocalHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  const shareOrigin = isLocalHost ? "https://www.vulatrade.co.za" : window.location.origin;
+  const shareUrl = `${shareOrigin}/b/${business.slug}`;
 
   async function copyShareLink() {
     if (navigator.clipboard) {
