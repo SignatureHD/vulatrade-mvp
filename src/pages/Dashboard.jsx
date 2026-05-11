@@ -191,7 +191,10 @@ export default function Dashboard({ authMode = "signin", initialTab = "Dashboard
       case "Page":
         return <PageTab business={business} products={products} logoUrl={logoUrl} />;
       case "Customers":
-        return <CustomersTab business={business} />;
+        return <CustomersTab business={business} onMessageCustomer={(customer) => {
+          window.history.pushState({}, "", `/messages?customerId=${encodeURIComponent(customer.id)}`);
+          setTab("Messages");
+        }} />;
       case "Messages":
         return <MessagesTab business={business} />;
       case "Bookings":

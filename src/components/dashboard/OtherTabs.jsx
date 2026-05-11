@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Bell,
   Building2,
@@ -125,6 +125,37 @@ function defaultCategoryForBusinessType(type) {
   return "Booking reminder";
 }
 
+const STANDARD_EXPENSE_CATEGORIES = [
+  "Stock",
+  "Airtime",
+  "Data",
+  "Transport",
+  "Rent",
+  "Supplies",
+  "Packaging",
+  "Electricity",
+  "Equipment",
+  "Marketing",
+  "Repairs",
+  "Other",
+];
+
+const EXPENSE_PAYMENT_METHODS = ["Cash", "EFT", "Card", "Yoco", "iKhokha", "PayShap", "Other"];
+
+const EXPENSE_SUGGESTIONS = {
+  "Food / Catering": ["Ingredients", "Packaging", "Gas / Electricity", "Transport", "Delivery costs", "Cooking supplies", "Cleaning supplies", "Market stock", "Airtime / Data"],
+  "Hair / Beauty / Nails": ["Hair products", "Nail products", "Tools", "Chair rental", "Towels / consumables", "Transport", "Airtime / Data", "Marketing", "Cleaning supplies"],
+  "Cleaning Services": ["Cleaning chemicals", "Gloves / PPE", "Transport", "Equipment", "Airtime / Data", "Staff wages", "Uniforms", "Marketing"],
+  "Mobile Car Wash": ["Water", "Soap / chemicals", "Cloths / sponges", "Transport", "Equipment", "Airtime / Data", "Marketing"],
+  "Clothing / Product Seller": ["Stock", "Packaging", "Courier / delivery", "Transport", "Airtime / Data", "Marketing", "Returns / exchanges"],
+  "Repairs / Home Services": ["Parts", "Tools", "Transport", "Airtime / Data", "Equipment", "Marketing", "Call-out costs"],
+  "General Business": ["Stock", "Airtime", "Data", "Transport", "Supplies", "Marketing", "Rent", "Other"],
+};
+
+function todayInputValue() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function getMessageTemplate(businessType, category) {
   return MESSAGE_TEMPLATES[businessType]?.[category] || DEFAULT_MESSAGE_TEMPLATES[category] || DEFAULT_MESSAGE_TEMPLATES["Follow-up message"];
 }
@@ -146,6 +177,15 @@ function fillMessageTemplate(template, fields) {
     .replaceAll("[Time]", fields.time || "the agreed time")
     .replaceAll("[Amount]", fields.amount || "0")
     .replaceAll("[Service/Product]", fields.item || "your service or product");
+}
+
+function messageTagFromCustomer(customer) {
+  const status = (customer?.status || "").toLowerCase();
+  if (status === "vip") return "VIP";
+  if (status === "regular") return "Regular";
+  if (status === "new") return "New Customer";
+  if (status === "lead" || (customer?.interested_in || []).length > 0) return "Interested";
+  return "All customers";
 }
 
 // ── TEMPLATES TAB ──────────────────────────────────────────
@@ -488,8 +528,98 @@ export function SalesTab({ business }) {
   );
 }
 
-export function ExpensesTab() {
-  const categories = ["Stock", "Airtime", "Data", "Transport", "Rent", "Supplies", "Packaging"];
+function ExpenseFormModal({ initialCategory, onSave, onClose }) {
+  const [form, setForm] = useState({
+    name: "",
+    amount: "",
+    category: initialCategory || "",
+    date: todayInputValue(),
+    method: "Cash",
+    notes: "",
+  });
+  const [error, setError] = useState("");
+
+  function update(key, value) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setError("");
+  }
+
+  function save() {
+    const amount = parseFloat(form.amount);
+    if (!form.name.trim()) { setError("Expense name is required."); return; }
+    if (!amount || amount <= 0) { setError("Amount must be greater than 0."); return; }
+    if (!form.category.trim()) { setError("Category is required."); return; }
+    onSave({ ...form, id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), amount, created_at: new Date().toISOString() });
+  }
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(32,32,33,0.48)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:"18px" }}>
+      <div style={{ background:"#fff", borderRadius:"24px", padding:"22px", width:"100%", maxWidth:"520px", boxShadow:"0 24px 70px rgba(32,32,33,0.25)", maxHeight:"88vh", overflowY:"auto" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"12px", marginBottom:"18px" }}>
+          <div>
+            <h3 style={{ fontSize:"19px", fontWeight:900, color:DARK, marginBottom:"4px" }}>Add Expense</h3>
+            <p style={{ fontSize:"12px", color:"#888" }}>Record a business cost. This is saved locally for now.</p>
+          </div>
+          <button onClick={onClose} style={{ width:"36px", height:"36px", borderRadius:"50%", border:"1px solid #eeeeea", background:"#fff", color:"#767b81", fontSize:"18px", cursor:"pointer" }}>×</button>
+        </div>
+        {error && <div style={{ background:"#fff5f5", border:"1px solid #ffd0d0", color:"#cc3300", borderRadius:"12px", padding:"10px 12px", fontSize:"13px", marginBottom:"14px" }}>{error}</div>}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:"12px", marginBottom:"14px" }}>
+          <div>
+            <label style={labelStyle}>Expense name</label>
+            <input style={inputStyle} placeholder="e.g. Chicken stock" value={form.name} onChange={(e) => update("name", e.target.value)} autoFocus />
+          </div>
+          <div>
+            <label style={labelStyle}>Amount (R)</label>
+            <input style={inputStyle} type="number" min="0" placeholder="0" value={form.amount} onChange={(e) => update("amount", e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle}>Category</label>
+            <input style={inputStyle} placeholder="e.g. Ingredients" value={form.category} onChange={(e) => update("category", e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle}>Date</label>
+            <input style={inputStyle} type="date" value={form.date} onChange={(e) => update("date", e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle}>Payment method</label>
+            <select style={{ ...inputStyle, cursor:"pointer" }} value={form.method} onChange={(e) => update("method", e.target.value)}>
+              {EXPENSE_PAYMENT_METHODS.map((method) => <option key={method} value={method}>{method}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{ marginBottom:"16px" }}>
+          <label style={labelStyle}>Notes</label>
+          <textarea style={{ ...inputStyle, minHeight:"78px", resize:"vertical" }} placeholder="Optional details" value={form.notes} onChange={(e) => update("notes", e.target.value)} />
+        </div>
+        <div style={{ display:"flex", gap:"10px", flexWrap:"wrap" }}>
+          <button onClick={save} style={{ flex:"1 1 180px", background:"#ea4c89", color:"#fff", border:"none", borderRadius:"12px", padding:"13px 18px", fontSize:"14px", fontWeight:900, cursor:"pointer" }}>Save Expense</button>
+          <button onClick={onClose} style={{ flex:"1 1 120px", background:"#fff", color:"#555", border:"1.5px solid #e0e0e0", borderRadius:"12px", padding:"13px 18px", fontSize:"14px", fontWeight:800, cursor:"pointer" }}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ExpensesTab({ business }) {
+  const businessType = messageBusinessTypeFromCategory(business?.category);
+  const suggestedCategories = EXPENSE_SUGGESTIONS[businessType] || EXPENSE_SUGGESTIONS["General Business"];
+  const [expenses, setExpenses] = useState([]);
+  const [modalCategory, setModalCategory] = useState(null);
+  const [toast, setToast] = useState("");
+  const categories = Array.from(new Set([...suggestedCategories, ...STANDARD_EXPENSE_CATEGORIES]));
+  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+  function openForm(category = "") {
+    setModalCategory(category);
+  }
+
+  function handleSaveExpense(expense) {
+    setExpenses((prev) => [expense, ...prev]);
+    setModalCategory(null);
+    setToast("Expense saved. Your costs are easier to track now.");
+    setTimeout(() => setToast(""), 2800);
+  }
+
   return (
     <div>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"14px", marginBottom:"20px", flexWrap:"wrap" }}>
@@ -497,15 +627,26 @@ export function ExpensesTab() {
           <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Expenses</h2>
           <p style={{ fontSize:"13px", color:"#aaa" }}>Costs going out: stock, airtime, data, transport, rent and supplies.</p>
         </div>
-        <button style={{ backgroundColor:"#ea4c89", color:"#fff", border:"none", borderRadius:"12px", padding:"11px 18px", fontSize:"13px", fontWeight:800, cursor:"pointer" }}>
+        <button onClick={() => openForm()} style={{ backgroundColor:"#ea4c89", color:"#fff", border:"none", borderRadius:"12px", padding:"11px 18px", fontSize:"13px", fontWeight:800, cursor:"pointer" }}>
           Add Expense
         </button>
       </div>
+
+      <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"18px", padding:"18px", marginBottom:"20px", display:"flex", alignItems:"flex-start", gap:"14px" }}>
+        <span style={{ width:"42px", height:"42px", borderRadius:"50%", background:"#fde8f1", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+          <FileCheck size={19} strokeWidth={2.2} color="#ea4c89" />
+        </span>
+        <div>
+          <div style={{ fontSize:"15px", fontWeight:900, color:DARK, marginBottom:"4px" }}>Expenses help show what your business really costs.</div>
+          <div style={{ fontSize:"13px", color:"#777", lineHeight:1.55 }}>Tracking expenses helps you understand profit and strengthens your Business File over time.</div>
+        </div>
+      </div>
+
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(150px, 1fr))", gap:"10px", marginBottom:"20px" }}>
         {[
-          { label:"Total expenses", value:"R0" },
+          { label:"Total expenses", value:`R${totalExpenses.toLocaleString()}` },
           { label:"Categories", value:categories.length },
-          { label:"Recent expenses", value:0 },
+          { label:"Recent expenses", value:expenses.length },
         ].map((s) => (
           <div key={s.label} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"14px", padding:"16px" }}>
             <div style={{ fontSize:"10px", color:"#aaa", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"6px" }}>{s.label}</div>
@@ -513,22 +654,62 @@ export function ExpensesTab() {
           </div>
         ))}
       </div>
+
+      <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"18px", marginBottom:"20px" }}>
+        <div style={{ fontSize:"15px", fontWeight:900, color:DARK, marginBottom:"4px" }}>Suggested for your business</div>
+        <div style={{ fontSize:"12px", color:"#888", marginBottom:"14px" }}>{businessType} expense ideas. Tap one to quick add.</div>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:"8px" }}>
+          {suggestedCategories.map((category) => (
+            <button key={category} onClick={() => openForm(category)}
+              style={{ border:"1.5px solid #f8b8d2", background:"#fff5f9", color:"#d93f7b", borderRadius:"999px", padding:"9px 13px", fontSize:"12px", fontWeight:800, cursor:"pointer" }}>
+              {category}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ fontSize:"15px", fontWeight:900, color:DARK, marginBottom:"10px" }}>All categories</div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(160px, 1fr))", gap:"10px", marginBottom:"20px" }}>
         {categories.map((category) => (
-          <div key={category} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"16px", padding:"14px", display:"flex", alignItems:"center", gap:"10px" }}>
+          <button key={category} onClick={() => openForm(category)} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"16px", padding:"14px", display:"flex", alignItems:"center", gap:"10px", cursor:"pointer", textAlign:"left" }}>
             <span style={{ width:"36px", height:"36px", borderRadius:"50%", background:"#fde8f1", display:"flex", alignItems:"center", justifyContent:"center" }}>
               <WalletCards size={17} strokeWidth={2.2} color="#ea4c89" />
             </span>
             <span style={{ fontSize:"13px", fontWeight:800, color:DARK }}>{category}</span>
-          </div>
+          </button>
         ))}
       </div>
       <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"22px" }}>
         <div style={{ fontSize:"15px", fontWeight:800, color:DARK, marginBottom:"10px" }}>Recent expenses</div>
-        <div style={{ background:"#fbfbfb", borderRadius:"14px", padding:"24px", textAlign:"center", color:"#888", fontSize:"13px" }}>
-          No expenses recorded yet. Add stock, transport, airtime or supplies to understand what your business really costs.
-        </div>
+        {expenses.length === 0 ? (
+          <div style={{ background:"#fbfbfb", borderRadius:"14px", padding:"24px", textAlign:"center", color:"#888", fontSize:"13px" }}>
+            No expenses recorded yet. Add stock, transport, airtime or supplies to understand what your business really costs.
+          </div>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
+            {expenses.map((expense) => (
+              <div key={expense.id} style={{ display:"flex", alignItems:"center", gap:"12px", border:"1px solid #eeeeea", borderRadius:"14px", padding:"13px 14px" }}>
+                <span style={{ width:"38px", height:"38px", borderRadius:"50%", background:"#fde8f1", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                  <WalletCards size={17} strokeWidth={2.2} color="#ea4c89" />
+                </span>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:"14px", fontWeight:900, color:DARK }}>{expense.name}</div>
+                  <div style={{ fontSize:"12px", color:"#888", marginTop:"2px" }}>{expense.category} · {expense.method} · {new Date(expense.date + "T00:00:00").toLocaleDateString("en-ZA", { day:"numeric", month:"short" })}</div>
+                  {expense.notes && <div style={{ fontSize:"12px", color:"#aaa", marginTop:"2px" }}>{expense.notes}</div>}
+                </div>
+                <div style={{ fontSize:"15px", fontWeight:900, color:DARK }}>R{expense.amount.toLocaleString()}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
+
+      {modalCategory !== null && <ExpenseFormModal initialCategory={modalCategory} onSave={handleSaveExpense} onClose={() => setModalCategory(null)} />}
+      {toast && (
+        <div style={{ position:"fixed", bottom:"86px", left:"50%", transform:"translateX(-50%)", background:DARK, color:"#fff", padding:"12px 20px", borderRadius:"999px", fontSize:"13px", fontWeight:800, zIndex:2000, boxShadow:"0 10px 30px rgba(32,32,33,0.2)", whiteSpace:"nowrap" }}>
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
@@ -579,6 +760,7 @@ export function MessagesTab({ business }) {
   const [customMessage, setCustomMessage] = useState(() => getMessageTemplate("Hair / Beauty / Nails", "Booking reminder"));
   const [phoneError, setPhoneError] = useState("");
   const [copied, setCopied] = useState(false);
+  const appliedQueryCustomer = useRef(false);
 
   useEffect(() => {
     const matched = messageBusinessTypeFromCategory(business?.category);
@@ -599,6 +781,23 @@ export function MessagesTab({ business }) {
         setLoadingCustomers(false);
       });
   }, [business?.id]);
+
+  useEffect(() => {
+    if (appliedQueryCustomer.current || customers.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const customerId = params.get("customerId");
+    if (!customerId) return;
+    const customer = customers.find((c) => c.id === customerId);
+    if (!customer) return;
+    appliedQueryCustomer.current = true;
+    setSelectedCustomerId(customer.id);
+    setCustomerTag(messageTagFromCustomer(customer));
+    setFields((prev) => ({
+      ...prev,
+      customerName: customer.name || prev.customerName,
+      phone: customer.whatsapp || prev.phone,
+    }));
+  }, [customers]);
 
   useEffect(() => {
     setFields((prev) => ({ ...prev, businessName: business?.name || prev.businessName }));
@@ -643,6 +842,7 @@ export function MessagesTab({ business }) {
       customerName: customer.name || prev.customerName,
       phone: customer.whatsapp || prev.phone,
     }));
+    setCustomerTag(messageTagFromCustomer(customer));
     setPhoneError("");
   }
 

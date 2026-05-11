@@ -3,6 +3,28 @@ import { LIME, DARK, CUSTOMER_STATUSES, CONTACT_PICKER_SUPPORTED, PAYMENT_METHOD
 import { waLink, timeAgo, formatPhone, pickFromContacts } from "../../utils";
 import { supabase } from "../../lib/supabase";
 import { StatusBadge } from "../ui";
+import { FileCheck, MessageCircle, Pencil, StickyNote, Star, Users } from "lucide-react";
+
+function customerTags(customer, activity) {
+  const status = customer.status || "new";
+  const tags = [];
+  if (status === "vip") tags.push("VIP");
+  if (status === "regular") tags.push("Regular");
+  if (status === "new") tags.push("New Customer");
+  if (status === "lead" || (customer.interested_in || []).length > 0) tags.push("Interested");
+  if (activity?.unpaidCount > 0) tags.push("Owes Money");
+  if (activity?.pendingBookings > 0) tags.push("Booking Pending");
+  if (customer.last_contacted) {
+    const days = (Date.now() - new Date(customer.last_contacted).getTime()) / 86400000;
+    if (days > 30) tags.push("Needs Follow-up");
+  }
+  return tags.length ? tags : ["New Customer"];
+}
+
+function formatActivityDate(dateString) {
+  if (!dateString) return "";
+  return new Date(dateString).toLocaleDateString("en-ZA", { day:"numeric", month:"short" });
+}
 
 // ── IMPORT PREVIEW MODAL ───────────────────────────────────
 function ImportPreviewModal({ contacts, onConfirm, onCancel, importing }) {
@@ -236,10 +258,11 @@ function CustomerForm({ initial = {}, onSave, onCancel, saving, businessProducts
 }
 
 // ── CUSTOMER CARD ──────────────────────────────────────────
-function CustomerCard({ customer, onEdit, onDelete, onLogSale, onWhatsApp, onStatusChange }) {
+function CustomerCard({ customer, activity, onEdit, onDelete, onLogSale, onMessage, onStatusChange }) {
   const [expanded, setExpanded] = useState(false);
   const initials = customer.name.split(" ").slice(0, 2).map((w) => w[0]?.toUpperCase() || "").join("");
   const s = statusConfig(customer.status || "new");
+  const tags = customerTags(customer, activity);
 
   return (
     <div style={{ background:"#fff", border:`1.5px solid ${s.border}`, borderRadius:"16px", overflow:"hidden" }}>
@@ -255,6 +278,12 @@ function CustomerCard({ customer, onEdit, onDelete, onLogSale, onWhatsApp, onSta
           <div style={{ fontSize:"12px", color:"#aaa", display:"flex", gap:"10px", flexWrap:"wrap" }}>
             {customer.whatsapp && <span>{customer.whatsapp}</span>}
             {customer.area && <span>{customer.area}</span>}
+            {customer.last_contacted && <span>Last contact: {timeAgo(customer.last_contacted)}</span>}
+          </div>
+          <div style={{ display:"flex", gap:"5px", flexWrap:"wrap", marginTop:"7px" }}>
+            {tags.slice(0, 4).map((tag) => (
+              <span key={tag} style={{ fontSize:"10px", fontWeight:800, color:"#d93f7b", background:"#fff5f9", border:"1px solid #f8b8d2", borderRadius:"999px", padding:"3px 8px" }}>{tag}</span>
+            ))}
           </div>
         </div>
         <div style={{ textAlign:"right", flexShrink:0 }}>
@@ -292,15 +321,39 @@ function CustomerCard({ customer, onEdit, onDelete, onLogSale, onWhatsApp, onSta
               ))}
             </div>
           </div>
+          {(customer.last_contacted || activity?.lastBookingDate || activity?.lastSaleDate) && (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))", gap:"8px", marginBottom:"12px" }}>
+              {customer.last_contacted && (
+                <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"10px", padding:"10px" }}>
+                  <div style={{ fontSize:"10px", color:"#aaa", fontWeight:800, textTransform:"uppercase", letterSpacing:"0.06em" }}>Last contact</div>
+                  <div style={{ fontSize:"13px", color:DARK, fontWeight:800, marginTop:"4px" }}>{timeAgo(customer.last_contacted)}</div>
+                </div>
+              )}
+              {activity?.lastBookingDate && (
+                <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"10px", padding:"10px" }}>
+                  <div style={{ fontSize:"10px", color:"#aaa", fontWeight:800, textTransform:"uppercase", letterSpacing:"0.06em" }}>Last booking</div>
+                  <div style={{ fontSize:"13px", color:DARK, fontWeight:800, marginTop:"4px" }}>{formatActivityDate(activity.lastBookingDate)}</div>
+                </div>
+              )}
+              {activity?.lastSaleDate && (
+                <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"10px", padding:"10px" }}>
+                  <div style={{ fontSize:"10px", color:"#aaa", fontWeight:800, textTransform:"uppercase", letterSpacing:"0.06em" }}>Last sale</div>
+                  <div style={{ fontSize:"13px", color:DARK, fontWeight:800, marginTop:"4px" }}>{formatActivityDate(activity.lastSaleDate)}</div>
+                </div>
+              )}
+            </div>
+          )}
           <div style={{ display:"flex", gap:"6px", flexWrap:"wrap" }}>
-            {customer.whatsapp && (
-              <button onClick={() => onWhatsApp(customer)}
-                style={{ display:"flex", alignItems:"center", gap:"5px", padding:"8px 14px", borderRadius:"10px", border:"none", background:"#25d366", color:"#fff", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
-                WhatsApp
-              </button>
-            )}
+            <button onClick={() => onMessage(customer)}
+              style={{ display:"flex", alignItems:"center", gap:"5px", padding:"8px 14px", borderRadius:"10px", border:"none", background:"#ea4c89", color:"#fff", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
+              <MessageCircle size={14} strokeWidth={2.2} />
+              Message
+            </button>
             <button onClick={() => onLogSale(customer)} style={{ padding:"8px 14px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>Log sale</button>
-            <button onClick={() => onEdit(customer)} style={{ padding:"8px 14px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>Edit</button>
+            <button onClick={() => onEdit(customer)} style={{ display:"flex", alignItems:"center", gap:"5px", padding:"8px 14px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"12px", fontWeight:700, cursor:"pointer" }}><Pencil size={13} strokeWidth={2.2} /> Edit</button>
+            <button onClick={() => onEdit(customer)} style={{ display:"flex", alignItems:"center", gap:"5px", padding:"8px 14px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"12px", fontWeight:700, cursor:"pointer" }}><StickyNote size={13} strokeWidth={2.2} /> Add note</button>
+            {customer.status !== "vip" && <button onClick={() => onStatusChange(customer, "vip")} style={{ padding:"8px 14px", borderRadius:"10px", border:"1.5px solid #f8b8d2", background:"#fff5f9", color:"#d93f7b", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>Mark VIP</button>}
+            {customer.status !== "regular" && <button onClick={() => onStatusChange(customer, "regular")} style={{ padding:"8px 14px", borderRadius:"10px", border:"1.5px solid #f8b8d2", background:"#fff5f9", color:"#d93f7b", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>Mark Regular</button>}
             <button onClick={() => onDelete(customer)} style={{ padding:"8px 14px", borderRadius:"10px", border:"1.5px solid #ffd0d0", background:"#fff5f5", color:"#cc3300", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>Delete</button>
           </div>
           {(customer.visit_count > 0 || customer.total_spent > 0) && (
@@ -328,9 +381,10 @@ function CustomerCard({ customer, onEdit, onDelete, onLogSale, onWhatsApp, onSta
 }
 
 // ── MAIN CUSTOMERS TAB ─────────────────────────────────────
-export function CustomersTab({ business }) {
+export function CustomersTab({ business, onMessageCustomer }) {
   const [customers, setCustomers]       = useState([]);
   const [businessProducts, setBusinessProducts] = useState([]);
+  const [activityByCustomer, setActivityByCustomer] = useState({});
   const [loading, setLoading]           = useState(true);
   const [search, setSearch]             = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -339,7 +393,6 @@ export function CustomersTab({ business }) {
   const [editTarget, setEditTarget]     = useState(null);
   const [saving, setSaving]             = useState(false);
   const [logSaleFor, setLogSaleFor]     = useState(null);
-  const [whatsAppFor, setWhatsAppFor]   = useState(null);
   const [importContacts, setImportContacts] = useState(null);
   const [importing, setImporting]       = useState(false);
   const [toast, setToast]               = useState("");
@@ -351,11 +404,32 @@ export function CustomersTab({ business }) {
     Promise.all([
       supabase.from("customers").select("*").eq("business_id", business.id).order("created_at", { ascending: false }),
       supabase.from("products").select("id,name,image").eq("business_id", business.id).eq("is_active", true),
-    ]).then(([{ data: custs, error: e1 }, { data: prods, error: e2 }]) => {
+      supabase.from("bookings").select("customer_id,booking_date,status").eq("business_id", business.id),
+      supabase.from("payments").select("customer_id,created_at,status,amount").eq("business_id", business.id),
+    ]).then(([{ data: custs, error: e1 }, { data: prods, error: e2 }, { data: bookings, error: e3 }, { data: payments, error: e4 }]) => {
       if (e1) console.error("Load customers:", e1);
       if (e2) console.error("Load products:", e2);
+      if (e3) console.error("Load customer bookings:", e3);
+      if (e4) console.error("Load customer payments:", e4);
       if (custs) setCustomers(custs);
       if (prods) setBusinessProducts(prods);
+      const activity = {};
+      (bookings || []).forEach((booking) => {
+        if (!booking.customer_id) return;
+        const item = activity[booking.customer_id] || { pendingBookings:0, unpaidCount:0 };
+        if (!item.lastBookingDate || booking.booking_date > item.lastBookingDate) item.lastBookingDate = booking.booking_date;
+        if (booking.status === "confirmed") item.pendingBookings = (item.pendingBookings || 0) + 1;
+        activity[booking.customer_id] = item;
+      });
+      (payments || []).forEach((payment) => {
+        if (!payment.customer_id) return;
+        const item = activity[payment.customer_id] || { pendingBookings:0, unpaidCount:0 };
+        const date = (payment.created_at || "").slice(0, 10);
+        if (date && (!item.lastSaleDate || date > item.lastSaleDate)) item.lastSaleDate = date;
+        if (payment.status === "Unpaid") item.unpaidCount = (item.unpaidCount || 0) + 1;
+        activity[payment.customer_id] = item;
+      });
+      setActivityByCustomer(activity);
       setLoading(false);
     });
   }, [business?.id]);
@@ -407,7 +481,28 @@ export function CustomersTab({ business }) {
 
   function handleSaleLogged(updated, payment) {
     setCustomers((prev) => prev.map((c) => c.id === updated.id ? updated : c));
+    if (payment?.customer_id) {
+      const date = (payment.created_at || new Date().toISOString()).slice(0, 10);
+      setActivityByCustomer((prev) => ({
+        ...prev,
+        [payment.customer_id]: {
+          ...(prev[payment.customer_id] || {}),
+          lastSaleDate: date,
+          unpaidCount: payment.status === "Unpaid"
+            ? ((prev[payment.customer_id]?.unpaidCount || 0) + 1)
+            : (prev[payment.customer_id]?.unpaidCount || 0),
+        },
+      }));
+    }
     showToast(`Payment ${payment?.status || "saved"} for ${updated.name} ✓`);
+  }
+
+  function handleMessageCustomer(customer) {
+    if (onMessageCustomer) {
+      onMessageCustomer(customer);
+      return;
+    }
+    window.history.pushState({}, "", `/messages?customerId=${encodeURIComponent(customer.id)}`);
   }
 
   async function handleImportPhone() {
@@ -454,13 +549,23 @@ export function CustomersTab({ business }) {
       <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:"20px", flexWrap:"wrap", gap:"12px" }}>
         <div>
           <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Customers</h2>
-          <p style={{ fontSize:"13px", color:"#aaa" }}>{customers.length} total · R{totalSpent.toLocaleString()} earned</p>
+          <p style={{ fontSize:"13px", color:"#888" }}>Keep customer details, notes, tags and follow-ups in one place.</p>
         </div>
         <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
           {CONTACT_PICKER_SUPPORTED && (
             <button onClick={handleImportPhone} style={{ padding:"10px 16px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"13px", fontWeight:700, cursor:"pointer" }}>Import contacts</button>
           )}
-          <button onClick={() => setMode("add")} style={{ padding:"10px 18px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"13px", fontWeight:700, cursor:"pointer" }}>+ Add customer</button>
+          <button onClick={() => setMode("add")} style={{ padding:"10px 18px", borderRadius:"10px", border:"none", background:"#ea4c89", color:"#fff", fontSize:"13px", fontWeight:700, cursor:"pointer" }}>Add Customer</button>
+        </div>
+      </div>
+
+      <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"18px", padding:"18px", marginBottom:"20px", display:"flex", alignItems:"flex-start", gap:"14px" }}>
+        <span style={{ width:"42px", height:"42px", borderRadius:"50%", background:"#fde8f1", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+          <FileCheck size={19} strokeWidth={2.2} color="#ea4c89" />
+        </span>
+        <div>
+          <div style={{ fontSize:"15px", fontWeight:900, color:DARK, marginBottom:"4px" }}>Customer history helps build your Business File.</div>
+          <div style={{ fontSize:"13px", color:"#777", lineHeight:1.55 }}>Repeat customers, notes and follow-ups help show that your business has real demand.</div>
         </div>
       </div>
 
@@ -487,9 +592,9 @@ export function CustomersTab({ business }) {
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(130px, 1fr))", gap:"10px", marginBottom:"20px" }}>
           {[
             { label:"Total",    value: customers.length },
-            { label:"Leads",    value: countByStatus("lead") },
+            { label:"Interested", value: countByStatus("lead") },
+            { label:"VIP", value: countByStatus("vip") },
             { label:"Revenue",  value: `R${totalSpent.toLocaleString()}` },
-            { label:"Avg spend",value: customers.filter((c)=>c.total_spent>0).length ? `R${Math.round(totalSpent/customers.filter((c)=>c.total_spent>0).length).toLocaleString()}` : "—" },
           ].map((s) => (
             <div key={s.label} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"14px", padding:"16px" }}>
               <div style={{ fontSize:"10px", color:"#aaa", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"6px" }}>{s.label}</div>
@@ -515,14 +620,16 @@ export function CustomersTab({ business }) {
 
       {!loading && customers.length === 0 && (
         <div style={{ textAlign:"center", padding:"64px 24px" }}>
-          <div style={{ fontSize:"44px", marginBottom:"14px" }}>👥</div>
+          <span style={{ width:"56px", height:"56px", borderRadius:"50%", background:"#fde8f1", display:"inline-flex", alignItems:"center", justifyContent:"center", marginBottom:"14px" }}>
+            <Users size={24} strokeWidth={2.2} color="#ea4c89" />
+          </span>
           <h3 style={{ fontSize:"20px", fontWeight:800, color:DARK, marginBottom:"8px" }}>No customers yet</h3>
-          <p style={{ fontSize:"14px", color:"#767b81", marginBottom:"32px" }}>Add your first customer to start tracking repeat buyers.</p>
+          <p style={{ fontSize:"14px", color:"#767b81", marginBottom:"32px" }}>Add your first customer to start building your customer list.</p>
           <div style={{ display:"flex", flexDirection:"column", gap:"10px", maxWidth:"280px", margin:"0 auto" }}>
             {CONTACT_PICKER_SUPPORTED && (
               <button onClick={handleImportPhone} style={{ backgroundColor:LIME, color:"#fff", border:"none", borderRadius:"12px", padding:"13px 20px", fontSize:"14px", fontWeight:700, cursor:"pointer" }}>Import contacts</button>
             )}
-            <button onClick={() => setMode("add")} style={{ backgroundColor:CONTACT_PICKER_SUPPORTED?"#fff":DARK, color:CONTACT_PICKER_SUPPORTED?DARK:LIME, border:CONTACT_PICKER_SUPPORTED?"1.5px solid #e0e0e0":"none", borderRadius:"12px", padding:"13px 20px", fontSize:"14px", fontWeight:700, cursor:"pointer" }}>+ Add customer manually</button>
+            <button onClick={() => setMode("add")} style={{ backgroundColor:CONTACT_PICKER_SUPPORTED?"#fff":"#ea4c89", color:CONTACT_PICKER_SUPPORTED?DARK:"#fff", border:CONTACT_PICKER_SUPPORTED?"1.5px solid #e0e0e0":"none", borderRadius:"12px", padding:"13px 20px", fontSize:"14px", fontWeight:700, cursor:"pointer" }}>Add Customer</button>
           </div>
         </div>
       )}
@@ -535,10 +642,11 @@ export function CustomersTab({ business }) {
         <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
           {filtered.map((c) => (
             <CustomerCard key={c.id} customer={c}
+              activity={activityByCustomer[c.id]}
               onEdit={(cust) => { setEditTarget(cust); setMode("edit"); }}
               onDelete={handleDelete}
               onLogSale={setLogSaleFor}
-              onWhatsApp={setWhatsAppFor}
+              onMessage={handleMessageCustomer}
               onStatusChange={handleStatusChange}
             />
           ))}
@@ -546,7 +654,6 @@ export function CustomersTab({ business }) {
       )}
 
       {logSaleFor  && <LogSaleModal  business={business} customer={logSaleFor}  onClose={() => setLogSaleFor(null)}  onLogged={handleSaleLogged} />}
-      {whatsAppFor && <WhatsAppModal customer={whatsAppFor} onClose={() => setWhatsAppFor(null)} />}
       {importContacts && <ImportPreviewModal contacts={importContacts} onConfirm={handleConfirmImport} onCancel={() => setImportContacts(null)} importing={importing} />}
 
       {toast && (

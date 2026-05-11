@@ -528,7 +528,7 @@ export function DashboardHome({ user, business, setTab }) {
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"16px" }}>
                 <div style={{ fontSize:"15px", fontWeight:800, color:DARK }}>Revenue — last 6 months</div>
                 <div style={{ fontSize:"13px", fontWeight:700, color: revenueUp ? "#d93f7b" : "#cc3300" }}>
-                  {revenueUp ? "▲" : "▼"} {data.lastMonthRevenue > 0
+                  {data.lastMonthRevenue > 0
                     ? `${Math.abs(Math.round(((data.thisMonthRevenue - data.lastMonthRevenue) / data.lastMonthRevenue) * 100))}% vs last month`
                     : "First month"}
                 </div>
@@ -536,21 +536,30 @@ export function DashboardHome({ user, business, setTab }) {
               {(() => {
                 const max = Math.max(...data.monthlyRevenue.map((m) => m.value), 1);
                 return (
-                  <div style={{ display:"flex", alignItems:"flex-end", gap:"8px", height:"80px" }}>
-                    {data.monthlyRevenue.map((m, i) => {
-                      const isLast = i === data.monthlyRevenue.length - 1;
-                      const h = Math.max((m.value / max) * 72, m.value > 0 ? 6 : 2);
-                      return (
-                        <div key={m.label} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:"6px" }}>
-                          <div style={{ fontSize:"10px", color:"#888", fontWeight:700 }}>
-                            {m.value > 0 ? `R${m.value >= 1000 ? Math.round(m.value/1000)+"k" : m.value}` : ""}
+                  <>
+                    <div style={{ display:"flex", alignItems:"flex-end", gap:"8px", height:"94px" }}>
+                      {data.monthlyRevenue.map((m, i) => {
+                        const isLast = i === data.monthlyRevenue.length - 1;
+                        const h = Math.max((m.value / max) * 72, m.value > 0 ? 28 : 3);
+                        const amountLabel = m.value > 0 ? `R${m.value >= 1000 ? Math.round(m.value/1000)+"k" : m.value}` : "";
+                        return (
+                          <div key={m.label} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:"6px", minWidth:0 }}>
+                            <div style={{ width:"100%", height:`${h}px`, borderRadius:"8px 8px 0 0", background: isLast ? LIME : "#d4d7db", display:"flex", alignItems:"flex-start", justifyContent:"center", paddingTop:m.value > 0 ? "6px" : 0, boxSizing:"border-box", overflow:"hidden" }}>
+                              {amountLabel && (
+                                <span style={{ fontSize:"10px", lineHeight:1, color:isLast ? "#fff" : DARK, fontWeight:900, whiteSpace:"nowrap" }}>
+                                  {amountLabel}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize:"10px", color: isLast ? DARK : "#bbb", fontWeight: isLast ? 800 : 500 }}>{m.label}</div>
                           </div>
-                          <div style={{ width:"100%", height:`${h}px`, borderRadius:"6px 6px 0 0", background: isLast ? LIME : "#d4d7db" }} />
-                          <div style={{ fontSize:"10px", color: isLast ? DARK : "#bbb", fontWeight: isLast ? 800 : 500 }}>{m.label}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                    {data.lastMonthRevenue === 0 && (
+                      <div style={{ fontSize:"11px", color:"#888", fontWeight:700, marginTop:"10px" }}>First month recorded</div>
+                    )}
+                  </>
                 );
               })()}
             </div>
