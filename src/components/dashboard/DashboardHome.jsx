@@ -268,10 +268,10 @@ export function DashboardHome({ user, business, setTab }) {
           {/* Stat cards */}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))", gap:"10px" }}>
             {[
-              { label:"Total Sales", value:`R${data.thisMonthRevenue.toLocaleString()}`, sub:data.lastMonthRevenue>0?`${revenueUp?"▲":"▼"} vs R${data.lastMonthRevenue.toLocaleString()} last month`:"Log payments to track", subColor:data.lastMonthRevenue>0?(revenueUp?"#d93f7b":"#cc3300"):"#bbb", onClick:()=>setTab("Money"), icon:Banknote },
-              { label:"Products / Services", value:data.todayBookings.length, sub:data.todayBookings.length===0?"No sales today":`${data.todayBookings.length} appointment${data.todayBookings.length!==1?"s":""} today`, onClick:()=>setTab("Setup"), highlight:data.todayBookings.length>0, icon:Package, bg:"#edf5fe", color:"#0267ff" },
+              { label:"Total Sales", value:`R${data.thisMonthRevenue.toLocaleString()}`, sub:data.lastMonthRevenue>0?`${revenueUp?"▲":"▼"} vs R${data.lastMonthRevenue.toLocaleString()} last month`:"Record sales to track", subColor:data.lastMonthRevenue>0?(revenueUp?"#d93f7b":"#cc3300"):"#bbb", onClick:()=>setTab("Sales"), icon:Banknote },
+              { label:"Products / Services", value:data.todayBookings.length, sub:data.todayBookings.length===0?"Add what you sell":"Linked to today's bookings", onClick:()=>setTab("Products"), highlight:data.todayBookings.length>0, icon:Package, bg:"#edf5fe", color:"#0267ff" },
               { label:"Customers", value:data.totalCustomers, sub:data.leads.length>0?`${data.leads.length} lead${data.leads.length!==1?"s":""} to convert`:"No leads waiting", onClick:()=>setTab("Customers"), icon:Users, bg:"#fff8e7", color:"#d89b00" },
-              { label:"Business File Progress", value:data.needsContact.length+data.atRisk.length+data.unpaidPayments.length === 0 ? "Ready" : data.needsContact.length+data.atRisk.length+data.unpaidPayments.length, sub:data.unpaidPayments.length>0?`${data.unpaidPayments.length} unpaid payment${data.unpaidPayments.length!==1?"s":""}`:data.needsContact.length+data.atRisk.length>0?"Actions to complete":"All caught up", subColor:data.needsContact.length+data.atRisk.length+data.unpaidPayments.length>0?"#f59e0b":"#d93f7b", onClick:()=>data.unpaidPayments.length>0?setTab("Money"):setTab("Customers"), icon:FileCheck, bg:"#fbe6ea", color:"#d90429" },
+              { label:"Business File Progress", value:data.needsContact.length+data.atRisk.length+data.unpaidPayments.length === 0 ? "Ready" : data.needsContact.length+data.atRisk.length+data.unpaidPayments.length, sub:data.unpaidPayments.length>0?`${data.unpaidPayments.length} unpaid payment${data.unpaidPayments.length!==1?"s":""}`:data.needsContact.length+data.atRisk.length>0?"Actions to complete":"All caught up", subColor:data.needsContact.length+data.atRisk.length+data.unpaidPayments.length>0?"#f59e0b":"#d93f7b", onClick:()=>setTab("BusinessFile"), icon:FileCheck, bg:"#fbe6ea", color:"#d90429" },
             ].map((s) => (
               <div key={s.label} onClick={s.onClick}
                 style={{ background:"#fff", border:`1.5px solid ${s.highlight ? LIME : "#eeeeea"}`, borderRadius:"16px", padding:"18px", cursor:s.onClick?"pointer":"default" }}
@@ -291,12 +291,12 @@ export function DashboardHome({ user, business, setTab }) {
           <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"20px" }}>
             <div style={{ fontSize:"15px", fontWeight:800, color:DARK, marginBottom:"16px" }}>Quick actions</div>
             <div style={{ display:"flex", gap:"14px", overflowX:"auto", paddingBottom:"2px" }}>
-              <QuickAction icon={ReceiptText} label="Add Sale" onClick={() => setTab("Money")} />
-              <QuickAction icon={Package} label="Add Product / Service" onClick={() => setTab("Setup")} accent="#0267ff" />
+              <QuickAction icon={ReceiptText} label="Add Sale" onClick={() => setTab("Sales")} />
+              <QuickAction icon={Package} label="Add Product / Service" onClick={() => setTab("Products")} accent="#0267ff" />
               <QuickAction icon={UserPlus} label="Add Customer" onClick={() => setTab("Customers")} accent="#d89b00" />
-              <QuickAction icon={WalletCards} label="Add Expense" onClick={() => setTab("Money")} accent="#d93f7b" />
+              <QuickAction icon={WalletCards} label="Add Expense" onClick={() => setTab("Expenses")} accent="#d93f7b" />
               <QuickAction icon={Globe} label="View Public Page" onClick={() => setTab("Page")} accent="#ea4c89" />
-              <QuickAction icon={Download} label="Download Business File" onClick={() => setTab("Growth")} accent="#767b81" />
+              <QuickAction icon={Download} label="Download Business File" onClick={() => setTab("BusinessFile")} accent="#767b81" />
             </div>
           </div>
 
@@ -418,9 +418,9 @@ export function DashboardHome({ user, business, setTab }) {
                         <div style={{ fontSize:"13px", fontWeight:700, color:DARK, marginBottom:"2px" }}>
                           {data.unpaidPayments.length} unpaid payment{data.unpaidPayments.length!==1?"s":""} to follow up
                         </div>
-                        <div style={{ fontSize:"12px", color:"#9a7a00" }}>Check Money before closing out today.</div>
+                        <div style={{ fontSize:"12px", color:"#9a7a00" }}>Check Sales before closing out today.</div>
                       </div>
-                      <button onClick={() => setTab("Money")}
+                      <button onClick={() => setTab("Sales")}
                         style={{ padding:"8px 14px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"12px", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
                         View payments
                       </button>
@@ -562,7 +562,7 @@ export function DashboardHome({ user, business, setTab }) {
                   No revenue logged yet. Log payments to start tracking.
                 </div>
                 <div style={{ display:"flex", gap:"8px", justifyContent:"center", flexWrap:"wrap" }}>
-                  <button onClick={() => setTab("Money")} style={{ padding:"8px 16px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"12px", fontWeight:700, cursor:"pointer" }}>Go to Money</button>
+                  <button onClick={() => setTab("Sales")} style={{ padding:"8px 16px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"12px", fontWeight:700, cursor:"pointer" }}>Go to Sales</button>
                   <button onClick={() => setTab("Customers")} style={{ padding:"8px 16px", borderRadius:"10px", border:"1.5px solid #e0e0e0", background:"#fff", color:"#555", fontSize:"12px", fontWeight:700, cursor:"pointer" }}>Log from customer</button>
                 </div>
               </div>

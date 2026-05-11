@@ -395,7 +395,7 @@ export default function BusinessPageSolution() {
                 <a href="/signup" className="inline-flex items-center justify-center rounded-2xl bg-[#ea4c89] px-10 py-5 text-lg font-extrabold text-white shadow-sm transition hover:bg-[#d93f7b]">
                   Create My Free Page
                 </a>
-                <a href="/b/nomsa-nails" className="inline-flex items-center justify-center rounded-2xl border-2 border-[#ea4c89] px-10 py-5 text-lg font-extrabold text-[#ea4c89] transition hover:bg-[#fde8f1]">
+                <a href="/b/wendys" className="inline-flex items-center justify-center rounded-2xl border-2 border-[#ea4c89] px-10 py-5 text-lg font-extrabold text-[#ea4c89] transition hover:bg-[#fde8f1]">
                   See Example Page
                 </a>
               </div>

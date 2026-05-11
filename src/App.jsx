@@ -5,11 +5,27 @@ import PublicBusinessPage from "./pages/PublicBusinessPage";
 import SolutionPage, { solutionRoutes } from "./pages/SolutionPage";
 
 function routeFromPath(pathname) {
-  if (solutionRoutes[pathname]) return { view: "solution", solutionKey: solutionRoutes[pathname], authMode: "signin", initialTab: "Dashboard" };
   if (pathname === "/login") return { view: "dashboard", authMode: "signin", initialTab: "Dashboard" };
   if (pathname === "/signup") return { view: "dashboard", authMode: "signup", initialTab: "Setup" };
   if (pathname === "/dashboard") return { view: "dashboard", authMode: "signin", initialTab: "Dashboard" };
   if (pathname === "/onboarding") return { view: "dashboard", authMode: "signup", initialTab: "Setup" };
+  if (pathname === "/setup") return { view: "dashboard", authMode: "signin", initialTab: "Setup" };
+  if (pathname === "/public-page") return { view: "dashboard", authMode: "signin", initialTab: "Page" };
+  if (pathname === "/products") return { view: "dashboard", authMode: "signin", initialTab: "Products" };
+  if (pathname === "/customers") return { view: "dashboard", authMode: "signin", initialTab: "Customers" };
+  if (pathname === "/bookings") return { view: "dashboard", authMode: "signin", initialTab: "Bookings" };
+  if (pathname === "/sales") return { view: "dashboard", authMode: "signin", initialTab: "Sales" };
+  if (pathname === "/expenses") return { view: "dashboard", authMode: "signin", initialTab: "Expenses" };
+  if (pathname === "/reviews") return { view: "dashboard", authMode: "signin", initialTab: "Reviews" };
+  if (pathname === "/business-file") return { view: "dashboard", authMode: "signin", initialTab: "BusinessFile" };
+  if (pathname === "/dashboard/business-file") return { view: "dashboard", authMode: "signin", initialTab: "BusinessFile" };
+  if (pathname === "/vuke") return { view: "dashboard", authMode: "signin", initialTab: "Vuke" };
+  if (pathname === "/plans") return { view: "dashboard", authMode: "signin", initialTab: "Plans" };
+  if (pathname === "/settings") return { view: "dashboard", authMode: "signin", initialTab: "Settings" };
+  if (pathname === "/money") return { view: "dashboard", authMode: "signin", initialTab: "Sales" };
+  if (pathname === "/growth") return { view: "dashboard", authMode: "signin", initialTab: "BusinessFile" };
+  if (pathname === "/messages") return { view: "dashboard", authMode: "signin", initialTab: "Reviews" };
+  if (solutionRoutes[pathname]) return { view: "solution", solutionKey: solutionRoutes[pathname], authMode: "signin", initialTab: "Dashboard" };
   return { view: "landing", authMode: "signin", initialTab: "Dashboard" };
 }
 

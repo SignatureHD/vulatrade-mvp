@@ -1,5 +1,24 @@
 import React, { useEffect, useState } from "react";
-import { Copy, Globe, MessageCircle, Pencil, Share2 } from "lucide-react";
+import {
+  Bell,
+  Building2,
+  CheckCircle,
+  Circle,
+  Copy,
+  FileCheck,
+  Globe,
+  LogOut,
+  MessageCircle,
+  Pencil,
+  ReceiptText,
+  Share2,
+  Sparkles,
+  Star,
+  Store,
+  UserCircle,
+  Users,
+  WalletCards,
+} from "lucide-react";
 import { LIME, DARK, PAYMENT_METHODS, PAYMENT_STATUSES, inputStyle, labelStyle } from "../../constants";
 import { TEMPLATES } from "../../data/demoData";
 import { supabase } from "../../lib/supabase";
@@ -196,7 +215,7 @@ function PaymentForm({ business, customers, onSaved }) {
 
   return (
     <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"20px", marginBottom:"20px" }}>
-      <div style={{ fontSize:"15px", fontWeight:800, color:DARK, marginBottom:"16px" }}>Log a payment</div>
+      <div style={{ fontSize:"15px", fontWeight:800, color:DARK, marginBottom:"16px" }}>Add Sale</div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:"12px", marginBottom:"14px" }}>
         <div>
           <label style={labelStyle}>Customer</label>
@@ -229,14 +248,14 @@ function PaymentForm({ business, customers, onSaved }) {
         </div>
         <button onClick={handleSave} disabled={!valid || saving}
           style={{ backgroundColor:valid ? LIME : "#e0e0e0", color:valid ? "#fff" : "#aaa", border:"none", borderRadius:"12px", padding:"13px 20px", fontSize:"14px", fontWeight:800, cursor:valid ? "pointer" : "not-allowed" }}>
-          {saving ? "Saving…" : "Save payment"}
+          {saving ? "Saving…" : "Save sale"}
         </button>
       </div>
     </div>
   );
 }
 
-export function MoneyTab({ business }) {
+export function SalesTab({ business }) {
   const [payments, setPayments] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -268,7 +287,7 @@ export function MoneyTab({ business }) {
     <div style={{ textAlign:"center", padding:"80px 24px" }}>
       <div style={{ fontSize:"40px", marginBottom:"16px" }}>🏪</div>
       <h3 style={{ fontSize:"20px", fontWeight:800, color:DARK, marginBottom:"8px" }}>Set up your business first</h3>
-      <p style={{ fontSize:"14px", color:"#aaa" }}>Complete your business setup before logging payments.</p>
+      <p style={{ fontSize:"14px", color:"#aaa" }}>Complete your business setup before recording sales.</p>
     </div>
   );
 
@@ -280,8 +299,8 @@ export function MoneyTab({ business }) {
   return (
     <div>
       <div style={{ marginBottom:"20px" }}>
-        <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Money</h2>
-        <p style={{ fontSize:"13px", color:"#aaa" }}>Payments, deposits and follow-ups.</p>
+        <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Sales</h2>
+        <p style={{ fontSize:"13px", color:"#aaa" }}>Revenue, payments, deposits and unpaid sales.</p>
       </div>
 
       {customers.length > 0 && <PaymentForm business={business} customers={customers} onSaved={handleSaved} />}
@@ -315,7 +334,7 @@ export function MoneyTab({ business }) {
       )}
 
       <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"20px" }}>
-        <div style={{ fontSize:"15px", fontWeight:800, color:DARK, marginBottom:"16px" }}>Recent payments</div>
+        <div style={{ fontSize:"15px", fontWeight:800, color:DARK, marginBottom:"16px" }}>Recent sales</div>
         {loading ? (
           <div style={{ textAlign:"center", padding:"40px", color:"#aaa" }}>Loading…</div>
         ) : payments.length === 0 ? (
@@ -345,13 +364,270 @@ export function MoneyTab({ business }) {
   );
 }
 
+export function ExpensesTab() {
+  const categories = ["Stock", "Airtime", "Data", "Transport", "Rent", "Supplies", "Packaging"];
+  return (
+    <div>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"14px", marginBottom:"20px", flexWrap:"wrap" }}>
+        <div>
+          <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Expenses</h2>
+          <p style={{ fontSize:"13px", color:"#aaa" }}>Costs going out: stock, airtime, data, transport, rent and supplies.</p>
+        </div>
+        <button style={{ backgroundColor:"#ea4c89", color:"#fff", border:"none", borderRadius:"12px", padding:"11px 18px", fontSize:"13px", fontWeight:800, cursor:"pointer" }}>
+          Add Expense
+        </button>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(150px, 1fr))", gap:"10px", marginBottom:"20px" }}>
+        {[
+          { label:"Total expenses", value:"R0" },
+          { label:"Categories", value:categories.length },
+          { label:"Recent expenses", value:0 },
+        ].map((s) => (
+          <div key={s.label} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"14px", padding:"16px" }}>
+            <div style={{ fontSize:"10px", color:"#aaa", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"6px" }}>{s.label}</div>
+            <div style={{ fontSize:"22px", fontWeight:900, color:DARK }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(160px, 1fr))", gap:"10px", marginBottom:"20px" }}>
+        {categories.map((category) => (
+          <div key={category} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"16px", padding:"14px", display:"flex", alignItems:"center", gap:"10px" }}>
+            <span style={{ width:"36px", height:"36px", borderRadius:"50%", background:"#fde8f1", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <WalletCards size={17} strokeWidth={2.2} color="#ea4c89" />
+            </span>
+            <span style={{ fontSize:"13px", fontWeight:800, color:DARK }}>{category}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"22px" }}>
+        <div style={{ fontSize:"15px", fontWeight:800, color:DARK, marginBottom:"10px" }}>Recent expenses</div>
+        <div style={{ background:"#fbfbfb", borderRadius:"14px", padding:"24px", textAlign:"center", color:"#888", fontSize:"13px" }}>
+          No expenses recorded yet. Add stock, transport, airtime or supplies to understand what your business really costs.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ReviewsTab() {
+  return (
+    <div>
+      <div style={{ marginBottom:"20px" }}>
+        <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Reviews</h2>
+        <p style={{ fontSize:"13px", color:"#aaa" }}>Customer feedback helps your public page look trustworthy.</p>
+      </div>
+      <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"22px" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"14px" }}>
+          <span style={{ width:"42px", height:"42px", borderRadius:"50%", background:"#fde8f1", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <Star size={19} strokeWidth={2.2} color="#ea4c89" />
+          </span>
+          <div>
+            <div style={{ fontSize:"15px", fontWeight:800, color:DARK }}>No reviews yet</div>
+            <div style={{ fontSize:"12px", color:"#888", marginTop:"2px" }}>Ask happy customers to share a short review after a job or sale.</div>
+          </div>
+        </div>
+        <div style={{ background:"#fbfbfb", borderRadius:"14px", padding:"18px", fontSize:"13px", color:"#666", lineHeight:1.6 }}>
+          Reviews will support your public page and strengthen your Business File as customers start confirming your work.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function BusinessFileTab({ business, setTab }) {
+  const [stats, setStats] = useState({ customers:0, payments:0, salesTotal:0, bookings:0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!business?.id) { setLoading(false); return; }
+    Promise.all([
+      supabase.from("customers").select("id").eq("business_id", business.id),
+      supabase.from("payments").select("amount,status").eq("business_id", business.id),
+      supabase.from("bookings").select("id,status").eq("business_id", business.id),
+    ]).then(([{ data: customers }, { data: payments }, { data: bookings }]) => {
+      const revenue = (payments || [])
+        .filter((p) => p.status === "Paid" || p.status === "Deposit paid")
+        .reduce((sum, p) => sum + (p.amount || 0), 0);
+      setStats({
+        customers: customers?.length || 0,
+        payments: payments?.length || 0,
+        salesTotal: revenue,
+        bookings: bookings?.filter((b) => b.status === "done").length || 0,
+      });
+      setLoading(false);
+    });
+  }, [business?.id]);
+
+  const checklist = [
+    { label:"Business profile created", done:Boolean(business?.name) },
+    { label:"Public page ready", done:Boolean(business?.slug) },
+    { label:"Customer activity recorded", done:stats.customers > 0 },
+    { label:"Sales history started", done:stats.payments > 0 },
+    { label:"Completed work tracked", done:stats.bookings > 0 },
+  ];
+  const doneCount = checklist.filter((item) => item.done).length;
+  const progress = Math.round((doneCount / checklist.length) * 100);
+
+  return (
+    <div>
+      <div style={{ marginBottom:"20px" }}>
+        <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Business File</h2>
+        <p style={{ fontSize:"13px", color:"#aaa" }}>Your proof-of-trading record grows as you use VulaTrade.</p>
+      </div>
+      <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"22px", padding:"22px", marginBottom:"20px" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:"14px", marginBottom:"18px" }}>
+          <span style={{ width:"48px", height:"48px", borderRadius:"50%", background:"#fde8f1", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <FileCheck size={22} strokeWidth={2.2} color="#ea4c89" />
+          </span>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:"16px", fontWeight:900, color:DARK }}>Proof of trading</div>
+            <div style={{ fontSize:"12px", color:"#888", lineHeight:1.5, marginTop:"3px" }}>
+              Better records may help you in future conversations with suppliers, funders, partners or landlords.
+            </div>
+          </div>
+        </div>
+        <div style={{ height:"10px", background:"#f5f5f5", borderRadius:"999px", overflow:"hidden", marginBottom:"10px" }}>
+          <div style={{ height:"100%", width:`${progress}%`, background:"#ea4c89", borderRadius:"999px" }} />
+        </div>
+        <div style={{ fontSize:"12px", color:"#888", fontWeight:700 }}>{progress}% complete</div>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(150px, 1fr))", gap:"10px", marginBottom:"20px" }}>
+        {[
+          { label:"Sales history", value:`R${stats.salesTotal.toLocaleString()}`, icon:ReceiptText },
+          { label:"Customer activity", value:stats.customers, icon:Users },
+          { label:"Payment records", value:stats.payments, icon:WalletCards },
+          { label:"Reviews", value:0, icon:Star },
+        ].map((s) => {
+          const Icon = s.icon;
+          return (
+            <div key={s.label} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"16px", padding:"16px" }}>
+              <Icon size={18} strokeWidth={2.2} color="#ea4c89" />
+              <div style={{ fontSize:"22px", fontWeight:900, color:DARK, marginTop:"12px" }}>{loading ? "…" : s.value}</div>
+              <div style={{ fontSize:"11px", color:"#888", fontWeight:700, marginTop:"4px" }}>{s.label}</div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"20px" }}>
+        <div style={{ fontSize:"15px", fontWeight:800, color:DARK, marginBottom:"14px" }}>Progress checklist</div>
+        <div style={{ display:"grid", gap:"10px", marginBottom:"18px" }}>
+          {checklist.map((item) => {
+            const Icon = item.done ? CheckCircle : Circle;
+            return (
+              <div key={item.label} style={{ display:"flex", alignItems:"center", gap:"10px", fontSize:"13px", fontWeight:700, color:item.done ? DARK : "#888" }}>
+                <Icon size={19} strokeWidth={2.2} color={item.done ? "#ea4c89" : "#c6cbd1"} />
+                {item.label}
+              </div>
+            );
+          })}
+        </div>
+        <button onClick={() => setTab("Sales")} style={{ background:"#ea4c89", color:"#fff", border:"none", borderRadius:"12px", padding:"11px 18px", fontSize:"13px", fontWeight:800, cursor:"pointer" }}>
+          Record a sale
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function VukeTab() {
+  return (
+    <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"22px", padding:"28px", maxWidth:"680px" }}>
+      <span style={{ width:"48px", height:"48px", borderRadius:"50%", background:"#fde8f1", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"16px" }}>
+        <Store size={22} strokeWidth={2.2} color="#ea4c89" />
+      </span>
+      <h2 style={{ fontSize:"22px", fontWeight:900, color:DARK, marginBottom:"8px" }}>Vuke</h2>
+      <p style={{ fontSize:"14px", color:"#666", lineHeight:1.7, marginBottom:"18px" }}>
+        Vuke will help connect growing entrepreneurs to future supplier deals, support and growth opportunities.
+      </p>
+      <span style={{ display:"inline-flex", alignItems:"center", gap:"8px", background:"#fde8f1", color:"#d93f7b", border:"1px solid #f8b8d2", borderRadius:"999px", padding:"8px 12px", fontSize:"12px", fontWeight:800 }}>
+        <Sparkles size={15} strokeWidth={2.2} />
+        Coming soon
+      </span>
+    </div>
+  );
+}
+
+function SettingsCard({ icon: Icon, title, description, button, status, onClick, danger = false }) {
+  return (
+    <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"18px", padding:"18px", display:"flex", alignItems:"flex-start", gap:"14px", boxShadow:"0 10px 28px rgba(15,23,42,0.04)" }}>
+      <span style={{ width:"44px", height:"44px", borderRadius:"50%", background:danger ? "#fff5f5" : "#fde8f1", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+        <Icon size={20} strokeWidth={2.2} color={danger ? "#cc3300" : "#ea4c89"} />
+      </span>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ fontSize:"15px", fontWeight:900, color:DARK, marginBottom:"5px" }}>{title}</div>
+        <div style={{ fontSize:"13px", color:"#777", lineHeight:1.55, marginBottom:"14px" }}>{description}</div>
+        {status ? (
+          <span style={{ display:"inline-flex", border:"1px solid #f8b8d2", background:"#fde8f1", color:"#d93f7b", borderRadius:"999px", padding:"7px 10px", fontSize:"12px", fontWeight:800 }}>
+            {status}
+          </span>
+        ) : (
+          <button onClick={onClick}
+            style={{ background:danger ? "#fff" : "#ea4c89", color:danger ? "#cc3300" : "#fff", border:danger ? "1.5px solid #ffd0d0" : "none", borderRadius:"12px", padding:"10px 14px", fontSize:"13px", fontWeight:800, cursor:"pointer" }}>
+            {button}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function SettingsTab({ onEditBusiness, onEditPublicPage, onSignOut }) {
+  return (
+    <div>
+      <div style={{ marginBottom:"20px" }}>
+        <h2 style={{ fontSize:"22px", fontWeight:900, color:DARK, marginBottom:"4px" }}>Settings</h2>
+        <p style={{ fontSize:"13px", color:"#888" }}>Manage your business, account and public page details.</p>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))", gap:"14px" }}>
+        <SettingsCard
+          icon={Building2}
+          title="Business details"
+          description="Update your business name, location, category and contact details."
+          button="Edit business details"
+          onClick={onEditBusiness}
+        />
+        <SettingsCard
+          icon={UserCircle}
+          title="Account details"
+          description="Manage your login details and account information."
+          button="Edit account"
+          onClick={() => alert("Account editing is coming soon.")}
+        />
+        <SettingsCard
+          icon={Globe}
+          title="Public page settings"
+          description="Control what customers see when they visit your VulaTrade page."
+          button="Edit public page"
+          onClick={onEditPublicPage}
+        />
+        <SettingsCard
+          icon={Bell}
+          title="Notifications"
+          description="Choose how you want to receive customer and business updates."
+          status="Coming soon"
+        />
+        <SettingsCard
+          icon={LogOut}
+          title="Sign out"
+          description="End your current VulaTrade session."
+          button="Sign out"
+          onClick={onSignOut}
+          danger
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── COMING SOON ────────────────────────────────────────────
-export function ComingSoon({ tab }) {
+export function ComingSoon({ tab, description = "This section is being built. Check back soon." }) {
   return (
     <div style={{ textAlign:"center", padding:"80px 24px" }}>
-      <div style={{ fontSize:"40px", marginBottom:"16px" }}>🚧</div>
+      <span style={{ width:"56px", height:"56px", borderRadius:"50%", background:"#fde8f1", display:"inline-flex", alignItems:"center", justifyContent:"center", marginBottom:"16px" }}>
+        <FileCheck size={24} strokeWidth={2.2} color="#ea4c89" />
+      </span>
       <h3 style={{ fontSize:"20px", fontWeight:800, color:DARK, marginBottom:"8px" }}>{tab} — Coming soon</h3>
-      <p style={{ fontSize:"14px", color:"#aaa" }}>This section is being built. Check back soon.</p>
+      <p style={{ fontSize:"14px", color:"#aaa", maxWidth:"420px", margin:"0 auto", lineHeight:1.6 }}>{description}</p>
     </div>
   );
 }

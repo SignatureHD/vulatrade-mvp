@@ -49,7 +49,7 @@ const pages = {
     subheadline: "A VulaTrade Business Page is not a complicated website. It is a simple mobile-friendly page you can share on WhatsApp, Facebook, Instagram, TikTok or SMS.",
     primaryCta: "Create My Free Page",
     secondaryCta: "See Example Page",
-    secondaryHref: "/b/nomsa-nails",
+    secondaryHref: "/b/wendys",
     whatTitle: "What is a VulaTrade Business Page?",
     whatText: "It is your simple link-in-bio business page. Customers can see your services, prices, photos, reviews and WhatsApp button in one place.",
     whyTitle: "Look professional without paying for a website.",

@@ -7,7 +7,7 @@ import { ColourPicker, FontPicker } from "../ui";
 import { ImageLibrary, ProductImagePicker } from "../ImageLibrary";
 
 // ── PRODUCTS SECTION ───────────────────────────────────────
-function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, onProductsChange, userId }) {
+export function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, onProductsChange, userId }) {
   const [products, setProducts]           = useState([]);
   const [images, setImages]               = useState([]);
   const [loadingImages, setLoadingImages] = useState(true);
@@ -187,6 +187,24 @@ function ProductsSection({ businessId, prefilledProducts, onProductsPrefilled, o
   );
 }
 
+export function ProductsTab({ user, business, setGlobalProducts }) {
+  return (
+    <div>
+      <div style={{ marginBottom:"20px" }}>
+        <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Products / Services</h2>
+        <p style={{ fontSize:"13px", color:"#888" }}>Manage what your business sells. These items appear on your public page.</p>
+      </div>
+      <ProductsSection
+        businessId={business?.id}
+        prefilledProducts={null}
+        onProductsPrefilled={() => {}}
+        onProductsChange={setGlobalProducts}
+        userId={user.id}
+      />
+    </div>
+  );
+}
+
 // ── SETUP TAB ──────────────────────────────────────────────
 export function SetupTab({ user, business, setBusiness, prefilledTemplate, setPrefilledTemplate, setTab, setGlobalProducts, setGlobalLogoUrl }) {
   const [form, setForm] = useState({
@@ -228,6 +246,41 @@ export function SetupTab({ user, business, setBusiness, prefilledTemplate, setPr
   }, [prefilledTemplate]);
 
   useEffect(() => { if (business?.id) setSavedBusinessId(business.id); }, [business]);
+
+  useEffect(() => {
+    if (!business?.id) { setProducts([]); return; }
+    supabase.from("products").select("*").eq("business_id", business.id).order("created_at")
+      .then(({ data }) => {
+        if (data) {
+          const mapped = data.map((p) => ({ ...p, icon: p.image && !p.image.startsWith("http") ? p.image : "🛍️" }));
+          setProducts(mapped);
+          setGlobalProducts(mapped);
+        }
+      });
+  }, [business?.id]);
+
+  useEffect(() => {
+    if (!prefilledProducts || !savedBusinessId || prefilledProducts.length === 0) return;
+    async function applyTemplateProducts() {
+      await supabase.from("products").delete().eq("business_id", savedBusinessId);
+      const rows = prefilledProducts.map((p) => ({
+        business_id:savedBusinessId,
+        name:p.name,
+        price:p.price,
+        description:p.description,
+        image:p.icon || "🛍️",
+        is_active:true,
+      }));
+      const { data } = await supabase.from("products").insert(rows).select();
+      if (data) {
+        const mapped = data.map((p) => ({ ...p, icon:p.image }));
+        setProducts(mapped);
+        setGlobalProducts(mapped);
+      }
+      setPrefilledProducts(null);
+    }
+    applyTemplateProducts();
+  }, [prefilledProducts, savedBusinessId]);
 
   function update(field, value) { setForm((prev) => ({...prev,[field]:value})); setSaved(false); }
 
@@ -362,10 +415,6 @@ export function SetupTab({ user, business, setBusiness, prefilledTemplate, setPr
             <div style={{ fontSize:"11px", color:"#bbb", marginTop:"6px" }}>Upload from your phone or computer. JPG or PNG.</div>
           </div>
         </div>
-
-        <div style={{ borderTop:"1.5px solid #eeeeea", marginBottom:"32px" }} />
-
-        <ProductsSection businessId={savedBusinessId} prefilledProducts={prefilledProducts} onProductsPrefilled={() => setPrefilledProducts(null)} onProductsChange={setProducts} userId={user.id} />
 
         {/* Danger Zone */}
         {savedBusinessId && (

@@ -461,6 +461,10 @@ export function BookingsTab({ business }) {
           <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Bookings</h2>
           <p style={{ fontSize:"13px", color:"#aaa" }}>{todayCount} today · {upcomingCount} upcoming</p>
         </div>
+        <button onClick={() => { setNewBookingDate(today); setMode("add"); }}
+          style={{ padding:"11px 18px", borderRadius:"12px", border:"none", background:"#ea4c89", color:"#fff", fontSize:"13px", fontWeight:800, cursor:"pointer" }}>
+          New Booking
+        </button>
       </div>
 
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:"10px", marginBottom:"20px" }}>
@@ -494,14 +498,14 @@ export function BookingsTab({ business }) {
               </div>
               <button onClick={() => { setNewBookingDate(selectedDate); setMode("add"); }}
                 style={{ padding:"7px 14px", borderRadius:"10px", border:"none", background:DARK, color:LIME, fontSize:"12px", fontWeight:700, cursor:"pointer" }}>
-                + Add
+                New Booking
               </button>
             </div>
 
             {dayBookings.length === 0 ? (
               <div style={{ background:"#fff", border:"1.5px dashed #d4d7db", borderRadius:"16px", padding:"32px", textAlign:"center" }}>
                 <div style={{ fontSize:"13px", color:"#bbb", marginBottom:"12px" }}>
-                  {selectedDate < today ? "No sales records on this day" : "No sales recorded yet. Add today's first sale or booking."}
+                  {selectedDate < today ? "No bookings on this day" : "No bookings yet. Add a booking for scheduled work, appointments or jobs."}
                 </div>
                 {selectedDate >= today && (
                   <button onClick={() => { setNewBookingDate(selectedDate); setMode("add"); }}
