@@ -87,10 +87,10 @@ export default function ReviewSubmissionPage({ slug }) {
         <section style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"30px", padding:"24px", boxShadow:"0 20px 60px rgba(32,32,33,0.08)" }}>
           <div style={{ width:"54px", height:"54px", borderRadius:"50%", background:"#fde8f1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"26px", marginBottom:"14px" }}>★</div>
           <h1 style={{ fontSize:"28px", lineHeight:1.05, fontWeight:950, margin:"0 0 8px" }}>Review {business.name}</h1>
-          <p style={{ fontSize:"14px", color:"#777", lineHeight:1.65, margin:"0 0 20px" }}>Your review helps this business build trust. It will be checked before it appears publicly.</p>
+          <p style={{ fontSize:"14px", color:"#777", lineHeight:1.65, margin:"0 0 20px" }}>Your review helps this business build trust.</p>
           {saved ? (
             <div style={{ background:"#f0fff4", border:"1px solid #b7efc5", borderRadius:"18px", padding:"18px", color:"#186a3b", fontSize:"14px", lineHeight:1.6, fontWeight:750 }}>
-              Thank you. Your review has been received and is waiting for approval.
+              Thank you. Your review has been received and shared with {business.name}.
               <div style={{ marginTop:"14px" }}><a href={`/b/${business.slug}`} style={{ color:BRAND, fontWeight:900, textDecoration:"none" }}>View business page</a></div>
             </div>
           ) : (
