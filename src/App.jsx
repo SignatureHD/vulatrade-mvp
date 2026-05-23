@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Dashboard";
 import PublicBusinessPage from "./pages/PublicBusinessPage";
+import ReviewSubmissionPage from "./pages/ReviewSubmissionPage";
 import SolutionPage, { solutionRoutes } from "./pages/SolutionPage";
 
 function routeFromPath(pathname) {
@@ -47,9 +48,14 @@ export default function App() {
   }
 
   const publicBusinessMatch = window.location.pathname.match(/^\/b\/([^\/]+)\/?$/);
+  const reviewMatch = window.location.pathname.match(/^\/review\/([^\/]+)\/?$/);
 
   if (publicBusinessMatch) {
     return <PublicBusinessPage slug={decodeURIComponent(publicBusinessMatch[1])} />;
+  }
+
+  if (reviewMatch) {
+    return <ReviewSubmissionPage slug={decodeURIComponent(reviewMatch[1])} />;
   }
 
   function openAuth(mode) {
