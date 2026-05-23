@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { DARK } from "../../constants";
 import { BusinessModeCard } from "./BusinessModeCard";
 import { ClothingFieldsPanel } from "./ClothingFieldsPanel";
+import { FragranceModeCard } from "./FragranceModeCard";
+import { FragranceFieldsPanel } from "./FragranceFieldsPanel";
 import { ProductsSection } from "./SetupTab";
 
 export function ProductsTab({ user, business, setGlobalProducts }) {
@@ -16,6 +18,10 @@ export function ProductsTab({ user, business, setGlobalProducts }) {
     alert("Use the + Add product button below. Add the item first, then complete size, colour, brand, condition and status in Clothing details.");
   }
 
+  function handleAddFragranceItem() {
+    alert("Use the + Add product button below. Add the fragrance item first, then complete scent family, product type, bottle size and status in Fragrance details.");
+  }
+
   return (
     <div>
       <div style={{ marginBottom:"20px" }}>
@@ -23,7 +29,9 @@ export function ProductsTab({ user, business, setGlobalProducts }) {
         <p style={{ fontSize:"13px", color:"#888" }}>Manage what your business sells. These items appear on your public page.</p>
       </div>
       <BusinessModeCard business={business} products={products} onAddClothingItem={handleAddClothingItem} />
+      <FragranceModeCard business={business} products={products} onAddFragranceItem={handleAddFragranceItem} />
       <ClothingFieldsPanel products={products} onProductsChange={handleProductsChange} />
+      <FragranceFieldsPanel products={products} onProductsChange={handleProductsChange} />
       <ProductsSection businessId={business?.id} prefilledProducts={null} onProductsPrefilled={() => {}} onProductsChange={handleProductsChange} userId={user.id} businessCategory={business?.category} />
     </div>
   );
