@@ -25,13 +25,13 @@ import { ProductsTab, SetupTab } from "../components/dashboard/SetupTab";
 import { CustomersTab } from "../components/dashboard/CustomersTab";
 import { BookingsTab } from "../components/dashboard/BookingsTab";
 import { SalesTab as ProductSalesTab } from "../components/dashboard/SalesTab";
+import { ReviewsTab } from "../components/dashboard/ReviewsTab";
 import {
   BusinessFileTab,
   ComingSoon,
   ExpensesTab,
   MessagesTab,
   PageTab,
-  ReviewsTab,
   SettingsTab,
   TemplatesTab,
   VukeTab,
