@@ -79,8 +79,8 @@ export const FONTS = [
 // ── CATEGORIES & PAYMENT ───────────────────────────────────
 export const CATEGORIES = [
   "Nail Tech", "Hair & Extensions", "Barber", "Food Seller",
-  "Fresh Produce", "Cleaning", "Tutoring", "Delivery",
-  "Photography", "Catering", "Phone Repairs", "Other",
+  "Fresh Produce", "Clothing", "Fragrance / Home Scent", "Cleaning",
+  "Tutoring", "Delivery", "Photography", "Catering", "Phone Repairs", "Other",
 ];
 
 export const PAYMENT_METHODS = [
@@ -97,6 +97,8 @@ export const ICON_TEMPLATES = {
   "Barber":            ["✂️","💈","🪒","⚡","🔥"],
   "Food Seller":       ["🍱","🍳","🥘","🔥","⭐"],
   "Fresh Produce":     ["🥬","🌿","🍅","🌱","💚"],
+  "Clothing":          ["👕","👗","👟","🧥","🛍️"],
+  "Fragrance / Home Scent": ["✨","🧴","🌸","🚗","🏠"],
   "Cleaning":          ["🧹","✨","🫧","💎","🌟"],
   "Tutoring":          ["📚","🎓","⭐","💡","🧠"],
   "Delivery":          ["🛵","⚡","🚀","📦","💨"],
