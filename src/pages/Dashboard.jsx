@@ -24,6 +24,7 @@ import { DashboardHome } from "../components/dashboard/DashboardHome";
 import { ProductsTab, SetupTab } from "../components/dashboard/SetupTab";
 import { CustomersTab } from "../components/dashboard/CustomersTab";
 import { BookingsTab } from "../components/dashboard/BookingsTab";
+import { SalesTab as ProductSalesTab } from "../components/dashboard/SalesTab";
 import {
   BusinessFileTab,
   ComingSoon,
@@ -31,7 +32,6 @@ import {
   MessagesTab,
   PageTab,
   ReviewsTab,
-  SalesTab,
   SettingsTab,
   TemplatesTab,
   VukeTab,
@@ -201,7 +201,7 @@ export default function Dashboard({ authMode = "signin", initialTab = "Dashboard
         return <BookingsTab business={business} />;
       case "Sales":
       case "Money":
-        return <SalesTab business={business} />;
+        return <ProductSalesTab business={business} products={products} />;
       case "Expenses":
         return <ExpensesTab business={business} />;
       case "Reviews":
