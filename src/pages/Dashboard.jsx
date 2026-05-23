@@ -26,8 +26,8 @@ import { CustomersTab } from "../components/dashboard/CustomersTab";
 import { BookingsTab } from "../components/dashboard/BookingsTab";
 import { SalesTab as ProductSalesTab } from "../components/dashboard/SalesTab";
 import { ReviewsTab } from "../components/dashboard/ReviewsTab";
+import { BusinessFileTab } from "../components/dashboard/BusinessFileTab";
 import {
-  BusinessFileTab,
   ComingSoon,
   ExpensesTab,
   MessagesTab,
