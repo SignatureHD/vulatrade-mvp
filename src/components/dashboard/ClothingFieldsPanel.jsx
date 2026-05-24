@@ -6,6 +6,7 @@ import { supabase } from "../../lib/supabase";
 const BRAND = "#ea4c89";
 const STATUSES = ["Available", "Reserved", "Sold"];
 const CONDITIONS = ["New", "Excellent", "Good", "Fair", "Needs repair"];
+const CLOTHING_CATEGORY_PATTERN = /clothing|clothes|fashion|thrift|pre-loved|preloved|apparel|retail/i;
 
 function emptyDetails(product) {
   return {
@@ -28,11 +29,19 @@ function clothingText(product) {
   ].filter(Boolean).join(" · ");
 }
 
-export function ClothingFieldsPanel({ products = [], onProductsChange }) {
+function hasClothingDetails(product) {
+  return Boolean(product?.clothing_size || product?.clothing_colour || product?.clothing_condition || product?.clothing_brand);
+}
+
+export function ClothingFieldsPanel({ business, products = [], onProductsChange }) {
   const [editing, setEditing] = useState({});
   const [savingId, setSavingId] = useState(null);
   const [toast, setToast] = useState("");
-  const clothingProducts = useMemo(() => products.filter((product) => product?.id), [products]);
+  const isClothingBusiness = CLOTHING_CATEGORY_PATTERN.test(business?.category || "");
+  const clothingProducts = useMemo(
+    () => products.filter((product) => product?.id && (isClothingBusiness || hasClothingDetails(product))),
+    [products, isClothingBusiness]
+  );
 
   function startEdit(product) {
     setEditing((prev) => ({ ...prev, [product.id]: emptyDetails(product) }));
@@ -84,7 +93,7 @@ export function ClothingFieldsPanel({ products = [], onProductsChange }) {
     setSavingId(null);
   }
 
-  if (clothingProducts.length === 0) return null;
+  if (!isClothingBusiness || clothingProducts.length === 0) return null;
 
   return (
     <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"18px", marginBottom:"18px" }}>
