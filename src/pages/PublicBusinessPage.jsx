@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { BG_COLOURS, DARK, LIME } from "../constants";
+import { businessDescriptionOrDefault } from "../businessDescriptions";
 import { supabase } from "../lib/supabase";
 import Logo from "../components/Logo";
 import { waLink } from "../utils";
@@ -188,6 +189,7 @@ export default function PublicBusinessPage({ slug }) {
   const faintHeaderText = pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.52)" : "rgba(0,0,0,0.45)";
   const logoCardBg = pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)";
   const heroGlow = `${pageTheme.accent}24`;
+  const displayDescription = businessDescriptionOrDefault(business.description, business.category);
 
   return (
     <main style={{ minHeight: "100vh", background: "linear-gradient(180deg, #fbfbfb 0%, #f8f8f8 46%, #ffffff 100%)", fontFamily: "'Inter', -apple-system, sans-serif", color: DARK, padding: "18px" }}>
@@ -218,8 +220,8 @@ export default function PublicBusinessPage({ slug }) {
               </div>
             </div>
 
-            {business.description && (
-              <p style={{ fontSize: "16px", lineHeight: 1.7, color: mutedHeaderText, margin: "0 0 22px", maxWidth: "620px" }}>{business.description}</p>
+            {displayDescription && (
+              <p style={{ fontSize: "16px", lineHeight: 1.7, color: mutedHeaderText, margin: "0 0 22px", maxWidth: "620px" }}>{displayDescription}</p>
             )}
 
             <div style={{ display: "grid", gridTemplateColumns: business.whatsapp && phone ? "1fr auto" : "1fr", gap: "10px", alignItems: "stretch" }}>
