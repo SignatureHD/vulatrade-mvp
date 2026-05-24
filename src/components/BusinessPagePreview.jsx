@@ -1,5 +1,6 @@
 import React from "react";
 import { BG_COLOURS, FONTS } from "../constants";
+import { businessDescriptionOrDefault } from "../businessDescriptions";
 import { injectFont, waLink } from "../utils";
 import Logo from "./Logo";
 
@@ -22,6 +23,7 @@ export function BusinessPagePreview({ form, products, logoUrl, isFullPage }) {
   const accentText = readableTextOn(bg.accent);
   const mutedText = bg.text === "#ffffff" ? "rgba(255,255,255,0.68)" : "rgba(0,0,0,0.58)";
   const faintText = bg.text === "#ffffff" ? "rgba(255,255,255,0.52)" : "rgba(0,0,0,0.44)";
+  const displayDescription = businessDescriptionOrDefault(form.description, form.category);
 
   if (font.import) injectFont(font.import);
 
@@ -49,9 +51,9 @@ export function BusinessPagePreview({ form, products, logoUrl, isFullPage }) {
             </div>
           </div>
         </div>
-        {form.description && (
+        {displayDescription && (
           <div style={{ fontSize:"12px", color:mutedText, lineHeight:1.65, marginBottom:"14px" }}>
-            {form.description}
+            {displayDescription}
           </div>
         )}
         <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"
