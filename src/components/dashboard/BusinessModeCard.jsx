@@ -4,19 +4,47 @@ import { DARK } from "../../constants";
 
 const BRAND = "#ea4c89";
 
+const CLOTHING_CATEGORY_PATTERN = /clothing|clothes|fashion|thrift|pre-loved|preloved|apparel|boutique|tailor|seamstress/i;
+const FOOD_CATEGORY_PATTERN = /food|meal|meals|catering|restaurant|takeaway|take away|kitchen|cook|cooked|lunch|dinner|breakfast|snack|bakery|baking|cakes|kota|chisa|shisa|braai/i;
+
 const CLOTHING_WORDS = [
-  "clothing", "clothes", "dress", "jeans", "denim", "jacket", "hoodie", "shirt", "t-shirt", "sneaker", "shoe", "boots", "size", "small", "medium", "large", "xl", "brand", "pre-loved", "preloved", "thrift", "fashion", "ladies", "mens", "kids", "winter", "summer"
+  "clothing", "clothes", "dress", "dresses", "jeans", "denim", "jacket", "hoodie", "shirt", "t-shirt", "tee", "sneaker", "sneakers", "shoe", "shoes", "boots", "apparel", "outfit", "pre-loved", "preloved", "thrift", "fashion", "ladieswear", "menswear", "kidswear", "winter wear", "summer wear"
 ];
 
-function clothingScore(products = []) {
-  const text = products.map((product) => `${product.name || ""} ${product.description || ""}`).join(" ").toLowerCase();
+const FOOD_WORDS = [
+  "food", "meal", "meals", "lunch", "dinner", "breakfast", "cooked", "cook", "plate", "plates", "portion", "special", "kota", "burger", "chips", "chicken", "beef", "rice", "pap", "vetkoek", "amagwinya", "sandwich", "salad", "soup", "catering", "takeaway", "take away", "collection", "order", "reserved", "reserve"
+];
+
+function combinedProductText(products = []) {
+  return products.map((product) => `${product.name || ""} ${product.description || ""} ${product.category || ""}`).join(" ").toLowerCase();
+}
+
+function countMatches(text, words) {
   if (!text.trim()) return 0;
-  const matches = CLOTHING_WORDS.filter((word) => text.includes(word)).length;
+  return words.filter((word) => text.includes(word)).length;
+}
+
+function clothingScore(products = []) {
+  const text = combinedProductText(products);
+  const matches = countMatches(text, CLOTHING_WORDS);
   return Math.min(100, Math.round((matches / 5) * 100));
 }
 
-function bestProduct(products = []) {
-  return products.find((product) => product?.name) || null;
+function foodScore(products = []) {
+  const text = combinedProductText(products);
+  const matches = countMatches(text, FOOD_WORDS);
+  return Math.min(100, Math.round((matches / 5) * 100));
+}
+
+function isClothingProduct(product) {
+  const text = `${product?.name || ""} ${product?.description || ""} ${product?.category || ""}`.toLowerCase();
+  const clothingMatches = countMatches(text, CLOTHING_WORDS);
+  const foodMatches = countMatches(text, FOOD_WORDS);
+  return clothingMatches > 0 && clothingMatches >= foodMatches;
+}
+
+function bestClothingProduct(products = []) {
+  return products.find((product) => product?.name && isClothingProduct(product)) || products.find((product) => product?.name) || null;
 }
 
 function buildClothingCaption(product, business) {
@@ -31,8 +59,11 @@ function buildClothingCaption(product, business) {
 export function BusinessModeCard({ business, products = [], onAddClothingItem }) {
   const [copied, setCopied] = useState(false);
   const score = useMemo(() => clothingScore(products), [products]);
-  const detected = score >= 40 || /clothing|fashion|thrift|pre-loved|preloved|retail/i.test(business?.category || "");
-  const product = bestProduct(products);
+  const foodConfidence = useMemo(() => foodScore(products), [products]);
+  const isClothingBusiness = CLOTHING_CATEGORY_PATTERN.test(business?.category || "");
+  const isFoodBusiness = FOOD_CATEGORY_PATTERN.test(business?.category || "") || foodConfidence >= 40;
+  const detected = (isClothingBusiness || score >= 40) && !isFoodBusiness;
+  const product = bestClothingProduct(products);
   const caption = buildClothingCaption(product, business);
 
   async function copyCaption() {
