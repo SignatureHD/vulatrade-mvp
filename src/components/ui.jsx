@@ -50,44 +50,42 @@ export function ColourPicker({ value, onChange, onViewPlans }) {
 
   return (
     <div>
-      <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
+      <div style={{ display:"flex", gap:"10px", flexWrap:"wrap" }}>
         {BG_COLOURS.map((c) => {
           const locked = isPlanLocked(c.plan);
           const selected = value === c.value;
+          const tier = planLabel(c.plan) || "Free";
           return (
-            <div key={c.value} style={{ position:"relative" }} title={locked ? `🔒 ${planLabel(c.plan)} plan — ${c.name}` : c.name}>
-              <button
-                onClick={() => handleClick(c)}
-                style={{
-                  width:"36px", height:"36px", borderRadius:"50%",
-                  background: c.value,
-                  border: selected ? `3px solid ${LIME}` : "3px solid transparent",
-                  cursor:"pointer",
-                  outline:"none",
-                  boxShadow: selected ? "0 0 0 2px #fff, 0 0 0 4px #ea4c89" : "none",
-                  opacity: locked ? 0.5 : 1,
-                  filter: locked ? "grayscale(20%)" : "none",
-                }}
-              />
-              {locked && (
-                <div style={{ position:"absolute", bottom:"-2px", right:"-2px", width:"14px", height:"14px", borderRadius:"50%", background:"#fff", border:"1px solid #ddd", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"8px", lineHeight:1 }}>
-                  🔒
-                </div>
-              )}
-            </div>
+            <button
+              key={c.value}
+              onClick={() => handleClick(c)}
+              title={locked ? `🔒 ${tier} plan — ${c.name}` : `${c.name} · ${tier}`}
+              style={{
+                width:"74px",
+                minHeight:"76px",
+                borderRadius:"16px",
+                border: selected ? `2px solid ${LIME}` : "1.5px solid #eeeeea",
+                background:"#fff",
+                cursor:"pointer",
+                outline:"none",
+                boxShadow: selected ? "0 0 0 2px #fff, 0 0 0 4px #ea4c89" : "none",
+                opacity: locked ? 0.55 : 1,
+                padding:"7px",
+                textAlign:"left",
+                position:"relative",
+              }}
+            >
+              <span style={{ display:"block", height:"28px", borderRadius:"10px", background:c.value, border:"1px solid rgba(0,0,0,0.08)", marginBottom:"6px" }} />
+              <span style={{ display:"block", fontSize:"10px", color:DARK, fontWeight:850, lineHeight:1.15 }}>{c.name}</span>
+              <span style={{ display:"block", fontSize:"9px", color: locked ? "#bbb" : "#999", fontWeight:750, marginTop:"3px" }}>
+                {locked ? "🔒 " : ""}{tier}
+              </span>
+            </button>
           );
         })}
       </div>
-      <div style={{ display:"flex", gap:"14px", marginTop:"8px", flexWrap:"wrap" }}>
-        {["free","starter","pro"].map((tier) => {
-          const count = BG_COLOURS.filter((c) => c.plan === tier).length;
-          const locked = isPlanLocked(tier);
-          return (
-            <div key={tier} style={{ fontSize:"11px", color: locked ? "#bbb" : "#888", display:"flex", alignItems:"center", gap:"4px" }}>
-              {locked && "🔒 "}{planLabel(tier) || "Free"}: {count} colours
-            </div>
-          );
-        })}
+      <div style={{ fontSize:"11px", color:"#888", marginTop:"10px", lineHeight:1.45 }}>
+        Pilot mode: all Starter and Pro colours, patterns and photo backgrounds are unlocked for testing.
       </div>
       {nudgePlan && <UpgradeNudge plan={nudgePlan} onViewPlans={() => { setNudgePlan(null); onViewPlans(); }} />}
     </div>
@@ -143,9 +141,7 @@ export function FontPicker({ value, onChange, onViewPlans }) {
               <div style={{ fontSize:"11px", color: selected ? "#aaa" : "#888", fontWeight:600 }}>
                 {locked ? "🔒 " : ""}{f.label}
               </div>
-              {locked && (
-                <div style={{ fontSize:"9px", color:"#bbb", marginTop:"2px" }}>{planLabel(f.plan)} plan</div>
-              )}
+              <div style={{ fontSize:"9px", color:selected ? "#777" : "#bbb", marginTop:"2px" }}>{planLabel(f.plan) || "Free"}</div>
             </button>
           );
         })}
