@@ -30,8 +30,8 @@ export function ProductsTab({ user, business, setGlobalProducts }) {
       </div>
       <BusinessModeCard business={business} products={products} onAddClothingItem={handleAddClothingItem} />
       <FragranceModeCard business={business} products={products} onAddFragranceItem={handleAddFragranceItem} />
-      <ClothingFieldsPanel products={products} onProductsChange={handleProductsChange} />
-      <FragranceFieldsPanel products={products} onProductsChange={handleProductsChange} />
+      <ClothingFieldsPanel business={business} products={products} onProductsChange={handleProductsChange} />
+      <FragranceFieldsPanel business={business} products={products} onProductsChange={handleProductsChange} />
       <ProductsSection businessId={business?.id} prefilledProducts={null} onProductsPrefilled={() => {}} onProductsChange={handleProductsChange} userId={user.id} businessCategory={business?.category} />
     </div>
   );
