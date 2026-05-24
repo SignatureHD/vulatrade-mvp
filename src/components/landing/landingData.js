@@ -152,42 +152,12 @@ export const navDropdowns = {
 };
 
 export const solutionFeatures = [
-  {
-    title: "Business Page",
-    description: "Create a simple page for your products, services, prices and WhatsApp enquiries.",
-    icon: Smartphone,
-    tone: "blue",
-  },
-  {
-    title: "Sales Records",
-    description: "Record daily sales from cash, EFT, PayShap, card machines or payment links.",
-    icon: ReceiptText,
-    tone: "green",
-  },
-  {
-    title: "Customer List",
-    description: "Keep track of customers, repeat buyers, enquiries and notes.",
-    icon: Users,
-    tone: "pink",
-  },
-  {
-    title: "Expenses",
-    description: "Capture business costs so you can understand what you really make.",
-    icon: WalletCards,
-    tone: "yellow",
-  },
-  {
-    title: "Reviews",
-    description: "Collect customer feedback and build trust.",
-    icon: Star,
-    tone: "blue",
-  },
-  {
-    title: "Business File",
-    description: "Build a record of your trading history for future growth.",
-    icon: ClipboardCheck,
-    tone: "green",
-  },
+  { title: "Business Page", description: "Create a simple page for your products, services, prices and WhatsApp enquiries.", icon: Smartphone, tone: "blue" },
+  { title: "Sales Records", description: "Record daily sales from cash, EFT, PayShap, card machines or payment links.", icon: ReceiptText, tone: "green" },
+  { title: "Customer List", description: "Keep track of customers, repeat buyers, enquiries and notes.", icon: Users, tone: "pink" },
+  { title: "Expenses", description: "Capture business costs so you can understand what you really make.", icon: WalletCards, tone: "yellow" },
+  { title: "Reviews", description: "Collect customer feedback and build trust.", icon: Star, tone: "blue" },
+  { title: "Business File", description: "Build a record of your trading history for future growth.", icon: ClipboardCheck, tone: "green" },
 ];
 
 export const businessTypes = [
@@ -232,72 +202,49 @@ export const businessTypes = [
 export const pricingPlans = [
   {
     name: "Vula Kasipreneur",
+    badge: "Start here",
     price: "Free",
     description: "For entrepreneurs starting with WhatsApp, cash sales and basic records.",
-    features: ["Public business page", "WhatsApp enquiry button", "Add up to 10 products or services", "Basic sales tracking", "Basic customer list", "Basic expense tracking", "Customer reviews", "Business file starter", "Mobile-first dashboard"],
-    cta: "Start Free",
+    features: ["Public business page", "WhatsApp enquiry button", "Add products or services", "Basic sales tracking", "Basic customer list", "Basic expense tracking", "Customer reviews", "Business file starter", "Mobile-first dashboard"],
+    cta: "Continue free",
     href: "/signup",
   },
   {
     name: "Vula Small Business",
-    price: "R99",
-    period: "/ month",
+    badge: "Coming soon",
+    price: "Coming soon",
     description: "For regular traders who want better records and a more professional setup.",
     features: ["Everything in Kasipreneur", "Unlimited products or services", "Quotes", "Invoices", "Receipts", "Customer history", "Expense categories", "Monthly sales summary", "Downloadable business report", "Supplier list"],
-    cta: "Upgrade to Small Business",
+    cta: "Join waitlist",
     href: "/signup",
     featured: true,
   },
   {
     name: "Vula Growing Business",
-    price: "R249",
-    period: "/ month",
+    badge: "Coming soon",
+    price: "Coming soon",
     description: "For businesses ready to manage orders, stock, customers and growth.",
     features: ["Everything in Small Business", "Stock tracking", "Order management", "Payment link tracking", "Promotions and coupons", "Customer groups", "Staff user access", "Sales dashboard", "Stock alerts", "Growth readiness score"],
-    cta: "Choose Growing Business",
+    cta: "Notify me",
     href: "/signup",
   },
   {
-    name: "Vula Enterprise",
-    price: "Custom pricing",
-    description: "For partners supporting many entrepreneurs.",
+    name: "Vula Partner",
+    badge: "For programmes",
+    price: "Partner pricing",
+    description: "For organisations supporting many entrepreneurs.",
     features: ["Multi-business dashboard", "Entrepreneur progress tracking", "Programme reporting", "Business file exports", "Funding readiness reports", "Supplier development tracking", "Custom onboarding", "Partner support", "White-label options"],
-    cta: "Contact Sales",
+    cta: "Contact Vula",
     href: "#pricing",
   },
 ];
 
 export const whyCards = [
-  {
-    title: "WhatsApp-first",
-    description: "Most small businesses already sell through WhatsApp. VulaTrade supports that behaviour.",
-    icon: MessageCircle,
-    tone: "green",
-  },
-  {
-    title: "Cash and digital payments",
-    description: "Track cash, EFT, PayShap, Yoco, iKhokha and payment links.",
-    icon: CreditCard,
-    tone: "yellow",
-  },
-  {
-    title: "Mobile-first",
-    description: "Designed for entrepreneurs who run their business from a phone.",
-    icon: Smartphone,
-    tone: "blue",
-  },
-  {
-    title: "Simple records",
-    description: "No complicated accounting system needed.",
-    icon: ClipboardList,
-    tone: "pink",
-  },
-  {
-    title: "Growth-ready",
-    description: "Build records that can support future supplier deals, funding and formalisation.",
-    icon: ArrowUpRight,
-    tone: "green",
-  },
+  { title: "WhatsApp-first", description: "Most small businesses already sell through WhatsApp. VulaTrade supports that behaviour.", icon: MessageCircle, tone: "green" },
+  { title: "Cash and digital payments", description: "Track cash, EFT, PayShap, Yoco, iKhokha and payment links.", icon: CreditCard, tone: "yellow" },
+  { title: "Mobile-first", description: "Designed for entrepreneurs who run their business from a phone.", icon: Smartphone, tone: "blue" },
+  { title: "Simple records", description: "No complicated accounting system needed.", icon: ClipboardList, tone: "pink" },
+  { title: "Growth-ready", description: "Build records that can support future supplier deals, funding and formalisation.", icon: ArrowUpRight, tone: "green" },
 ];
 
 export const proofItems = [
@@ -311,22 +258,10 @@ export const proofItems = [
 ];
 
 export const footerLinks = [
-  {
-    title: "Product",
-    links: ["Business Page", "Sales Records", "Customer List", "Expenses", "Business File", "Pricing"],
-  },
-  {
-    title: "Business Types",
-    links: ["Kasipreneurs", "Small Businesses", "Growing Businesses", "Enterprise"],
-  },
-  {
-    title: "Learn",
-    links: ["Vula Academy", "Blog", "FAQs", "Support"],
-  },
-  {
-    title: "Company",
-    links: ["About", "Contact", "Privacy Policy", "Terms"],
-  },
+  { title: "Product", links: ["Business Page", "Sales Records", "Customer List", "Expenses", "Business File", "Pricing"] },
+  { title: "Business Types", links: ["Kasipreneurs", "Small Businesses", "Growing Businesses", "Enterprise"] },
+  { title: "Learn", links: ["Vula Academy", "Blog", "FAQs", "Support"] },
+  { title: "Company", links: ["About", "Contact", "Privacy Policy", "Terms"] },
 ];
 
 export const valueIcons = [
