@@ -6,6 +6,7 @@ const BRAND = "#ea4c89";
 const PRODUCT_TYPES = ["Perfume", "Car diffuser", "Home diffuser", "Room spray", "Refill", "Gift set"];
 const SCENT_FAMILIES = ["Fresh", "Sweet", "Floral", "Woody", "Spicy", "Citrus", "Vanilla", "Musk", "Luxury-inspired"];
 const STATUSES = ["Available", "Low stock", "Sold out", "Made to order"];
+const FRAGRANCE_CATEGORY_PATTERN = /perfume|fragrance|scent|diffuser|spray|aroma/i;
 
 function emptyDetails(product) {
   return {
@@ -29,11 +30,19 @@ function fragranceText(product) {
   ].filter(Boolean).join(" · ");
 }
 
-export function FragranceFieldsPanel({ products = [], onProductsChange }) {
+function hasFragranceDetails(product) {
+  return Boolean(product?.fragrance_type || product?.scent_family || product?.bottle_size || product?.fragrance_strength || product?.fragrance_use);
+}
+
+export function FragranceFieldsPanel({ business, products = [], onProductsChange }) {
   const [editing, setEditing] = useState({});
   const [savingId, setSavingId] = useState(null);
   const [toast, setToast] = useState("");
-  const fragranceProducts = useMemo(() => products.filter((product) => product?.id), [products]);
+  const isFragranceBusiness = FRAGRANCE_CATEGORY_PATTERN.test(business?.category || "");
+  const fragranceProducts = useMemo(
+    () => products.filter((product) => product?.id && (isFragranceBusiness || hasFragranceDetails(product))),
+    [products, isFragranceBusiness]
+  );
 
   function startEdit(product) {
     setEditing((prev) => ({ ...prev, [product.id]: emptyDetails(product) }));
@@ -86,7 +95,7 @@ export function FragranceFieldsPanel({ products = [], onProductsChange }) {
     setSavingId(null);
   }
 
-  if (fragranceProducts.length === 0) return null;
+  if (!isFragranceBusiness || fragranceProducts.length === 0) return null;
 
   return (
     <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"18px", marginBottom:"18px" }}>
