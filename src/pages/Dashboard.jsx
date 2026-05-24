@@ -28,6 +28,7 @@ import { BookingsTab } from "../components/dashboard/BookingsTab";
 import { SalesTab as ProductSalesTab } from "../components/dashboard/SalesTab";
 import { ReviewsTab } from "../components/dashboard/ReviewsTab";
 import { BusinessFileTab } from "../components/dashboard/BusinessFileTab";
+import { PlansTab } from "../components/dashboard/PlansTab";
 import {
   ComingSoon,
   ExpensesTab,
@@ -213,7 +214,7 @@ export default function Dashboard({ authMode = "signin", initialTab = "Dashboard
       case "Vuke":
         return <VukeTab />;
       case "Plans":
-        return <ComingSoon tab="Plans" description="Plan upgrades are coming soon. The free Kasipreneur tier stays focused on getting your business organised first." />;
+        return <PlansTab />;
       case "Settings":
         return (
           <SettingsTab
