@@ -48,7 +48,12 @@ export const USER_PLAN = "free";
 
 export const PLAN_RANK = { free: 0, starter: 1, pro: 2 };
 
+// Pilot mode: all visual customisation options are unlocked for every user.
+// Keep plan labels visible for future pricing, but do not block selection yet.
+export const PILOT_UNLOCK_ALL_VISUALS = true;
+
 export function isPlanLocked(requiredPlan) {
+  if (PILOT_UNLOCK_ALL_VISUALS) return false;
   return PLAN_RANK[USER_PLAN] < PLAN_RANK[requiredPlan];
 }
 
@@ -68,6 +73,18 @@ export const BG_COLOURS = [
   { name: "Slate",  value: "#1a1f2e", text: "#ffffff", accent: "#90c0f0", plan: "starter" },
   { name: "Purple", value: "#2a1040", text: "#ffffff", accent: "#c4a0f7", plan: "pro" },
   { name: "Cream",  value: "#fdfcf7", text: "#202021", accent: "#3d7a00", plan: "pro" },
+
+  // Pattern presets. These save into the existing `theme` field, so no database change is needed.
+  { name: "Pink Dots", value: "radial-gradient(circle at 18px 18px, rgba(234,76,137,0.2) 0 3px, transparent 4px), #fff5f9", text: DARK, accent: PINK, plan: "starter" },
+  { name: "Kasi Grid", value: "linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px), #202021", text: "#ffffff", accent: PINK, plan: "starter" },
+  { name: "Soft Waves", value: "radial-gradient(circle at 0% 0%, rgba(234,76,137,0.25), transparent 32%), radial-gradient(circle at 100% 20%, rgba(248,184,210,0.34), transparent 28%), #fffafc", text: DARK, accent: PINK, plan: "starter" },
+  { name: "Diagonal Lines", value: "repeating-linear-gradient(135deg, rgba(234,76,137,0.13) 0 8px, rgba(255,255,255,0.92) 8px 18px), #ffffff", text: DARK, accent: PINK, plan: "pro" },
+  { name: "Soft Texture", value: "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.22), transparent 18%), radial-gradient(circle at 80% 0%, rgba(234,76,137,0.18), transparent 22%), linear-gradient(135deg, #202021 0%, #2c2230 100%)", text: "#ffffff", accent: "#f8b8d2", plan: "pro" },
+
+  // Preset photo backgrounds. The dark overlay is baked in to keep text readable.
+  { name: "Salon Photo", value: "linear-gradient(rgba(32,32,33,0.68), rgba(32,32,33,0.76)), url('https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1200&q=80') center/cover", text: "#ffffff", accent: "#f8b8d2", plan: "pro" },
+  { name: "Food Photo", value: "linear-gradient(rgba(32,32,33,0.66), rgba(32,32,33,0.76)), url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1200&q=80') center/cover", text: "#ffffff", accent: "#ffcc80", plan: "pro" },
+  { name: "Street Photo", value: "linear-gradient(rgba(32,32,33,0.7), rgba(32,32,33,0.78)), url('https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=1200&q=80') center/cover", text: "#ffffff", accent: "#90c0f0", plan: "pro" },
 ];
 
 export const FONTS = [
