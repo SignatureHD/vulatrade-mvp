@@ -66,17 +66,17 @@ export function planLabel(plan) {
 // ── COLOUR & FONT TIERS ────────────────────────────────────
 export const BG_COLOURS = [
   { name: "Vula Pink", value: PINK, text: "#ffffff", accent: SOFT_PINK, plan: "free" },
-  { name: "Charcoal",   value: DARK, text: "#ffffff", accent: PINK, plan: "free" },
+  { name: "Charcoal",   value: "#111214", text: "#ffffff", accent: PINK, plan: "free" },
   { name: "Soft Pink", value: SOFT_PINK, text: DARK, accent: PINK, plan: "free" },
   { name: "Coral",  value: "#7a2020", text: "#ffffff", accent: "#f9a8a8", plan: "starter" },
-  { name: "Warm",   value: "#1a0f0a", text: "#ffffff", accent: "#f0a050", plan: "starter" },
-  { name: "Slate",  value: "#1a1f2e", text: "#ffffff", accent: "#90c0f0", plan: "starter" },
+  { name: "Warm",   value: "#5a2f21", text: "#ffffff", accent: "#f4a261", plan: "starter" },
+  { name: "Slate",  value: "#24384f", text: "#ffffff", accent: "#9ed0ff", plan: "starter" },
   { name: "Purple", value: "#2a1040", text: "#ffffff", accent: "#c4a0f7", plan: "pro" },
-  { name: "Cream",  value: "#fdfcf7", text: "#202021", accent: "#3d7a00", plan: "pro" },
+  { name: "Cream",  value: "#fff1d6", text: "#202021", accent: "#b7791f", plan: "pro" },
 
   // Pattern presets. These save into the existing `theme` field, so no database change is needed.
-  { name: "Pink Dots", value: "radial-gradient(circle at 18px 18px, rgba(234,76,137,0.2) 0 3px, transparent 4px), #fff5f9", text: DARK, accent: PINK, plan: "starter" },
-  { name: "Kasi Grid", value: "linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px), #202021", text: "#ffffff", accent: PINK, plan: "starter" },
+  { name: "Pink Dots", value: "radial-gradient(circle at 14px 14px, rgba(234,76,137,0.42) 0 4px, transparent 4.8px), radial-gradient(circle at 38px 38px, rgba(234,76,137,0.2) 0 2.5px, transparent 3.2px), #fff5f9", text: DARK, accent: PINK, plan: "starter" },
+  { name: "Kasi Grid", value: "linear-gradient(rgba(255,255,255,0.18) 2px, transparent 2px), linear-gradient(90deg, rgba(255,255,255,0.18) 2px, transparent 2px), linear-gradient(135deg, #111214 0%, #24384f 100%)", text: "#ffffff", accent: PINK, plan: "starter" },
   { name: "Soft Waves", value: "radial-gradient(circle at 0% 0%, rgba(234,76,137,0.25), transparent 32%), radial-gradient(circle at 100% 20%, rgba(248,184,210,0.34), transparent 28%), #fffafc", text: DARK, accent: PINK, plan: "starter" },
   { name: "Diagonal Lines", value: "repeating-linear-gradient(135deg, rgba(234,76,137,0.13) 0 8px, rgba(255,255,255,0.92) 8px 18px), #ffffff", text: DARK, accent: PINK, plan: "pro" },
   { name: "Soft Texture", value: "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.22), transparent 18%), radial-gradient(circle at 80% 0%, rgba(234,76,137,0.18), transparent 22%), linear-gradient(135deg, #202021 0%, #2c2230 100%)", text: "#ffffff", accent: "#f8b8d2", plan: "pro" },
