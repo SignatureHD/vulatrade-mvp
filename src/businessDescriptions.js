@@ -21,3 +21,44 @@ export function defaultBusinessDescription(category) {
 export function businessDescriptionOrDefault(description, category) {
   return description?.trim() || defaultBusinessDescription(category);
 }
+
+const DEFAULT_DESCRIPTION_VALUES = new Set(Object.values(DEFAULT_BUSINESS_DESCRIPTIONS));
+let autofillInstalled = false;
+
+function setTextareaValue(textarea, value) {
+  const prototype = Object.getPrototypeOf(textarea);
+  const descriptor = Object.getOwnPropertyDescriptor(prototype, "value");
+  if (descriptor?.set) {
+    descriptor.set.call(textarea, value);
+  } else {
+    textarea.value = value;
+  }
+  textarea.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+export function installBusinessDescriptionAutofill() {
+  if (autofillInstalled || typeof document === "undefined") return;
+  autofillInstalled = true;
+
+  document.addEventListener("click", (event) => {
+    const button = event.target?.closest?.("button");
+    if (!button) return;
+    const category = button.textContent?.trim();
+    const nextDescription = defaultBusinessDescription(category);
+    if (!nextDescription) return;
+
+    window.setTimeout(() => {
+      const textarea = Array.from(document.querySelectorAll("textarea"))
+        .find((field) => field.placeholder === "Briefly describe what you do...");
+      if (!textarea) return;
+
+      const currentValue = textarea.value.trim();
+      const shouldAutofill = !currentValue || DEFAULT_DESCRIPTION_VALUES.has(currentValue);
+      if (!shouldAutofill) return;
+
+      setTextareaValue(textarea, nextDescription);
+    }, 0);
+  }, true);
+}
+
+installBusinessDescriptionAutofill();
