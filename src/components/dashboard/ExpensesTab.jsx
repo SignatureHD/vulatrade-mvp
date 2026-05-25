@@ -3,6 +3,8 @@ import { FileCheck, Package, Store, WalletCards } from "lucide-react";
 import { DARK, inputStyle, labelStyle } from "../../constants";
 import { supabase } from "../../lib/supabase";
 
+const BRAND = "#ea4c89";
+
 const STANDARD_EXPENSE_CATEGORIES = [
   "Stock",
   "Airtime",
@@ -19,6 +21,11 @@ const STANDARD_EXPENSE_CATEGORIES = [
 ];
 
 const EXPENSE_PAYMENT_METHODS = ["Cash", "EFT", "Card", "Yoco", "iKhokha", "PayShap", "Other"];
+const EXPENSE_PERIODS = [
+  { value: "this_month", label: "This month" },
+  { value: "last_month", label: "Last month" },
+  { value: "last_3_months", label: "Last 3 months" },
+];
 
 const EXPENSE_SUGGESTIONS = {
   "Food / Catering": ["Ingredients", "Packaging", "Gas / Electricity", "Transport", "Delivery costs", "Cooking supplies", "Cleaning supplies", "Market stock", "Airtime / Data"],
@@ -48,6 +55,44 @@ function businessTypeFromCategory(category = "") {
 function productName(products, id) {
   if (!id) return "";
   return products.find((product) => product.id === id)?.name || "Linked product";
+}
+
+function expenseDateValue(expense) {
+  return expense.expense_date || expense.created_at?.slice(0, 10) || todayInputValue();
+}
+
+function monthStart(date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addMonths(date, amount) {
+  return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+}
+
+function toInputDate(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function periodRange(period) {
+  const now = new Date();
+  const thisMonthStart = monthStart(now);
+  if (period === "last_month") {
+    const start = addMonths(thisMonthStart, -1);
+    const end = thisMonthStart;
+    return { start: toInputDate(start), end: toInputDate(end), label: start.toLocaleDateString("en-ZA", { month:"long", year:"numeric" }) };
+  }
+  if (period === "last_3_months") {
+    const start = addMonths(thisMonthStart, -2);
+    const end = addMonths(thisMonthStart, 1);
+    return { start: toInputDate(start), end: toInputDate(end), label: `${start.toLocaleDateString("en-ZA", { month:"short" })} - ${now.toLocaleDateString("en-ZA", { month:"short", year:"numeric" })}` };
+  }
+  const end = addMonths(thisMonthStart, 1);
+  return { start: toInputDate(thisMonthStart), end: toInputDate(end), label: now.toLocaleDateString("en-ZA", { month:"long", year:"numeric" }) };
+}
+
+function expenseInPeriod(expense, range) {
+  const value = expenseDateValue(expense);
+  return value >= range.start && value < range.end;
 }
 
 function addStageOneDetailsToNotes(expense) {
@@ -146,7 +191,7 @@ function ExpenseFormModal({ initialCategory, products = [], onSave, onClose, sav
         </div>
 
         <div style={{ display:"flex", gap:"10px", flexWrap:"wrap" }}>
-          <button onClick={save} disabled={saving} style={{ flex:"1 1 180px", background:"#ea4c89", color:"#fff", border:"none", borderRadius:"12px", padding:"13px 18px", fontSize:"14px", fontWeight:900, cursor:saving?"not-allowed":"pointer", opacity:saving?0.72:1 }}>{saving ? "Saving..." : "Save Expense"}</button>
+          <button onClick={save} disabled={saving} style={{ flex:"1 1 180px", background:BRAND, color:"#fff", border:"none", borderRadius:"12px", padding:"13px 18px", fontSize:"14px", fontWeight:900, cursor:saving?"not-allowed":"pointer", opacity:saving?0.72:1 }}>{saving ? "Saving..." : "Save Expense"}</button>
           <button onClick={onClose} disabled={saving} style={{ flex:"1 1 120px", background:"#fff", color:"#555", border:"1.5px solid #e0e0e0", borderRadius:"12px", padding:"13px 18px", fontSize:"14px", fontWeight:800, cursor:saving?"not-allowed":"pointer", opacity:saving?0.72:1 }}>Cancel</button>
         </div>
       </div>
@@ -159,6 +204,7 @@ export function ExpensesTab({ business }) {
   const suggestedCategories = EXPENSE_SUGGESTIONS[businessType] || EXPENSE_SUGGESTIONS["General Business"];
   const [expenses, setExpenses] = useState([]);
   const [products, setProducts] = useState([]);
+  const [period, setPeriod] = useState("this_month");
   const [modalCategory, setModalCategory] = useState(null);
   const [loadingExpenses, setLoadingExpenses] = useState(true);
   const [savingExpense, setSavingExpense] = useState(false);
@@ -166,8 +212,11 @@ export function ExpensesTab({ business }) {
   const [toast, setToast] = useState("");
 
   const categories = useMemo(() => Array.from(new Set([...suggestedCategories, ...STANDARD_EXPENSE_CATEGORIES])), [suggestedCategories]);
-  const totalExpenses = expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
-  const supplierCount = new Set(expenses.map((expense) => expense.supplier_name).filter(Boolean)).size;
+  const activeRange = useMemo(() => periodRange(period), [period]);
+  const filteredExpenses = useMemo(() => expenses.filter((expense) => expenseInPeriod(expense, activeRange)), [expenses, activeRange]);
+  const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const supplierCount = new Set(filteredExpenses.map((expense) => expense.supplier_name).filter(Boolean)).size;
+  const filteredCategoryCount = new Set(filteredExpenses.map((expense) => expense.category).filter(Boolean)).size;
 
   async function loadExpenses() {
     if (!business?.id) {
@@ -268,14 +317,14 @@ export function ExpensesTab({ business }) {
           <h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Expenses</h2>
           <p style={{ fontSize:"13px", color:"#aaa" }}>Costs going out: stock, airtime, data, transport, rent and supplies.</p>
         </div>
-        <button onClick={() => openForm()} style={{ backgroundColor:"#ea4c89", color:"#fff", border:"none", borderRadius:"12px", padding:"11px 18px", fontSize:"13px", fontWeight:800, cursor:"pointer" }}>
+        <button onClick={() => openForm()} style={{ backgroundColor:BRAND, color:"#fff", border:"none", borderRadius:"12px", padding:"11px 18px", fontSize:"13px", fontWeight:800, cursor:"pointer" }}>
           Add Expense
         </button>
       </div>
 
       <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"18px", padding:"18px", marginBottom:"20px", display:"flex", alignItems:"flex-start", gap:"14px" }}>
         <span style={{ width:"42px", height:"42px", borderRadius:"50%", background:"#fde8f1", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-          <FileCheck size={19} strokeWidth={2.2} color="#ea4c89" />
+          <FileCheck size={19} strokeWidth={2.2} color={BRAND} />
         </span>
         <div>
           <div style={{ fontSize:"15px", fontWeight:900, color:DARK, marginBottom:"4px" }}>Expenses help show what your business really costs.</div>
@@ -289,12 +338,32 @@ export function ExpensesTab({ business }) {
         </div>
       )}
 
+      <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"18px", padding:"14px", marginBottom:"20px" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"10px", flexWrap:"wrap" }}>
+          <div>
+            <div style={{ fontSize:"13px", fontWeight:900, color:DARK }}>Showing {activeRange.label}</div>
+            <div style={{ fontSize:"11px", color:"#888", marginTop:"2px" }}>Totals and recent expenses update when you change the period.</div>
+          </div>
+          <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
+            {EXPENSE_PERIODS.map((item) => {
+              const active = period === item.value;
+              return (
+                <button key={item.value} type="button" onClick={() => setPeriod(item.value)}
+                  style={{ border:`1.5px solid ${active ? BRAND : "#eeeeea"}`, background:active ? BRAND : "#fff", color:active ? "#fff" : "#555", borderRadius:"999px", padding:"9px 12px", fontSize:"12px", fontWeight:900, cursor:"pointer" }}>
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(150px, 1fr))", gap:"10px", marginBottom:"20px" }}>
         {[
           { label:"Total expenses", value:`R${totalExpenses.toLocaleString()}` },
-          { label:"Categories", value:categories.length },
+          { label:"Categories used", value:filteredCategoryCount || "None" },
           { label:"Suppliers", value:supplierCount || "Add" },
-          { label:"Recent expenses", value:expenses.length },
+          { label:"Period expenses", value:filteredExpenses.length },
         ].map((s) => (
           <div key={s.label} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"14px", padding:"16px" }}>
             <div style={{ fontSize:"10px", color:"#aaa", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"6px" }}>{s.label}</div>
@@ -321,7 +390,7 @@ export function ExpensesTab({ business }) {
         {categories.map((category) => (
           <button key={category} onClick={() => openForm(category)} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"16px", padding:"14px", display:"flex", alignItems:"center", gap:"10px", cursor:"pointer", textAlign:"left" }}>
             <span style={{ width:"36px", height:"36px", borderRadius:"50%", background:"#fde8f1", display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <WalletCards size={17} strokeWidth={2.2} color="#ea4c89" />
+              <WalletCards size={17} strokeWidth={2.2} color={BRAND} />
             </span>
             <span style={{ fontSize:"13px", fontWeight:800, color:DARK }}>{category}</span>
           </button>
@@ -329,27 +398,30 @@ export function ExpensesTab({ business }) {
       </div>
 
       <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"22px" }}>
-        <div style={{ fontSize:"15px", fontWeight:800, color:DARK, marginBottom:"10px" }}>Recent expenses</div>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"10px", flexWrap:"wrap", marginBottom:"10px" }}>
+          <div style={{ fontSize:"15px", fontWeight:800, color:DARK }}>Recent expenses</div>
+          <div style={{ fontSize:"12px", color:"#888", fontWeight:700 }}>{activeRange.label}</div>
+        </div>
         {loadingExpenses ? (
           <div style={{ background:"#fbfbfb", borderRadius:"14px", padding:"24px", textAlign:"center", color:"#888", fontSize:"13px" }}>
             Loading expenses...
           </div>
-        ) : expenses.length === 0 ? (
+        ) : filteredExpenses.length === 0 ? (
           <div style={{ background:"#fbfbfb", borderRadius:"14px", padding:"24px", textAlign:"center", color:"#888", fontSize:"13px" }}>
-            No expenses recorded yet. Add stock, transport, airtime or supplies to understand what your business really costs.
+            No expenses recorded for this period. Add stock, transport, airtime or supplies to understand what your business really costs.
           </div>
         ) : (
           <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
-            {expenses.map((expense) => {
+            {filteredExpenses.map((expense) => {
               const linkedProductName = productName(products, expense.linked_product_id);
               return (
                 <div key={expense.id} style={{ display:"flex", alignItems:"center", gap:"12px", border:"1px solid #eeeeea", borderRadius:"14px", padding:"13px 14px" }}>
                   <span style={{ width:"38px", height:"38px", borderRadius:"50%", background:"#fde8f1", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                    <WalletCards size={17} strokeWidth={2.2} color="#ea4c89" />
+                    <WalletCards size={17} strokeWidth={2.2} color={BRAND} />
                   </span>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontSize:"14px", fontWeight:900, color:DARK }}>{expense.name}</div>
-                    <div style={{ fontSize:"12px", color:"#888", marginTop:"2px" }}>{expense.category} · {expense.payment_method || "Other"} · {new Date((expense.expense_date || expense.created_at?.slice(0, 10) || todayInputValue()) + "T00:00:00").toLocaleDateString("en-ZA", { day:"numeric", month:"short" })}</div>
+                    <div style={{ fontSize:"12px", color:"#888", marginTop:"2px" }}>{expense.category} · {expense.payment_method || "Other"} · {new Date(expenseDateValue(expense) + "T00:00:00").toLocaleDateString("en-ZA", { day:"numeric", month:"short" })}</div>
                     {(expense.supplier_name || linkedProductName) && (
                       <div style={{ display:"flex", gap:"6px", flexWrap:"wrap", marginTop:"6px" }}>
                         {expense.supplier_name && <span style={{ display:"inline-flex", alignItems:"center", gap:"4px", fontSize:"11px", color:"#777", background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"999px", padding:"4px 7px" }}><Store size={12} /> {expense.supplier_name}</span>}
