@@ -90,6 +90,67 @@ function ProductImage({ product }) {
   );
 }
 
+function ReviewCarousel({ reviews, accent }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const activeReview = reviews[activeIndex] || reviews[0];
+  const hasMultiple = reviews.length > 1;
+  const rating = Math.max(1, Math.min(5, Number(activeReview?.rating || 5)));
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [reviews.length]);
+
+  useEffect(() => {
+    if (!hasMultiple || paused) return undefined;
+    const timer = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % reviews.length);
+    }, 4500);
+    return () => window.clearInterval(timer);
+  }, [hasMultiple, paused, reviews.length]);
+
+  if (!activeReview) return null;
+
+  return (
+    <div onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} style={{ overflow: "hidden" }}>
+      <div
+        key={activeReview.id || activeIndex}
+        className="review-slide-card"
+        style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"18px", padding:"14px", minHeight:"96px" }}
+      >
+        <div style={{ color:"#ffb60a", fontSize:"14px", marginBottom:"6px" }}>{"★".repeat(rating)}</div>
+        <div style={{ fontSize:"14px", color:DARK, lineHeight:1.6, fontWeight:650 }}>{activeReview.review_text}</div>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"10px", marginTop:"8px", flexWrap:"wrap" }}>
+          <div style={{ fontSize:"12px", color:"#767b81", fontWeight:800 }}>{activeReview.customer_name || "Customer"}</div>
+          {hasMultiple && <div style={{ fontSize:"11px", color:"#aaa", fontWeight:800 }}>{activeIndex + 1} of {reviews.length}</div>}
+        </div>
+      </div>
+      {hasMultiple && (
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"6px", marginTop:"12px" }}>
+          {reviews.map((review, index) => (
+            <button
+              key={review.id || index}
+              type="button"
+              aria-label={`Show review ${index + 1}`}
+              onClick={() => setActiveIndex(index)}
+              style={{
+                width: activeIndex === index ? "18px" : "7px",
+                height: "7px",
+                borderRadius: "999px",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                background: activeIndex === index ? accent : "#d8d8d4",
+                transition: "all 180ms ease",
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PublicBusinessPage({ slug }) {
   const [business, setBusiness] = useState(null);
   const [products, setProducts] = useState([]);
@@ -193,6 +254,15 @@ export default function PublicBusinessPage({ slug }) {
 
   return (
     <main style={{ minHeight: "100vh", background: "linear-gradient(180deg, #fbfbfb 0%, #f8f8f8 46%, #ffffff 100%)", fontFamily: "'Inter', -apple-system, sans-serif", color: DARK, padding: "18px" }}>
+      <style>{`
+        @keyframes reviewSlideIn {
+          from { opacity: 0; transform: translateX(38px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        .review-slide-card {
+          animation: reviewSlideIn 420ms ease both;
+        }
+      `}</style>
       <div style={{ width: "100%", maxWidth: "760px", margin: "0 auto" }}>
         <section style={{ position: "relative", overflow: "hidden", background: pageTheme.value, color: pageTheme.text, padding: "26px 22px 24px", borderRadius: "34px", boxShadow: "0 22px 70px rgba(32,32,33,0.14)" }}>
           <div style={{ position: "absolute", inset: "-40% -25% auto auto", width: "220px", height: "220px", borderRadius: "50%", background: heroGlow, filter: "blur(4px)" }} />
@@ -255,17 +325,16 @@ export default function PublicBusinessPage({ slug }) {
         {reviews.length > 0 && (
           <section style={{ padding: "18px 0 0" }}>
             <div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "26px", padding: "20px", boxShadow: "0 14px 42px rgba(15,23,42,0.06)" }}>
-              <div style={{ color: pageTheme.accent, fontSize: "11px", fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>Customer reviews</div>
-              <h2 style={{ fontSize: "22px", fontWeight: 950, margin: "0 0 14px", letterSpacing: "0" }}>What customers say</h2>
-              <div style={{ display:"grid", gap:"10px" }}>
-                {reviews.slice(0, 3).map((review) => (
-                  <div key={review.id} style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"18px", padding:"14px" }}>
-                    <div style={{ color:"#ffb60a", fontSize:"14px", marginBottom:"6px" }}>{"★".repeat(review.rating || 5)}</div>
-                    <div style={{ fontSize:"14px", color:DARK, lineHeight:1.6, fontWeight:650 }}>{review.review_text}</div>
-                    <div style={{ fontSize:"12px", color:"#767b81", marginTop:"8px", fontWeight:800 }}>{review.customer_name}</div>
-                  </div>
-                ))}
+              <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:"12px", marginBottom:"14px" }}>
+                <div>
+                  <div style={{ color: pageTheme.accent, fontSize: "11px", fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>Customer reviews</div>
+                  <h2 style={{ fontSize: "22px", fontWeight: 950, margin: 0, letterSpacing: "0" }}>What customers say</h2>
+                </div>
+                <span style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"999px", padding:"7px 10px", fontSize:"12px", color:"#777", fontWeight:800, whiteSpace:"nowrap" }}>
+                  {reviews.length} review{reviews.length !== 1 ? "s" : ""}
+                </span>
               </div>
+              <ReviewCarousel reviews={reviews} accent={pageTheme.accent} />
             </div>
           </section>
         )}
