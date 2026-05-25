@@ -5,60 +5,253 @@ import { isFashionBusiness, buildFashionDescription, parseFashionDescription, re
 import { supabase } from "../../lib/supabase";
 import { ImageLibrary, ProductImagePicker } from "../ImageLibrary";
 
+const EMPTY_PRODUCT = { name:"", price:"", description:"", icon:"🛍️", image:null, variants:[], fashion:{} };
+
 function normaliseVariants(variants = []) {
   if (!Array.isArray(variants)) return [];
-  return variants.map((variant) => ({ id: variant.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`, name: variant.name || "", price: variant.price ?? "", description: variant.description || "" })).filter((variant) => variant.name || variant.price || variant.description);
+  return variants
+    .map((variant) => ({
+      id: variant.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      name: variant.name || "",
+      price: variant.price ?? "",
+      description: variant.description || "",
+    }))
+    .filter((variant) => variant.name || variant.price || variant.description);
 }
-function cleanVariantsForSave(variants = []) { return normaliseVariants(variants).filter((variant) => variant.name.trim() && variant.price !== "").map((variant) => ({ id: variant.id, name: variant.name.trim(), price: Number(variant.price) || 0, description: variant.description.trim() })); }
-function emptyVariant() { return { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, name: "", price: "", description: "" }; }
-function productThumb(product, size = 46) { const value = product.image || product.icon || "🛍️"; const isUrl = typeof value === "string" && value.startsWith("http"); if (isUrl) return <img src={value} alt={product.name} style={{ width:size, height:size, borderRadius:"12px", objectFit:"cover", flexShrink:0, border:"1px solid #f0f0f0" }} />; return <div style={{ width:size, height:size, background:"#f5f5f5", borderRadius:"12px", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"22px", flexShrink:0 }}>{value}</div>; }
+
+function cleanVariantsForSave(variants = []) {
+  return normaliseVariants(variants)
+    .filter((variant) => variant.name.trim() && variant.price !== "")
+    .map((variant) => ({
+      id: variant.id,
+      name: variant.name.trim(),
+      price: Number(variant.price) || 0,
+      description: variant.description.trim(),
+    }));
+}
+
+function emptyVariant() {
+  return { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, name: "", price: "", description: "" };
+}
+
+function productThumb(product, size = 46) {
+  const value = product.image || product.icon || "🛍️";
+  const isUrl = typeof value === "string" && value.startsWith("http");
+  if (isUrl) return <img src={value} alt={product.name} style={{ width:size, height:size, borderRadius:"12px", objectFit:"cover", flexShrink:0, border:"1px solid #f0f0f0" }} />;
+  return <div style={{ width:size, height:size, background:"#f5f5f5", borderRadius:"12px", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"22px", flexShrink:0 }}>{value}</div>;
+}
 
 function FashionFields({ value, onChange }) {
   const details = value || {};
   function update(field, next) { onChange({ ...details, [field]: next }); }
-  const field = (key, label, placeholder) => <div><label style={labelStyle}>{label}</label><input style={inputStyle} placeholder={placeholder} value={details[key] || ""} onChange={(e) => update(key, e.target.value)} /></div>;
-  return <div style={{ background:"#fff", border:"1.5px solid #f8b8d2", borderRadius:"16px", padding:"14px", marginTop:"4px" }}>
-    <div style={{ fontSize:"14px", fontWeight:900, color:DARK }}>Fashion details</div>
-    <div style={{ fontSize:"12px", color:"#888", lineHeight:1.45, marginTop:"2px", marginBottom:"12px" }}>Use these for clothes, sneakers, bags, jewellery, thrift items, uniforms and boutique stock.</div>
-    <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:"10px" }}>
-      {field("sizes", "Size options", "e.g. S, M, L, XL or UK 6-10")}
-      {field("colours", "Colour options", "e.g. Black, white, pink")}
-      {field("stock", "Stock quantity", "e.g. 5")}
-      {field("condition", "Condition", "New or Pre-loved")}
-      {field("gender", "Gender", "Men, Women, Kids or Unisex")}
-      {field("fit", "Fit", "Slim, Regular or Oversized")}
-      {field("collectionArea", "Collection area", "e.g. Port Elizabeth")}
-      {field("delivery", "Delivery available", "Yes, No or local delivery only")}
+  const field = (key, label, placeholder) => (
+    <div>
+      <label style={labelStyle}>{label}</label>
+      <input style={inputStyle} placeholder={placeholder} value={details[key] || ""} onChange={(e) => update(key, e.target.value)} />
     </div>
-    <div style={{ marginTop:"10px" }}><label style={labelStyle}>WhatsApp order message</label><input style={inputStyle} placeholder="Hi, is this item still available in my size?" value={details.whatsappText || ""} onChange={(e) => update("whatsappText", e.target.value)} /></div>
-  </div>;
+  );
+
+  return (
+    <div style={{ background:"#fff", border:"1.5px solid #f8b8d2", borderRadius:"16px", padding:"14px", marginTop:"4px" }}>
+      <div style={{ fontSize:"14px", fontWeight:900, color:DARK }}>Fashion details</div>
+      <div style={{ fontSize:"12px", color:"#888", lineHeight:1.45, marginTop:"2px", marginBottom:"12px" }}>
+        Use these for clothes, sneakers, bags, jewellery, thrift items, uniforms and boutique stock.
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:"10px" }}>
+        {field("sizes", "Size options", "e.g. S, M, L, XL or UK 6-10")}
+        {field("colours", "Colour options", "e.g. Black, white, pink")}
+        {field("stock", "Stock quantity", "e.g. 5")}
+        {field("condition", "Condition", "New or Pre-loved")}
+        {field("gender", "Gender", "Men, Women, Kids or Unisex")}
+        {field("fit", "Fit", "Slim, Regular or Oversized")}
+        {field("collectionArea", "Collection area", "e.g. Port Elizabeth")}
+        {field("delivery", "Delivery available", "Yes, No or local delivery only")}
+      </div>
+      <div style={{ fontSize:"11px", color:"#999", lineHeight:1.45, marginTop:"10px" }}>
+        VulaTrade will create the WhatsApp enquiry message automatically from this product information.
+      </div>
+    </div>
+  );
 }
 
 function VariantEditor({ variants, onChange, fashionMode }) {
   function addVariant() { onChange([...(variants || []), emptyVariant()]); }
   function updateVariant(id, field, value) { onChange((variants || []).map((variant) => variant.id === id ? { ...variant, [field]: value } : variant)); }
   function removeVariant(id) { onChange((variants || []).filter((variant) => variant.id !== id)); }
-  return <div style={{ background:"#fff", border:"1.5px solid #eeeeea", borderRadius:"16px", padding:"14px", marginTop:"4px" }}>
-    <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:"12px", marginBottom:"10px" }}><div><div style={{ fontSize:"14px", fontWeight:900, color:DARK }}>Variants</div><div style={{ fontSize:"12px", color:"#888", lineHeight:1.45, marginTop:"2px" }}>{fashionMode ? "Optional: add price options like kids size, adult size, bundle or special offer." : "Add simple options like 4 pieces, 8 pieces, small, large, flavour or package size."}</div></div><button type="button" onClick={addVariant} style={{ background:"#fff5f9", color:"#d93f7b", border:"1.5px solid #f8b8d2", borderRadius:"10px", padding:"8px 10px", fontSize:"12px", fontWeight:900, cursor:"pointer", whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:"6px" }}><PlusCircle size={14} strokeWidth={2.4} /> Add</button></div>
-    {(!variants || variants.length === 0) ? <div style={{ background:"#fbfbfb", borderRadius:"12px", padding:"12px", fontSize:"12px", color:"#888" }}>No variants yet. Leave this empty if the item has one fixed price.</div> : <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>{variants.map((variant) => <div key={variant.id} style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"14px", padding:"12px" }}><div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1.2fr) minmax(92px, 0.8fr) 34px", gap:"8px", alignItems:"center", marginBottom:"8px" }}><input style={{ ...inputStyle, minWidth:0 }} placeholder={fashionMode ? "Variant e.g. Size 6" : "Variant name e.g. 8 pieces"} value={variant.name} onChange={(e) => updateVariant(variant.id, "name", e.target.value)} /><input style={{ ...inputStyle, minWidth:0 }} type="number" min="0" step="0.01" placeholder="Price" value={variant.price} onChange={(e) => updateVariant(variant.id, "price", e.target.value)} /><button type="button" onClick={() => removeVariant(variant.id)} aria-label="Remove variant" style={{ width:"34px", height:"34px", borderRadius:"10px", border:"1px solid #ffd0d0", background:"#fff5f5", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Trash2 size={15} strokeWidth={2.2} color="#cc3300" /></button></div><input style={inputStyle} placeholder="Variant note (optional)" value={variant.description} onChange={(e) => updateVariant(variant.id, "description", e.target.value)} /></div>)}</div>}
-  </div>;
+
+  return (
+    <div style={{ background:"#fff", border:"1.5px solid #eeeeea", borderRadius:"16px", padding:"14px", marginTop:"4px" }}>
+      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:"12px", marginBottom:"10px" }}>
+        <div>
+          <div style={{ fontSize:"14px", fontWeight:900, color:DARK }}>Variants</div>
+          <div style={{ fontSize:"12px", color:"#888", lineHeight:1.45, marginTop:"2px" }}>
+            {fashionMode ? "Optional: add price options like kids size, adult size, bundle or special offer." : "Add simple options like 4 pieces, 8 pieces, small, large, flavour or package size."}
+          </div>
+        </div>
+        <button type="button" onClick={addVariant} style={{ background:"#fff5f9", color:"#d93f7b", border:"1.5px solid #f8b8d2", borderRadius:"10px", padding:"8px 10px", fontSize:"12px", fontWeight:900, cursor:"pointer", whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:"6px" }}>
+          <PlusCircle size={14} strokeWidth={2.4} /> Add
+        </button>
+      </div>
+      {(!variants || variants.length === 0) ? (
+        <div style={{ background:"#fbfbfb", borderRadius:"12px", padding:"12px", fontSize:"12px", color:"#888" }}>No variants yet. Leave this empty if the item has one fixed price.</div>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
+          {variants.map((variant) => (
+            <div key={variant.id} style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"14px", padding:"12px" }}>
+              <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1.2fr) minmax(92px, 0.8fr) 34px", gap:"8px", alignItems:"center", marginBottom:"8px" }}>
+                <input style={{ ...inputStyle, minWidth:0 }} placeholder={fashionMode ? "Variant e.g. Size 6" : "Variant name e.g. 8 pieces"} value={variant.name} onChange={(e) => updateVariant(variant.id, "name", e.target.value)} />
+                <input style={{ ...inputStyle, minWidth:0 }} type="number" min="0" step="0.01" placeholder="Price" value={variant.price} onChange={(e) => updateVariant(variant.id, "price", e.target.value)} />
+                <button type="button" onClick={() => removeVariant(variant.id)} aria-label="Remove variant" style={{ width:"34px", height:"34px", borderRadius:"10px", border:"1px solid #ffd0d0", background:"#fff5f5", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+                  <Trash2 size={15} strokeWidth={2.2} color="#cc3300" />
+                </button>
+              </div>
+              <input style={inputStyle} placeholder="Variant note (optional)" value={variant.description} onChange={(e) => updateVariant(variant.id, "description", e.target.value)} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
-const EMPTY_PRODUCT = { name:"", price:"", description:"", icon:"🛍️", image:null, variants:[], fashion:{} };
+function ProductForm({ form, setForm, onSave, onCancel, saveLabel, saving, fashionMode, images }) {
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
+      <div><label style={labelStyle}>Name</label><input style={inputStyle} placeholder={fashionMode ? "e.g. Nike sneakers" : "e.g. Brownies"} value={form.name || ""} onChange={(e) => setForm((current) => ({ ...current, name:e.target.value }))} /></div>
+      <div><label style={labelStyle}>Base price</label><input style={inputStyle} type="number" min="0" step="0.01" placeholder="e.g. 250" value={form.price ?? ""} onChange={(e) => setForm((current) => ({ ...current, price:e.target.value }))} /></div>
+      <div><label style={labelStyle}>Description</label><input style={inputStyle} placeholder="Describe the item" value={form.description || ""} onChange={(e) => setForm((current) => ({ ...current, description:e.target.value }))} /></div>
+      {fashionMode && <FashionFields value={form.fashion || {}} onChange={(fashion) => setForm((current) => ({ ...current, fashion }))} />}
+      <ProductImagePicker images={images} selectedImage={form.image} selectedIcon={form.icon} onImageSelect={(url) => setForm((current) => ({...current, image:url}))} onIconSelect={(icon) => setForm((current) => ({...current, icon, image:null}))} />
+      <VariantEditor variants={form.variants || []} onChange={(variants) => setForm((current) => ({ ...current, variants }))} fashionMode={fashionMode} />
+      <div style={{ display:"flex", gap:"8px" }}>
+        <button onClick={onSave} disabled={saving} style={{ backgroundColor:LIME, color:"#fff", border:"none", borderRadius:"10px", padding:"10px 20px", fontSize:"13px", fontWeight:800, cursor:saving?"not-allowed":"pointer", flex:1 }}>{saving?"Saving...":saveLabel}</button>
+        <button onClick={onCancel} style={{ background:"#fff", color:"#888", border:"1.5px solid #e0e0e0", borderRadius:"10px", padding:"10px 16px", fontSize:"13px", cursor:"pointer" }}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function mapProduct(data) {
+  return {
+    ...data,
+    description: parseFashionDescription(data.description || "").cleanDescription,
+    icon: data.image && !data.image.startsWith("http") ? data.image : "🛍️",
+    variants: normaliseVariants(data.variants || []),
+    fashion: readFashionDetails(data),
+  };
+}
 
 export function ProductsTab({ user, business, setGlobalProducts }) {
-  const [products, setProducts] = useState([]); const [images, setImages] = useState([]); const [loadingImages, setLoadingImages] = useState(true); const [uploadingImage, setUploadingImage] = useState(false); const [loading, setLoading] = useState(true); const [adding, setAdding] = useState(false); const [saving, setSaving] = useState(false); const [editingId, setEditingId] = useState(null); const [error, setError] = useState(""); const [newProduct, setNewProduct] = useState(EMPTY_PRODUCT); const [editForm, setEditForm] = useState({}); const fashionMode = isFashionBusiness(business?.category);
-  useEffect(() => { if (!user?.id) return; async function loadImages() { const { data } = await supabase.storage.from("business-images").list(`product-images/${user.id}`, { limit:MAX_IMAGES, sortBy:{ column:"created_at", order:"asc" } }); if (data) { const mapped = data.filter((file) => file.name && file.name !== ".emptyFolderPlaceholder").map((file) => { const { data:url } = supabase.storage.from("business-images").getPublicUrl(`product-images/${user.id}/${file.name}`); return { url:url.publicUrl, path:`product-images/${user.id}/${file.name}` }; }); setImages(mapped); } setLoadingImages(false); } loadImages(); }, [user?.id]);
-  useEffect(() => { if (!business?.id) { setLoading(false); return; } setLoading(true); supabase.from("products").select("*").eq("business_id", business.id).order("created_at").then(({ data, error: loadError }) => { if (loadError) setError(loadError.message || "Could not load products."); if (data) { const mapped = data.map(mapProduct); setProducts(mapped); setGlobalProducts && setGlobalProducts(mapped); } setLoading(false); }); }, [business?.id]);
-  function updateProducts(list) { setProducts(list); setGlobalProducts && setGlobalProducts(list); }
-  function payloadFromForm(form) { const imageValue = form.image || form.icon || "🛍️"; return { name: form.name.trim(), price: Number(form.price) || 0, description: fashionMode ? buildFashionDescription(form.description, form.fashion || {}) : (form.description || "").trim(), image: imageValue, variants: cleanVariantsForSave(form.variants || []) }; }
-  function mapProduct(data) { return { ...data, description: parseFashionDescription(data.description || "").cleanDescription, icon: data.image && !data.image.startsWith("http") ? data.image : "🛍️", variants: normaliseVariants(data.variants || []), fashion: readFashionDetails(data) }; }
-  async function handleAdd() { if (!business?.id || !newProduct.name.trim() || !newProduct.price) return; setSaving(true); setError(""); const payload = { business_id: business.id, ...payloadFromForm(newProduct), is_active: true }; const { data, error: insertError } = await supabase.from("products").insert([payload]).select().single(); if (insertError) setError(insertError.message || "Could not save product."); if (data) { updateProducts([...products, mapProduct(data)]); setNewProduct(EMPTY_PRODUCT); setAdding(false); } setSaving(false); }
-  async function handleSaveEdit(id) { if (!editForm.name?.trim() || !editForm.price) return; setSaving(true); setError(""); const { data, error: updateError } = await supabase.from("products").update(payloadFromForm(editForm)).eq("id", id).select().single(); if (updateError) setError(updateError.message || "Could not update product."); if (data) { updateProducts(products.map((product) => product.id === id ? mapProduct(data) : product)); setEditingId(null); setEditForm({}); } setSaving(false); }
-  async function handleToggleActive(product) { const { data, error: toggleError } = await supabase.from("products").update({ is_active:!product.is_active }).eq("id", product.id).select().single(); if (toggleError) setError(toggleError.message || "Could not update product status."); if (data) updateProducts(products.map((item) => item.id === product.id ? mapProduct(data) : item)); }
-  async function handleDelete(id) { if (!window.confirm("Delete this product or service?")) return; const { error: deleteError } = await supabase.from("products").delete().eq("id", id); if (deleteError) { setError(deleteError.message || "Could not delete product."); return; } updateProducts(products.filter((product) => product.id !== id)); }
-  function startEdit(product) { const isUrl = product.image && product.image.startsWith("http"); setEditingId(product.id); setEditForm({ name: product.name || "", price: product.price ?? "", description: product.description || "", icon: isUrl ? "🛍️" : (product.image || product.icon || "🛍️"), image: isUrl ? product.image : null, variants: normaliseVariants(product.variants || []), fashion: product.fashion || readFashionDetails(product) }); }
+  const [products, setProducts] = useState([]);
+  const [images, setImages] = useState([]);
+  const [loadingImages, setLoadingImages] = useState(true);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [error, setError] = useState("");
+  const [newProduct, setNewProduct] = useState(EMPTY_PRODUCT);
+  const [editForm, setEditForm] = useState({});
+  const fashionMode = isFashionBusiness(business?.category);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    async function loadImages() {
+      const { data } = await supabase.storage.from("business-images").list(`product-images/${user.id}`, { limit:MAX_IMAGES, sortBy:{ column:"created_at", order:"asc" } });
+      if (data) {
+        const mapped = data.filter((file) => file.name && file.name !== ".emptyFolderPlaceholder").map((file) => {
+          const { data:url } = supabase.storage.from("business-images").getPublicUrl(`product-images/${user.id}/${file.name}`);
+          return { url:url.publicUrl, path:`product-images/${user.id}/${file.name}` };
+        });
+        setImages(mapped);
+      }
+      setLoadingImages(false);
+    }
+    loadImages();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!business?.id) { setLoading(false); return; }
+    setLoading(true);
+    supabase.from("products").select("*").eq("business_id", business.id).order("created_at").then(({ data, error: loadError }) => {
+      if (loadError) setError(loadError.message || "Could not load products.");
+      if (data) {
+        const mapped = data.map(mapProduct);
+        setProducts(mapped);
+        setGlobalProducts && setGlobalProducts(mapped);
+      }
+      setLoading(false);
+    });
+  }, [business?.id, setGlobalProducts]);
+
+  function updateProducts(list) {
+    setProducts(list);
+    setGlobalProducts && setGlobalProducts(list);
+  }
+
+  function payloadFromForm(form) {
+    const imageValue = form.image || form.icon || "🛍️";
+    return {
+      name: form.name.trim(),
+      price: Number(form.price) || 0,
+      description: fashionMode ? buildFashionDescription(form.description, form.fashion || {}) : (form.description || "").trim(),
+      image: imageValue,
+      variants: cleanVariantsForSave(form.variants || []),
+    };
+  }
+
+  async function handleAdd() {
+    if (!business?.id || !newProduct.name.trim() || !newProduct.price) return;
+    setSaving(true); setError("");
+    const payload = { business_id: business.id, ...payloadFromForm(newProduct), is_active: true };
+    const { data, error: insertError } = await supabase.from("products").insert([payload]).select().single();
+    if (insertError) setError(insertError.message || "Could not save product.");
+    if (data) { updateProducts([...products, mapProduct(data)]); setNewProduct(EMPTY_PRODUCT); setAdding(false); }
+    setSaving(false);
+  }
+
+  async function handleSaveEdit(id) {
+    if (!editForm.name?.trim() || !editForm.price) return;
+    setSaving(true); setError("");
+    const { data, error: updateError } = await supabase.from("products").update(payloadFromForm(editForm)).eq("id", id).select().single();
+    if (updateError) setError(updateError.message || "Could not update product.");
+    if (data) { updateProducts(products.map((product) => product.id === id ? mapProduct(data) : product)); setEditingId(null); setEditForm({}); }
+    setSaving(false);
+  }
+
+  async function handleToggleActive(product) {
+    const { data, error: toggleError } = await supabase.from("products").update({ is_active:!product.is_active }).eq("id", product.id).select().single();
+    if (toggleError) setError(toggleError.message || "Could not update product status.");
+    if (data) updateProducts(products.map((item) => item.id === product.id ? mapProduct(data) : item));
+  }
+
+  async function handleDelete(id) {
+    if (!window.confirm("Delete this product or service?")) return;
+    const { error: deleteError } = await supabase.from("products").delete().eq("id", id);
+    if (deleteError) { setError(deleteError.message || "Could not delete product."); return; }
+    updateProducts(products.filter((product) => product.id !== id));
+  }
+
+  function startEdit(product) {
+    const isUrl = product.image && product.image.startsWith("http");
+    setEditingId(product.id);
+    setEditForm({ name: product.name || "", price: product.price ?? "", description: product.description || "", icon: isUrl ? "🛍️" : (product.image || product.icon || "🛍️"), image: isUrl ? product.image : null, variants: normaliseVariants(product.variants || []), fashion: product.fashion || readFashionDetails(product) });
+  }
+
   if (!business?.id) return <div><div style={{ marginBottom:"20px" }}><h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Products / Services</h2><p style={{ fontSize:"13px", color:"#888" }}>Manage what your business sells. These items appear on your public page.</p></div><div style={{ background:"#fffbe6", border:"1.5px solid #f0d000", borderRadius:"12px", padding:"16px", fontSize:"13px", color:"#7a5e00" }}>Save your business details first, then add your products and services.</div></div>;
-  const ProductForm = ({ form, setForm, onSave, onCancel, saveLabel }) => <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}><div><label style={labelStyle}>Name</label><input style={inputStyle} placeholder={fashionMode ? "e.g. Nike sneakers" : "e.g. Brownies"} value={form.name || ""} onChange={(e) => setForm({...form, name:e.target.value})} /></div><div><label style={labelStyle}>Base price</label><input style={inputStyle} type="number" min="0" step="0.01" placeholder="e.g. 250" value={form.price ?? ""} onChange={(e) => setForm({...form, price:e.target.value})} /></div><div><label style={labelStyle}>Description</label><input style={inputStyle} placeholder="Describe the item" value={form.description || ""} onChange={(e) => setForm({...form, description:e.target.value})} /></div>{fashionMode && <FashionFields value={form.fashion || {}} onChange={(fashion) => setForm({ ...form, fashion })} />}<ProductImagePicker images={images} selectedImage={form.image} selectedIcon={form.icon} onImageSelect={(url) => setForm((product) => ({...product, image:url}))} onIconSelect={(icon) => setForm((product) => ({...product, icon, image:null}))} /><VariantEditor variants={form.variants || []} onChange={(variants) => setForm((product) => ({ ...product, variants }))} fashionMode={fashionMode} /><div style={{ display:"flex", gap:"8px" }}><button onClick={onSave} disabled={saving} style={{ backgroundColor:LIME, color:"#fff", border:"none", borderRadius:"10px", padding:"10px 20px", fontSize:"13px", fontWeight:800, cursor:saving?"not-allowed":"pointer", flex:1 }}>{saving?"Saving...":saveLabel}</button><button onClick={onCancel} style={{ background:"#fff", color:"#888", border:"1.5px solid #e0e0e0", borderRadius:"10px", padding:"10px 16px", fontSize:"13px", cursor:"pointer" }}>Cancel</button></div></div>;
-  return <div><div style={{ marginBottom:"20px" }}><h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Products / Services</h2><p style={{ fontSize:"13px", color:"#888" }}>{fashionMode ? "Add clothing, shoes, accessories, sizes, colours and stock details." : "Manage what your business sells. Add variants for sizes, quantities, flavours or packages."}</p></div>{error && <div style={{ background:"#fff5f5", border:"1px solid #ffd0d0", color:"#cc3300", borderRadius:"12px", padding:"12px", fontSize:"13px", marginBottom:"14px" }}>{error}</div>}{!loadingImages && <div style={{ marginBottom:"24px" }}><ImageLibrary userId={user.id} images={images} setImages={setImages} uploading={uploadingImage} setUploading={setUploadingImage} /></div>}<div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"16px", gap:"12px" }}><div><div style={{ fontSize:"16px", fontWeight:800, color:DARK }}>Catalogue items</div><div style={{ fontSize:"13px", color:"#aaa", marginTop:"2px" }}>{products.length} item{products.length!==1?"s":""}</div></div><button onClick={() => setAdding(true)} style={{ backgroundColor:DARK, color:LIME, border:"none", borderRadius:"10px", padding:"9px 16px", fontSize:"13px", fontWeight:800, cursor:"pointer", whiteSpace:"nowrap" }}>+ Add product</button></div>{adding && <div style={{ background:"#fbfbfb", border:"1.5px solid #d4d7db", borderRadius:"14px", padding:"18px", marginBottom:"14px" }}><div style={{ fontSize:"14px", fontWeight:900, color:DARK, marginBottom:"14px" }}>New product or service</div><ProductForm form={newProduct} setForm={setNewProduct} onSave={handleAdd} onCancel={() => { setAdding(false); setNewProduct(EMPTY_PRODUCT); }} saveLabel="Save product" /></div>}{loading ? <div style={{ fontSize:"13px", color:"#aaa", padding:"20px 0" }}>Loading...</div> : products.length === 0 ? <div style={{ background:"#fbfbfb", border:"1.5px dashed #ddd", borderRadius:"14px", padding:"32px", textAlign:"center" }}><div style={{ fontSize:"28px", marginBottom:"10px" }}>🛍️</div><div style={{ fontSize:"14px", fontWeight:800, color:DARK }}>No products yet. Add your first product or service.</div></div> : <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>{products.map((product) => { const variants = normaliseVariants(product.variants || []); const fashion = product.fashion || {}; return <div key={product.id} style={{ background:"#fff", border:`1.5px solid ${editingId===product.id?LIME:"#eeeeea"}`, borderRadius:"14px", padding:"14px 18px", opacity:product.is_active?1:0.55 }}>{editingId===product.id ? <ProductForm form={editForm} setForm={setEditForm} onSave={() => handleSaveEdit(product.id)} onCancel={() => { setEditingId(null); setEditForm({}); }} saveLabel="Save" /> : <div style={{ display:"flex", alignItems:"center", gap:"12px", flexWrap:"wrap" }}>{productThumb(product)}<div style={{ flex:"1 1 180px", minWidth:0 }}><div style={{ fontSize:"14px", fontWeight:800, color:DARK }}>{product.name}</div>{product.description && <div style={{ fontSize:"12px", color:"#aaa", marginTop:"2px", lineHeight:1.45 }}>{product.description}</div>}{fashionMode && (fashion.sizes || fashion.colours || fashion.condition) && <div style={{ display:"flex", flexWrap:"wrap", gap:"5px", marginTop:"7px" }}>{fashion.sizes && <span style={{ fontSize:"11px", background:"#fff5f9", color:"#d93f7b", border:"1px solid #f8b8d2", borderRadius:"999px", padding:"4px 7px", fontWeight:800 }}>Sizes: {fashion.sizes}</span>}{fashion.colours && <span style={{ fontSize:"11px", background:"#fff", color:"#555", border:"1px solid #eeeeea", borderRadius:"999px", padding:"4px 7px", fontWeight:800 }}>Colours: {fashion.colours}</span>}{fashion.condition && <span style={{ fontSize:"11px", background:"#fbfbfb", color:"#555", border:"1px solid #eeeeea", borderRadius:"999px", padding:"4px 7px", fontWeight:800 }}>{fashion.condition}</span>}</div>}{variants.length > 0 && <div style={{ fontSize:"11px", color:"#d93f7b", marginTop:"6px", fontWeight:800 }}>{variants.length} variant{variants.length !== 1 ? "s" : ""}</div>}</div><div style={{ fontSize:"16px", fontWeight:950, color:DARK, minWidth:"60px", textAlign:"right" }}>R{Number(product.price || 0).toLocaleString()}</div><div style={{ display:"flex", flexWrap:"wrap", gap:"4px" }}><button onClick={() => startEdit(product)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:"#fbfbfb", color:"#555", cursor:"pointer", fontWeight:700 }}>Edit</button><button onClick={() => handleToggleActive(product)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:product.is_active?"#fff5f9":"#f5f5f5", color:product.is_active?"#d93f7b":"#aaa", cursor:"pointer", fontWeight:700, whiteSpace:"nowrap" }}>{product.is_active?"Active":"Hidden"}</button><button onClick={() => handleDelete(product.id)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #ffd0d0", background:"#fff5f5", color:"#cc3300", cursor:"pointer", fontWeight:700 }}>Delete</button></div></div>}</div>; })}</div>}</div>;
+
+  return (
+    <div>
+      <div style={{ marginBottom:"20px" }}><h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Products / Services</h2><p style={{ fontSize:"13px", color:"#888" }}>{fashionMode ? "Add clothing, shoes, accessories, sizes, colours and stock details." : "Manage what your business sells. Add variants for sizes, quantities, flavours or packages."}</p></div>
+      {error && <div style={{ background:"#fff5f5", border:"1px solid #ffd0d0", color:"#cc3300", borderRadius:"12px", padding:"12px", fontSize:"13px", marginBottom:"14px" }}>{error}</div>}
+      {!loadingImages && <div style={{ marginBottom:"24px" }}><ImageLibrary userId={user.id} images={images} setImages={setImages} uploading={uploadingImage} setUploading={setUploadingImage} /></div>}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"16px", gap:"12px" }}><div><div style={{ fontSize:"16px", fontWeight:800, color:DARK }}>Catalogue items</div><div style={{ fontSize:"13px", color:"#aaa", marginTop:"2px" }}>{products.length} item{products.length!==1?"s":""}</div></div><button onClick={() => setAdding(true)} style={{ backgroundColor:DARK, color:LIME, border:"none", borderRadius:"10px", padding:"9px 16px", fontSize:"13px", fontWeight:800, cursor:"pointer", whiteSpace:"nowrap" }}>+ Add product</button></div>
+      {adding && <div style={{ background:"#fbfbfb", border:"1.5px solid #d4d7db", borderRadius:"14px", padding:"18px", marginBottom:"14px" }}><div style={{ fontSize:"14px", fontWeight:900, color:DARK, marginBottom:"14px" }}>New product or service</div><ProductForm form={newProduct} setForm={setNewProduct} onSave={handleAdd} onCancel={() => { setAdding(false); setNewProduct(EMPTY_PRODUCT); }} saveLabel="Save product" saving={saving} fashionMode={fashionMode} images={images} /></div>}
+      {loading ? <div style={{ fontSize:"13px", color:"#aaa", padding:"20px 0" }}>Loading...</div> : products.length === 0 ? <div style={{ background:"#fbfbfb", border:"1.5px dashed #ddd", borderRadius:"14px", padding:"32px", textAlign:"center" }}><div style={{ fontSize:"28px", marginBottom:"10px" }}>🛍️</div><div style={{ fontSize:"14px", fontWeight:800, color:DARK }}>No products yet. Add your first product or service.</div></div> : <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>{products.map((product) => {
+        const variants = normaliseVariants(product.variants || []); const fashion = product.fashion || {};
+        return <div key={product.id} style={{ background:"#fff", border:`1.5px solid ${editingId===product.id?LIME:"#eeeeea"}`, borderRadius:"14px", padding:"14px 18px", opacity:product.is_active?1:0.55 }}>{editingId===product.id ? <ProductForm form={editForm} setForm={setEditForm} onSave={() => handleSaveEdit(product.id)} onCancel={() => { setEditingId(null); setEditForm({}); }} saveLabel="Save" saving={saving} fashionMode={fashionMode} images={images} /> : <div style={{ display:"flex", alignItems:"center", gap:"12px", flexWrap:"wrap" }}>{productThumb(product)}<div style={{ flex:"1 1 180px", minWidth:0 }}><div style={{ fontSize:"14px", fontWeight:800, color:DARK }}>{product.name}</div>{product.description && <div style={{ fontSize:"12px", color:"#aaa", marginTop:"2px", lineHeight:1.45 }}>{product.description}</div>}{fashionMode && (fashion.sizes || fashion.colours || fashion.condition) && <div style={{ display:"flex", flexWrap:"wrap", gap:"5px", marginTop:"7px" }}>{fashion.sizes && <span style={{ fontSize:"11px", background:"#fff5f9", color:"#d93f7b", border:"1px solid #f8b8d2", borderRadius:"999px", padding:"4px 7px", fontWeight:800 }}>Sizes: {fashion.sizes}</span>}{fashion.colours && <span style={{ fontSize:"11px", background:"#fff", color:"#555", border:"1px solid #eeeeea", borderRadius:"999px", padding:"4px 7px", fontWeight:800 }}>Colours: {fashion.colours}</span>}{fashion.condition && <span style={{ fontSize:"11px", background:"#fbfbfb", color:"#555", border:"1px solid #eeeeea", borderRadius:"999px", padding:"4px 7px", fontWeight:800 }}>{fashion.condition}</span>}</div>}{variants.length > 0 && <div style={{ fontSize:"11px", color:"#d93f7b", marginTop:"6px", fontWeight:800 }}>{variants.length} variant{variants.length !== 1 ? "s" : ""}</div>}</div><div style={{ fontSize:"16px", fontWeight:950, color:DARK, minWidth:"60px", textAlign:"right" }}>R{Number(product.price || 0).toLocaleString()}</div><div style={{ display:"flex", flexWrap:"wrap", gap:"4px" }}><button onClick={() => startEdit(product)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:"#fbfbfb", color:"#555", cursor:"pointer", fontWeight:700 }}>Edit</button><button onClick={() => handleToggleActive(product)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:product.is_active?"#fff5f9":"#f5f5f5", color:product.is_active?"#d93f7b":"#aaa", cursor:"pointer", fontWeight:700, whiteSpace:"nowrap" }}>{product.is_active?"Active":"Hidden"}</button><button onClick={() => handleDelete(product.id)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #ffd0d0", background:"#fff5f5", color:"#cc3300", cursor:"pointer", fontWeight:700 }}>Delete</button></div></div>}</div>;
+      })}</div>}
+    </div>
+  );
 }
