@@ -9,6 +9,7 @@ import {
   Package,
   PlusCircle,
   ReceiptText,
+  Star,
   UserPlus,
   Users,
   WalletCards,
@@ -62,12 +63,13 @@ export function DashboardHome({ user, business, setTab }) {
     if (!business?.id) { setLoading(false); return; }
 
     async function loadAll() {
-      const [{ data: customers }, { data: bookings }, { data: payments }, { data: expenses }, { data: products }] = await Promise.all([
+      const [{ data: customers }, { data: bookings }, { data: payments }, { data: expenses }, { data: products }, { data: pendingReviews }] = await Promise.all([
         supabase.from("customers").select("*").eq("business_id", business.id),
         supabase.from("bookings").select("*").eq("business_id", business.id),
         supabase.from("payments").select("*").eq("business_id", business.id),
         supabase.from("expenses").select("*").eq("business_id", business.id),
         supabase.from("products").select("*").eq("business_id", business.id),
+        supabase.from("reviews").select("*").eq("business_id", business.id).or("approved.eq.false,approved.is.null").order("created_at", { ascending: false }),
       ]);
 
       const now            = new Date();
@@ -175,6 +177,8 @@ export function DashboardHome({ user, business, setTab }) {
         if (todayBookings.length > 0) {
           const names = todayBookings.map((b) => b.customer_name.split(" ")[0]).join(", ");
           liveBanner = { title:`${todayBookings.length} appointment${todayBookings.length !== 1 ? "s" : ""} today`, msg:`${names} ${todayBookings.length === 1 ? "is" : "are"} booked in. You are ready.` };
+        } else if ((pendingReviews || []).length > 0) {
+          liveBanner = { title:`${pendingReviews.length} review${pendingReviews.length !== 1 ? "s" : ""} waiting`, msg:"Approve good reviews so customers can see them on your public page." };
         } else if (upcomingSoon.length > 0) {
           const next = upcomingSoon[0];
           liveBanner = { title:"Next up", msg:`${next.customer_name} — ${next.service || "appointment"} on ${new Date(next.booking_date + "T00:00:00").toLocaleDateString("en-ZA", { weekday:"short", day:"numeric", month:"short" })}${next.booking_time ? " at " + next.booking_time : ""}` };
@@ -194,6 +198,7 @@ export function DashboardHome({ user, business, setTab }) {
         totalCustomers, leads, todayBookings, upcomingSoon,
         needsContact, atRisk, followUpNudges, topService,
         thisMonthRevenue, lastMonthRevenue, monthlyRevenue, unpaidPayments,
+        pendingReviews: pendingReviews || [],
         doneBookings, totalEarned, totalExpenses, estimatedProfit, productCount: activeProducts.length, liveBanner,
       });
 
@@ -272,12 +277,12 @@ export function DashboardHome({ user, business, setTab }) {
         <>
           {/* Stat cards */}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))", gap:"10px" }}>
-	            {[
-	              { label:"Total Sales", value:`R${data.thisMonthRevenue.toLocaleString()}`, sub:data.lastMonthRevenue>0?`${revenueUp?"▲":"▼"} vs R${data.lastMonthRevenue.toLocaleString()} last month`:"Record sales to track", subColor:data.lastMonthRevenue>0?(revenueUp?"#d93f7b":"#cc3300"):"#bbb", onClick:()=>setTab("Sales"), icon:Banknote },
-	              { label:"Estimated profit", value:`R${data.estimatedProfit.toLocaleString()}`, sub:data.totalExpenses>0?`After R${data.totalExpenses.toLocaleString()} expenses`:"Add expenses to estimate", subColor:data.estimatedProfit>=0?"#d93f7b":"#cc3300", onClick:()=>setTab("Expenses"), icon:WalletCards, bg:"#fff5f9", color:"#ea4c89" },
-	              { label:"Products / Services", value:data.productCount, sub:"Add what you sell", onClick:()=>setTab("Products"), highlight:data.productCount>0, icon:Package, bg:"#edf5fe", color:"#0267ff" },
-	              { label:"Customers", value:data.totalCustomers, sub:data.leads.length>0?`${data.leads.length} lead${data.leads.length!==1?"s":""} to convert`:"No leads waiting", onClick:()=>setTab("Customers"), icon:Users, bg:"#fff8e7", color:"#d89b00" },
-              { label:"Business File Progress", value:data.needsContact.length+data.atRisk.length+data.unpaidPayments.length === 0 ? "Ready" : data.needsContact.length+data.atRisk.length+data.unpaidPayments.length, sub:data.unpaidPayments.length>0?`${data.unpaidPayments.length} unpaid payment${data.unpaidPayments.length!==1?"s":""}`:data.needsContact.length+data.atRisk.length>0?"Actions to complete":"All caught up", subColor:data.needsContact.length+data.atRisk.length+data.unpaidPayments.length>0?"#f59e0b":"#d93f7b", onClick:()=>setTab("BusinessFile"), icon:FileCheck, bg:"#fbe6ea", color:"#d90429" },
+            {[
+              { label:"Total Sales", value:`R${data.thisMonthRevenue.toLocaleString()}`, sub:data.lastMonthRevenue>0?`${revenueUp?"▲":"▼"} vs R${data.lastMonthRevenue.toLocaleString()} last month`:"Record sales to track", subColor:data.lastMonthRevenue>0?(revenueUp?"#d93f7b":"#cc3300"):"#bbb", onClick:()=>setTab("Sales"), icon:Banknote },
+              { label:"Estimated profit", value:`R${data.estimatedProfit.toLocaleString()}`, sub:data.totalExpenses>0?`After R${data.totalExpenses.toLocaleString()} expenses`:"Add expenses to estimate", subColor:data.estimatedProfit>=0?"#d93f7b":"#cc3300", onClick:()=>setTab("Expenses"), icon:WalletCards, bg:"#fff5f9", color:"#ea4c89" },
+              { label:"Products / Services", value:data.productCount, sub:"Add what you sell", onClick:()=>setTab("Products"), highlight:data.productCount>0, icon:Package, bg:"#edf5fe", color:"#0267ff" },
+              { label:"Customers", value:data.totalCustomers, sub:data.leads.length>0?`${data.leads.length} lead${data.leads.length!==1?"s":""} to convert`:"No leads waiting", onClick:()=>setTab("Customers"), icon:Users, bg:"#fff8e7", color:"#d89b00" },
+              { label:"Business File Progress", value:data.needsContact.length+data.atRisk.length+data.unpaidPayments.length+data.pendingReviews.length === 0 ? "Ready" : data.needsContact.length+data.atRisk.length+data.unpaidPayments.length+data.pendingReviews.length, sub:data.pendingReviews.length>0?`${data.pendingReviews.length} review${data.pendingReviews.length!==1?"s":""} pending`:data.unpaidPayments.length>0?`${data.unpaidPayments.length} unpaid payment${data.unpaidPayments.length!==1?"s":""}`:data.needsContact.length+data.atRisk.length>0?"Actions to complete":"All caught up", subColor:data.needsContact.length+data.atRisk.length+data.unpaidPayments.length+data.pendingReviews.length>0?"#f59e0b":"#d93f7b", onClick:()=>setTab("BusinessFile"), icon:FileCheck, bg:"#fbe6ea", color:"#d90429" },
             ].map((s) => (
               <div key={s.label} onClick={s.onClick}
                 style={{ background:"#fff", border:`1.5px solid ${s.highlight ? LIME : "#eeeeea"}`, borderRadius:"16px", padding:"18px", cursor:s.onClick?"pointer":"default" }}
@@ -318,11 +323,11 @@ export function DashboardHome({ user, business, setTab }) {
             <div style={{ display:"grid", gap:"10px" }}>
               {[
                 { label:"Business profile created", done:Boolean(business?.name) },
-	                { label:"Public page ready", done:Boolean(business?.slug) },
-	                { label:"Customers added", done:data.totalCustomers > 0 },
-	                { label:"Sales recorded", done:data.totalEarned > 0 },
-	                { label:"First expense recorded", done:data.totalExpenses > 0 },
-	              ].map((item) => {
+                { label:"Public page ready", done:Boolean(business?.slug) },
+                { label:"Customers added", done:data.totalCustomers > 0 },
+                { label:"Sales recorded", done:data.totalEarned > 0 },
+                { label:"First expense recorded", done:data.totalExpenses > 0 },
+              ].map((item) => {
                 const Icon = item.done ? CheckCircle : Circle;
                 return (
                   <div key={item.label} style={{ display:"flex", alignItems:"center", gap:"10px", fontSize:"13px", fontWeight:700, color:item.done?DARK:"#888" }}>
@@ -418,6 +423,23 @@ export function DashboardHome({ user, business, setTab }) {
                 </>
               ) : (
                 <>
+                  {data.pendingReviews.length > 0 && (
+                    <div style={{ background:"#fff5f9", border:"1px solid #f8b8d2", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"14px" }}>
+                      <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:"#fde8f1", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        <Star size={19} strokeWidth={2.4} color="#ea4c89" />
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:"13px", fontWeight:800, color:DARK, marginBottom:"2px" }}>
+                          {data.pendingReviews.length} review{data.pendingReviews.length!==1?"s":""} waiting for approval
+                        </div>
+                        <div style={{ fontSize:"12px", color:"#d93f7b" }}>Approve good reviews so they appear on your public page.</div>
+                      </div>
+                      <button onClick={() => setTab("Reviews")}
+                        style={{ padding:"8px 14px", borderRadius:"10px", border:"none", background:"#d93f7b", color:"#fff", fontSize:"12px", fontWeight:700, cursor:"pointer", whiteSpace:"nowrap" }}>
+                        Review now
+                      </button>
+                    </div>
+                  )}
                   {data.unpaidPayments.length > 0 && (
                     <div style={{ background:"#fff8ee", border:"1px solid #f0d080", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"14px" }}>
                       <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:"#f0d000", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:DARK, flexShrink:0, fontSize:"13px" }}>R</div>
@@ -499,7 +521,7 @@ export function DashboardHome({ user, business, setTab }) {
                       </button>
                     </div>
                   )}
-                  {data.unpaidPayments.length === 0 && data.followUpNudges.length === 0 && data.atRisk.length === 0 && data.leads.length === 0 && data.needsContact.length === 0 && (
+                  {data.pendingReviews.length === 0 && data.unpaidPayments.length === 0 && data.followUpNudges.length === 0 && data.atRisk.length === 0 && data.leads.length === 0 && data.needsContact.length === 0 && (
                     <div style={{ background:"#fff5f9", border:"1px solid #f8b8d2", borderRadius:"14px", padding:"16px", display:"flex", alignItems:"center", gap:"12px" }}>
                       <div style={{ width:"40px", height:"40px", borderRadius:"12px", background:LIME, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, color:DARK, flexShrink:0, fontSize:"13px" }}>✓</div>
                       <div style={{ flex:1 }}>
