@@ -4,6 +4,7 @@ import Dashboard from "./pages/Dashboard";
 import PublicBusinessPage from "./pages/PublicBusinessPage";
 import ReviewSubmissionPage from "./pages/ReviewSubmissionPage";
 import SolutionPage, { solutionRoutes } from "./pages/SolutionPage";
+import VulaAcademyPage from "./pages/VulaAcademyPage";
 
 function routeFromPath(pathname) {
   if (pathname === "/login") return { view: "dashboard", authMode: "signin", initialTab: "Dashboard" };
@@ -26,6 +27,7 @@ function routeFromPath(pathname) {
   if (pathname === "/money") return { view: "dashboard", authMode: "signin", initialTab: "Sales" };
   if (pathname === "/growth") return { view: "dashboard", authMode: "signin", initialTab: "BusinessFile" };
   if (pathname === "/messages") return { view: "dashboard", authMode: "signin", initialTab: "Messages" };
+  if (pathname === "/learn" || pathname === "/learn/academy" || pathname === "/learn/academy/start-with-r20") return { view: "academy" };
   if (solutionRoutes[pathname]) return { view: "solution", solutionKey: solutionRoutes[pathname], authMode: "signin", initialTab: "Dashboard" };
   return { view: "landing", authMode: "signin", initialTab: "Dashboard" };
 }
@@ -74,6 +76,10 @@ export default function App() {
 
   if (route.view === "solution") {
     return <SolutionPage pageKey={route.solutionKey} />;
+  }
+
+  if (route.view === "academy") {
+    return <VulaAcademyPage />;
   }
 
   return (
