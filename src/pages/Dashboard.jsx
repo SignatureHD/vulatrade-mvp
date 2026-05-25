@@ -26,12 +26,12 @@ import { ProductsTab } from "../components/dashboard/ProductsTab";
 import { CustomersTab } from "../components/dashboard/CustomersTab";
 import { BookingsTab } from "../components/dashboard/BookingsTab";
 import { SalesTab as ProductSalesTab } from "../components/dashboard/SalesTab";
+import { ExpensesTab } from "../components/dashboard/ExpensesTab";
 import { ReviewsTab } from "../components/dashboard/ReviewsTab";
 import { BusinessFileTab } from "../components/dashboard/BusinessFileTab";
 import { PlansTab } from "../components/dashboard/PlansTab";
 import {
   ComingSoon,
-  ExpensesTab,
   MessagesTab,
   PageTab,
   SettingsTab,
