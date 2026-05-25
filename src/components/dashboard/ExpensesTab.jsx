@@ -90,9 +90,60 @@ function periodRange(period) {
   return { start: toInputDate(thisMonthStart), end: toInputDate(end), label: now.toLocaleDateString("en-ZA", { month:"long", year:"numeric" }) };
 }
 
+function previousPeriodRange(period, activeRange) {
+  const startDate = new Date(`${activeRange.start}T00:00:00`);
+  const endDate = new Date(`${activeRange.end}T00:00:00`);
+  const months = period === "last_3_months" ? 3 : 1;
+  const start = addMonths(startDate, -months);
+  const end = addMonths(endDate, -months);
+  return {
+    start: toInputDate(start),
+    end: toInputDate(end),
+    label: months === 3
+      ? `${start.toLocaleDateString("en-ZA", { month:"short" })} - ${addMonths(end, -1).toLocaleDateString("en-ZA", { month:"short", year:"numeric" })}`
+      : start.toLocaleDateString("en-ZA", { month:"long", year:"numeric" }),
+  };
+}
+
 function expenseInPeriod(expense, range) {
   const value = expenseDateValue(expense);
   return value >= range.start && value < range.end;
+}
+
+function totalAmount(rows = []) {
+  return rows.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+}
+
+function formatRand(value) {
+  return `R${Number(value || 0).toLocaleString()}`;
+}
+
+function categoryTotals(rows = []) {
+  return rows.reduce((map, expense) => {
+    const key = expense.category || "Other";
+    map[key] = (map[key] || 0) + Number(expense.amount || 0);
+    return map;
+  }, {});
+}
+
+function categoryComparison(currentRows = [], previousRows = []) {
+  const current = categoryTotals(currentRows);
+  const previous = categoryTotals(previousRows);
+  const keys = Array.from(new Set([...Object.keys(current), ...Object.keys(previous)]));
+  return keys.map((category) => {
+    const currentAmount = current[category] || 0;
+    const previousAmount = previous[category] || 0;
+    const difference = currentAmount - previousAmount;
+    return { category, currentAmount, previousAmount, difference };
+  }).sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference));
+}
+
+function comparisonMessage(totalCurrent, totalPrevious, periodLabel, previousLabel) {
+  const diff = totalCurrent - totalPrevious;
+  if (totalCurrent === 0 && totalPrevious === 0) return `No expenses recorded for ${periodLabel} or ${previousLabel} yet.`;
+  if (diff > 0) return `Expenses are up by ${formatRand(diff)} compared with ${previousLabel}. Check which category increased before changing prices.`;
+  if (diff < 0) return `Expenses are down by ${formatRand(Math.abs(diff))} compared with ${previousLabel}. Good sign if sales stayed the same or improved.`;
+  return `Expenses are the same as ${previousLabel}.`;
 }
 
 function addStageOneDetailsToNotes(expense) {
@@ -213,8 +264,13 @@ export function ExpensesTab({ business }) {
 
   const categories = useMemo(() => Array.from(new Set([...suggestedCategories, ...STANDARD_EXPENSE_CATEGORIES])), [suggestedCategories]);
   const activeRange = useMemo(() => periodRange(period), [period]);
+  const previousRange = useMemo(() => previousPeriodRange(period, activeRange), [period, activeRange]);
   const filteredExpenses = useMemo(() => expenses.filter((expense) => expenseInPeriod(expense, activeRange)), [expenses, activeRange]);
-  const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const previousExpenses = useMemo(() => expenses.filter((expense) => expenseInPeriod(expense, previousRange)), [expenses, previousRange]);
+  const totalExpenses = totalAmount(filteredExpenses);
+  const previousTotalExpenses = totalAmount(previousExpenses);
+  const totalDifference = totalExpenses - previousTotalExpenses;
+  const comparisonRows = useMemo(() => categoryComparison(filteredExpenses, previousExpenses), [filteredExpenses, previousExpenses]);
   const supplierCount = new Set(filteredExpenses.map((expense) => expense.supplier_name).filter(Boolean)).size;
   const filteredCategoryCount = new Set(filteredExpenses.map((expense) => expense.category).filter(Boolean)).size;
 
@@ -360,7 +416,7 @@ export function ExpensesTab({ business }) {
 
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(150px, 1fr))", gap:"10px", marginBottom:"20px" }}>
         {[
-          { label:"Total expenses", value:`R${totalExpenses.toLocaleString()}` },
+          { label:"Total expenses", value:formatRand(totalExpenses) },
           { label:"Categories used", value:filteredCategoryCount || "None" },
           { label:"Suppliers", value:supplierCount || "Add" },
           { label:"Period expenses", value:filteredExpenses.length },
@@ -370,6 +426,50 @@ export function ExpensesTab({ business }) {
             <div style={{ fontSize:"22px", fontWeight:900, color:DARK }}>{s.value}</div>
           </div>
         ))}
+      </div>
+
+      <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"18px", marginBottom:"20px" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"10px", flexWrap:"wrap", marginBottom:"12px" }}>
+          <div>
+            <div style={{ fontSize:"15px", fontWeight:900, color:DARK, marginBottom:"4px" }}>Expense comparison</div>
+            <div style={{ fontSize:"12px", color:"#888" }}>{activeRange.label} compared with {previousRange.label}</div>
+          </div>
+          <div style={{ background: totalDifference > 0 ? "#fff8e7" : totalDifference < 0 ? "#f0fff4" : "#fbfbfb", border:"1px solid #eeeeea", borderRadius:"999px", padding:"8px 11px", fontSize:"12px", fontWeight:900, color:DARK }}>
+            {totalDifference > 0 ? "+" : totalDifference < 0 ? "-" : ""}{formatRand(Math.abs(totalDifference))}
+          </div>
+        </div>
+        <div style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"14px", padding:"12px", fontSize:"13px", color:"#666", lineHeight:1.55, marginBottom:"12px" }}>
+          {comparisonMessage(totalExpenses, previousTotalExpenses, activeRange.label, previousRange.label)}
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(150px, 1fr))", gap:"10px", marginBottom:"12px" }}>
+          {[
+            { label:"Current period", value:formatRand(totalExpenses) },
+            { label:"Previous period", value:formatRand(previousTotalExpenses) },
+            { label:"Difference", value:`${totalDifference > 0 ? "+" : totalDifference < 0 ? "-" : ""}${formatRand(Math.abs(totalDifference))}` },
+          ].map((item) => (
+            <div key={item.label} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"14px", padding:"12px" }}>
+              <div style={{ fontSize:"10px", color:"#aaa", fontWeight:800, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"5px" }}>{item.label}</div>
+              <div style={{ fontSize:"17px", fontWeight:900, color:DARK }}>{item.value}</div>
+            </div>
+          ))}
+        </div>
+        {comparisonRows.length === 0 ? (
+          <div style={{ fontSize:"12px", color:"#888" }}>Add expenses in two periods to see category changes.</div>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
+            {comparisonRows.slice(0, 5).map((row) => (
+              <div key={row.category} style={{ display:"grid", gridTemplateColumns:"minmax(0, 1fr) auto", gap:"10px", alignItems:"center", border:"1px solid #eeeeea", borderRadius:"12px", padding:"11px 12px" }}>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontSize:"13px", fontWeight:900, color:DARK }}>{row.category}</div>
+                  <div style={{ fontSize:"11px", color:"#888", marginTop:"2px" }}>{formatRand(row.currentAmount)} now · {formatRand(row.previousAmount)} before</div>
+                </div>
+                <div style={{ fontSize:"12px", fontWeight:900, color:row.difference > 0 ? "#b7791f" : row.difference < 0 ? "#2f855a" : "#888", whiteSpace:"nowrap" }}>
+                  {row.difference > 0 ? "+" : row.difference < 0 ? "-" : ""}{formatRand(Math.abs(row.difference))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"18px", marginBottom:"20px" }}>
@@ -430,7 +530,7 @@ export function ExpensesTab({ business }) {
                     )}
                     {expense.notes && <div style={{ fontSize:"12px", color:"#aaa", marginTop:"4px", whiteSpace:"pre-line" }}>{expense.notes}</div>}
                   </div>
-                  <div style={{ fontSize:"15px", fontWeight:900, color:DARK }}>R{Number(expense.amount || 0).toLocaleString()}</div>
+                  <div style={{ fontSize:"15px", fontWeight:900, color:DARK }}>{formatRand(expense.amount)}</div>
                 </div>
               );
             })}
