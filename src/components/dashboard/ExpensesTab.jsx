@@ -138,6 +138,39 @@ function categoryComparison(currentRows = [], previousRows = []) {
   }).sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference));
 }
 
+function supplierSummary(rows = []) {
+  const suppliers = rows.reduce((map, expense) => {
+    const supplier = (expense.supplier_name || "").trim();
+    if (!supplier) return map;
+    if (!map[supplier]) {
+      map[supplier] = {
+        name: supplier,
+        total: 0,
+        count: 0,
+        lastDate: null,
+        categories: new Set(),
+        items: new Set(),
+      };
+    }
+    const entry = map[supplier];
+    entry.total += Number(expense.amount || 0);
+    entry.count += 1;
+    if (expense.category) entry.categories.add(expense.category);
+    if (expense.name) entry.items.add(expense.name);
+    const date = expenseDateValue(expense);
+    if (!entry.lastDate || date > entry.lastDate) entry.lastDate = date;
+    return map;
+  }, {});
+
+  return Object.values(suppliers)
+    .map((supplier) => ({
+      ...supplier,
+      categories: Array.from(supplier.categories),
+      items: Array.from(supplier.items),
+    }))
+    .sort((a, b) => b.total - a.total);
+}
+
 function comparisonMessage(totalCurrent, totalPrevious, periodLabel, previousLabel) {
   const diff = totalCurrent - totalPrevious;
   if (totalCurrent === 0 && totalPrevious === 0) return `No expenses recorded for ${periodLabel} or ${previousLabel} yet.`;
@@ -271,7 +304,8 @@ export function ExpensesTab({ business }) {
   const previousTotalExpenses = totalAmount(previousExpenses);
   const totalDifference = totalExpenses - previousTotalExpenses;
   const comparisonRows = useMemo(() => categoryComparison(filteredExpenses, previousExpenses), [filteredExpenses, previousExpenses]);
-  const supplierCount = new Set(filteredExpenses.map((expense) => expense.supplier_name).filter(Boolean)).size;
+  const supplierRows = useMemo(() => supplierSummary(filteredExpenses), [filteredExpenses]);
+  const supplierCount = supplierRows.length;
   const filteredCategoryCount = new Set(filteredExpenses.map((expense) => expense.category).filter(Boolean)).size;
 
   async function loadExpenses() {
@@ -466,6 +500,55 @@ export function ExpensesTab({ business }) {
                 <div style={{ fontSize:"12px", fontWeight:900, color:row.difference > 0 ? "#b7791f" : row.difference < 0 ? "#2f855a" : "#888", whiteSpace:"nowrap" }}>
                   {row.difference > 0 ? "+" : row.difference < 0 ? "-" : ""}{formatRand(Math.abs(row.difference))}
                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"18px", marginBottom:"20px" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:"10px", flexWrap:"wrap", marginBottom:"12px" }}>
+          <div>
+            <div style={{ fontSize:"15px", fontWeight:900, color:DARK, marginBottom:"4px" }}>Suppliers</div>
+            <div style={{ fontSize:"12px", color:"#888" }}>Who you bought from in {activeRange.label}.</div>
+          </div>
+          <div style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"999px", padding:"8px 11px", fontSize:"12px", fontWeight:900, color:DARK }}>
+            {supplierRows.length} supplier{supplierRows.length === 1 ? "" : "s"}
+          </div>
+        </div>
+        {supplierRows.length === 0 ? (
+          <div style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"14px", padding:"16px", fontSize:"13px", color:"#777", lineHeight:1.55 }}>
+            No suppliers recorded for this period yet. Add “Bought from / supplier” when saving an expense to build your supplier history.
+          </div>
+        ) : (
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(230px, 1fr))", gap:"10px" }}>
+            {supplierRows.slice(0, 6).map((supplier) => (
+              <div key={supplier.name} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"16px", padding:"14px" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:"10px", marginBottom:"10px" }}>
+                  <span style={{ width:"36px", height:"36px", borderRadius:"50%", background:"#fde8f1", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                    <Store size={17} strokeWidth={2.2} color={BRAND} />
+                  </span>
+                  <div style={{ minWidth:0, flex:1 }}>
+                    <div style={{ fontSize:"14px", fontWeight:900, color:DARK, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{supplier.name}</div>
+                    <div style={{ fontSize:"11px", color:"#888", marginTop:"2px" }}>{supplier.count} purchase{supplier.count === 1 ? "" : "s"}</div>
+                  </div>
+                  <div style={{ fontSize:"14px", fontWeight:900, color:DARK }}>{formatRand(supplier.total)}</div>
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px", marginBottom:"10px" }}>
+                  <div style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"12px", padding:"9px" }}>
+                    <div style={{ fontSize:"9px", color:"#aaa", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.06em" }}>Last buy</div>
+                    <div style={{ fontSize:"12px", fontWeight:800, color:DARK, marginTop:"3px" }}>{supplier.lastDate ? new Date(`${supplier.lastDate}T00:00:00`).toLocaleDateString("en-ZA", { day:"numeric", month:"short" }) : "-"}</div>
+                  </div>
+                  <div style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"12px", padding:"9px" }}>
+                    <div style={{ fontSize:"9px", color:"#aaa", fontWeight:900, textTransform:"uppercase", letterSpacing:"0.06em" }}>Categories</div>
+                    <div style={{ fontSize:"12px", fontWeight:800, color:DARK, marginTop:"3px" }}>{supplier.categories.length}</div>
+                  </div>
+                </div>
+                {supplier.items.length > 0 && (
+                  <div style={{ fontSize:"11px", color:"#777", lineHeight:1.45 }}>
+                    Common items: {supplier.items.slice(0, 3).join(", ")}{supplier.items.length > 3 ? "…" : ""}
+                  </div>
+                )}
               </div>
             ))}
           </div>
