@@ -2,15 +2,49 @@ import React, { useEffect, useMemo, useState } from "react";
 import { DARK, LIME, PAYMENT_METHODS, PAYMENT_STATUSES, inputStyle, labelStyle } from "../../constants";
 import { supabase } from "../../lib/supabase";
 
+function normaliseVariants(variants = []) {
+  if (!Array.isArray(variants)) return [];
+  return variants
+    .map((variant) => ({
+      id: variant.id || `${variant.name || "variant"}-${variant.price || ""}`,
+      name: variant.name || "",
+      price: variant.price ?? "",
+      description: variant.description || "",
+    }))
+    .filter((variant) => variant.name || variant.price || variant.description);
+}
+
 function productLabel(product) {
   const price = Number(product?.price || 0);
-  return `${product?.name || "Unnamed item"}${price > 0 ? ` — R${price.toLocaleString()}` : ""}`;
+  return `${product?.name || "Unnamed item"}${price > 0 ? ` - R${price.toLocaleString()}` : ""}`;
+}
+
+function saleOptions(products = []) {
+  return products.flatMap((product) => {
+    const variants = normaliseVariants(product.variants || []);
+    if (variants.length === 0) {
+      return [{
+        key: `product:${product.id}`,
+        label: productLabel(product),
+        amount: Number(product.price || 0),
+        reference: product.name || "",
+      }];
+    }
+
+    return variants.map((variant) => ({
+      key: `variant:${product.id}:${variant.id}`,
+      label: `${product.name || "Unnamed item"} - ${variant.name}${Number(variant.price || 0) > 0 ? ` - R${Number(variant.price || 0).toLocaleString()}` : ""}`,
+      amount: Number(variant.price || 0),
+      reference: `${product.name || "Unnamed item"} - ${variant.name}`,
+    }));
+  });
 }
 
 function PaymentForm({ business, customers, products = [], onSaved }) {
+  const options = useMemo(() => saleOptions(products), [products]);
   const [form, setForm] = useState({
     customer_id: "",
-    product_id: "",
+    sale_option: "",
     amount: "",
     status: "Paid",
     method: "Cash",
@@ -22,19 +56,18 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function selectProduct(productId) {
-    const product = products.find((item) => item.id === productId);
-    if (!product) {
-      setForm((prev) => ({ ...prev, product_id: "" }));
+  function selectSaleOption(optionKey) {
+    const option = options.find((item) => item.key === optionKey);
+    if (!option) {
+      setForm((prev) => ({ ...prev, sale_option: "" }));
       return;
     }
 
-    const price = Number(product.price || 0);
     setForm((prev) => ({
       ...prev,
-      product_id: product.id,
-      amount: price > 0 ? String(price) : prev.amount,
-      reference: product.name || prev.reference,
+      sale_option: option.key,
+      amount: option.amount > 0 ? String(option.amount) : prev.amount,
+      reference: option.reference || prev.reference,
     }));
   }
 
@@ -43,8 +76,8 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
     if (!business?.id || !form.customer_id || !amount) return;
     setSaving(true);
 
-    const selectedProduct = products.find((item) => item.id === form.product_id);
-    const reference = form.reference.trim() || selectedProduct?.name || null;
+    const selectedOption = options.find((item) => item.key === form.sale_option);
+    const reference = form.reference.trim() || selectedOption?.reference || null;
 
     const { data: payment, error: paymentError } = await supabase.from("payments")
       .insert([{
@@ -77,13 +110,13 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
 
       if (updatedCustomer) {
         onSaved(payment, updatedCustomer);
-        setForm({ customer_id:"", product_id:"", amount:"", status:"Paid", method:"Cash", reference:"" });
+        setForm({ customer_id:"", sale_option:"", amount:"", status:"Paid", method:"Cash", reference:"" });
         setSaving(false);
         return;
       }
     }
 
-    setForm({ customer_id:"", product_id:"", amount:"", status:"Paid", method:"Cash", reference:"" });
+    setForm({ customer_id:"", sale_option:"", amount:"", status:"Paid", method:"Cash", reference:"" });
     setSaving(false);
     onSaved(payment);
   }
@@ -94,7 +127,7 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
     <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"20px", marginBottom:"20px" }}>
       <div style={{ fontSize:"15px", fontWeight:800, color:DARK, marginBottom:"6px" }}>Add Sale</div>
       <div style={{ fontSize:"12px", color:"#888", lineHeight:1.5, marginBottom:"16px" }}>
-        Choose a product or service to fill the sale amount quickly, or record a custom sale manually.
+        Choose a product, service or variant to fill the sale amount quickly, or record a custom sale manually.
       </div>
 
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:"12px", marginBottom:"14px" }}>
@@ -108,9 +141,9 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
 
         <div>
           <label style={labelStyle}>Product / service</label>
-          <select style={{ ...inputStyle, cursor:"pointer" }} value={form.product_id} onChange={(event) => selectProduct(event.target.value)}>
+          <select style={{ ...inputStyle, cursor:"pointer" }} value={form.sale_option} onChange={(event) => selectSaleOption(event.target.value)}>
             <option value="">Custom sale</option>
-            {products.map((product) => <option key={product.id} value={product.id}>{productLabel(product)}</option>)}
+            {options.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
           </select>
           {products.length === 0 && (
             <div style={{ fontSize:"11px", color:"#aaa", marginTop:"6px", lineHeight:1.4 }}>
