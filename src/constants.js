@@ -88,7 +88,16 @@ export const CUSTOM_BACKGROUND_DEFAULTS = {
   textColour: "white",
   headingTextColour: "white",
   descriptionTextColour: "grey",
+  accentColour: PINK,
+  extractedAccentColours: [],
 };
+
+export const CUSTOM_PHOTO_DEFAULT_ACCENTS = [
+  { name: "VulaPink", value: PINK },
+  { name: "White", value: "#ffffff" },
+  { name: "Charcoal", value: DARK },
+  { name: "Grey", value: "#9ca3af" },
+];
 
 export function isCustomBackgroundTheme(value) {
   if (!value || typeof value !== "string") return false;
@@ -134,7 +143,7 @@ export function resolveBackgroundTheme(savedTheme, fallbackAccent = PINK) {
       headingText,
       descriptionText,
       metaText: descriptionText,
-      accent: fallbackAccent,
+      accent: custom.accentColour || fallbackAccent,
       isCustomPhoto: true,
       backgroundImage: `linear-gradient(135deg, ${shade}, ${shade}), url("${custom.url}")`,
       backgroundPosition: position.css,
