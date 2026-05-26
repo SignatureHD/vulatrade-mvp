@@ -1,6 +1,22 @@
-import React, { useState } from "react";
-import { LIME, DARK, BG_COLOURS, FONTS, CUSTOMER_STATUSES, isPlanLocked, planLabel, statusConfig } from "../constants";
-import { injectFont } from "../utils";
+import React, { useRef, useState } from "react";
+import {
+  LIME,
+  DARK,
+  BG_COLOURS,
+  FONTS,
+  CUSTOM_BACKGROUND_OVERLAYS,
+  CUSTOM_BACKGROUND_POSITIONS,
+  CUSTOM_BACKGROUND_ZOOMS,
+  CUSTOM_TEXT_COLOURS,
+  createCustomBackgroundThemeValue,
+  isCustomBackgroundTheme,
+  parseCustomBackgroundTheme,
+  isPlanLocked,
+  planLabel,
+  statusConfig,
+} from "../constants";
+import { compressBackgroundImage, injectFont } from "../utils";
+import { supabase } from "../lib/supabase";
 
 // ── UPGRADE NUDGE ──────────────────────────────────────────
 export function UpgradeNudge({ plan, onViewPlans }) {
@@ -32,6 +48,140 @@ export function StatusBadge({ status, small }) {
     }}>
       {s.label}
     </span>
+  );
+}
+
+function selectorButtonStyle(active) {
+  return {
+    padding:"7px 10px",
+    borderRadius:"999px",
+    border:`1.5px solid ${active ? DARK : "#e0e0e0"}`,
+    background: active ? DARK : "#fff",
+    color: active ? "#fff" : "#555",
+    fontSize:"11px",
+    fontWeight:800,
+    cursor:"pointer",
+  };
+}
+
+function CustomBackgroundControls({ value, onChange }) {
+  const fileRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  const settings = parseCustomBackgroundTheme(value);
+  const hasCustomPhoto = isCustomBackgroundTheme(value) && Boolean(settings.url);
+
+  function updateSetting(field, nextValue) {
+    onChange(createCustomBackgroundThemeValue({ ...settings, [field]: nextValue }));
+  }
+
+  async function uploadBackground(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setError("");
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+      setError("Please upload a JPG, PNG or WebP image.");
+      event.target.value = "";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Please upload an image smaller than 5 MB.");
+      event.target.value = "";
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id || "pilot";
+      const compressed = await compressBackgroundImage(file);
+      const path = `backgrounds/${userId}/background.jpg`;
+      const { error: uploadError } = await supabase.storage.from("business-images").upload(path, compressed, {
+        upsert: true,
+        contentType: "image/jpeg",
+      });
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from("business-images").getPublicUrl(path);
+      onChange(createCustomBackgroundThemeValue({
+        ...settings,
+        url: `${data.publicUrl}?t=${Date.now()}`,
+        overlay: settings.overlay || "medium",
+        position: settings.position || "center",
+        zoom: settings.zoom || "normal",
+        textColour: settings.textColour || "white",
+      }));
+    } catch (err) {
+      console.error("Background upload error:", err);
+      setError("Background photo could not be uploaded. Please try a smaller JPG or PNG.");
+    }
+    event.target.value = "";
+    setUploading(false);
+  }
+
+  function removeCustomPhoto() {
+    onChange(BG_COLOURS[0].value);
+  }
+
+  return (
+    <div style={{ marginTop:"14px", background:"#fff", border:"1.5px solid #eeeeea", borderRadius:"18px", padding:"16px" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", gap:"12px", alignItems:"flex-start", marginBottom:"12px" }}>
+        <div>
+          <div style={{ fontSize:"14px", fontWeight:900, color:DARK }}>Custom Background Photo</div>
+          <div style={{ fontSize:"12px", color:"#888", lineHeight:1.5, marginTop:"3px" }}>
+            Upload one background photo. VulaTrade compresses it and adds an overlay so your page stays readable.
+          </div>
+        </div>
+        <span style={{ fontSize:"10px", fontWeight:900, color:"#d93f7b", background:"#fff5f9", border:"1px solid #f8b8d2", borderRadius:"999px", padding:"5px 8px", whiteSpace:"nowrap" }}>Pro</span>
+      </div>
+
+      {hasCustomPhoto && (
+        <div style={{ height:"110px", borderRadius:"16px", backgroundImage:`linear-gradient(rgba(0,0,0,0.38), rgba(0,0,0,0.38)), url(${settings.url})`, backgroundSize:"cover", backgroundPosition:"center", marginBottom:"12px", border:"1px solid #eeeeea" }} />
+      )}
+
+      <div style={{ display:"flex", gap:"8px", flexWrap:"wrap", alignItems:"center", marginBottom:"10px" }}>
+        <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+          style={{ background:DARK, color:"#fff", border:"none", borderRadius:"12px", padding:"10px 14px", fontSize:"12px", fontWeight:900, cursor:uploading?"not-allowed":"pointer" }}>
+          {uploading ? "Uploading..." : hasCustomPhoto ? "Change photo" : "Upload custom photo"}
+        </button>
+        {hasCustomPhoto && <button type="button" onClick={removeCustomPhoto} style={{ background:"#fff", color:"#cc3300", border:"1.5px solid #ffd0d0", borderRadius:"12px", padding:"10px 12px", fontSize:"12px", fontWeight:800, cursor:"pointer" }}>Remove</button>}
+        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display:"none" }} onChange={uploadBackground} />
+      </div>
+
+      <div style={{ fontSize:"11px", color:"#888", lineHeight:1.5, marginBottom:"12px" }}>
+        Best results: landscape photo, 1600 × 900 px recommended, minimum 1200 × 675 px, under 5 MB. Avoid screenshots, text-heavy images and very busy photos.
+      </div>
+
+      {error && <div style={{ background:"#fff0ee", color:"#cc3300", borderRadius:"10px", padding:"9px 10px", fontSize:"12px", marginBottom:"12px" }}>{error}</div>}
+
+      {hasCustomPhoto && (
+        <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
+          <div>
+            <div style={{ fontSize:"11px", color:"#555", fontWeight:900, marginBottom:"7px" }}>Overlay</div>
+            <div style={{ display:"flex", gap:"7px", flexWrap:"wrap" }}>
+              {CUSTOM_BACKGROUND_OVERLAYS.map((item) => <button type="button" key={item.value} onClick={() => updateSetting("overlay", item.value)} style={selectorButtonStyle(settings.overlay === item.value)}>{item.label}</button>)}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize:"11px", color:"#555", fontWeight:900, marginBottom:"7px" }}>Photo position</div>
+            <div style={{ display:"flex", gap:"7px", flexWrap:"wrap" }}>
+              {CUSTOM_BACKGROUND_POSITIONS.map((item) => <button type="button" key={item.value} onClick={() => updateSetting("position", item.value)} style={selectorButtonStyle(settings.position === item.value)}>{item.label}</button>)}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize:"11px", color:"#555", fontWeight:900, marginBottom:"7px" }}>Photo zoom</div>
+            <div style={{ display:"flex", gap:"7px", flexWrap:"wrap" }}>
+              {CUSTOM_BACKGROUND_ZOOMS.map((item) => <button type="button" key={item.value} onClick={() => updateSetting("zoom", item.value)} style={selectorButtonStyle(settings.zoom === item.value)}>{item.label}</button>)}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize:"11px", color:"#555", fontWeight:900, marginBottom:"7px" }}>Text colour</div>
+            <div style={{ display:"flex", gap:"7px", flexWrap:"wrap" }}>
+              {CUSTOM_TEXT_COLOURS.map((item) => <button type="button" key={item.value} onClick={() => updateSetting("textColour", item.value)} style={{ ...selectorButtonStyle(settings.textColour === item.value), display:"inline-flex", alignItems:"center", gap:"6px" }}><span style={{ width:"10px", height:"10px", borderRadius:"50%", background:item.css, border:"1px solid #d8d8d4" }} />{item.label}</button>)}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -84,8 +234,9 @@ export function ColourPicker({ value, onChange, onViewPlans }) {
           );
         })}
       </div>
+      <CustomBackgroundControls value={value} onChange={onChange} />
       <div style={{ fontSize:"11px", color:"#888", marginTop:"10px", lineHeight:1.45 }}>
-        Pilot mode: all Starter and Pro colours, patterns and photo backgrounds are unlocked for testing.
+        Pilot mode: all Starter and Pro colours, patterns and custom photo backgrounds are unlocked for testing.
       </div>
       {nudgePlan && <UpgradeNudge plan={nudgePlan} onViewPlans={() => { setNudgePlan(null); onViewPlans(); }} />}
     </div>
