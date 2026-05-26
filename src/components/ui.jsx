@@ -8,6 +8,7 @@ import {
   CUSTOM_BACKGROUND_POSITIONS,
   CUSTOM_BACKGROUND_ZOOMS,
   CUSTOM_TEXT_COLOURS,
+  CUSTOM_PHOTO_DEFAULT_ACCENTS,
   createCustomBackgroundThemeValue,
   isCustomBackgroundTheme,
   parseCustomBackgroundTheme,
@@ -77,12 +78,126 @@ function ensureCustomTheme(value) {
   return isCustomBackgroundTheme(value) ? parseCustomBackgroundTheme(value) : null;
 }
 
+function normaliseHexColour(value) {
+  if (!value || typeof value !== "string") return "";
+  const hex = value.trim().toLowerCase();
+  if (!/^#[0-9a-f]{6}$/.test(hex)) return "";
+  return hex;
+}
+
+function rgbToHex(r, g, b) {
+  return `#${[r, g, b].map((value) => Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function colourDistance(a, b) {
+  const ar = parseInt(a.slice(1, 3), 16);
+  const ag = parseInt(a.slice(3, 5), 16);
+  const ab = parseInt(a.slice(5, 7), 16);
+  const br = parseInt(b.slice(1, 3), 16);
+  const bg = parseInt(b.slice(3, 5), 16);
+  const bb = parseInt(b.slice(5, 7), 16);
+  return Math.sqrt((ar - br) ** 2 + (ag - bg) ** 2 + (ab - bb) ** 2);
+}
+
+function uniqueColours(colours = [], minDistance = 34) {
+  const clean = [];
+  colours.forEach((colour) => {
+    const hex = normaliseHexColour(colour);
+    if (!hex) return;
+    if (clean.some((existing) => existing === hex || colourDistance(existing, hex) < minDistance)) return;
+    clean.push(hex);
+  });
+  return clean;
+}
+
+function swatchesForSettings(settings) {
+  const extracted = uniqueColours(settings.extractedAccentColours || []);
+  return [
+    ...CUSTOM_PHOTO_DEFAULT_ACCENTS,
+    ...extracted.map((value, index) => ({ name: `Photo ${index + 1}`, value })),
+  ].filter((item, index, array) => array.findIndex((other) => other.value.toLowerCase() === item.value.toLowerCase()) === index);
+}
+
+async function extractAccentColours(file, maxColours = 5) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        const size = 96;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) {
+          URL.revokeObjectURL(objectUrl);
+          resolve([]);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, size, size);
+        const pixels = ctx.getImageData(0, 0, size, size).data;
+        const buckets = new Map();
+
+        for (let i = 0; i < pixels.length; i += 16) {
+          const r = pixels[i];
+          const g = pixels[i + 1];
+          const b = pixels[i + 2];
+          const a = pixels[i + 3];
+          if (a < 180) continue;
+
+          const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+          if (brightness < 35 || brightness > 232) continue;
+
+          const saturation = Math.max(r, g, b) - Math.min(r, g, b);
+          if (saturation < 18) continue;
+
+          const qr = Math.round(r / 32) * 32;
+          const qg = Math.round(g / 32) * 32;
+          const qb = Math.round(b / 32) * 32;
+          const key = `${qr},${qg},${qb}`;
+          const current = buckets.get(key) || { count: 0, r: 0, g: 0, b: 0 };
+          current.count += 1;
+          current.r += r;
+          current.g += g;
+          current.b += b;
+          buckets.set(key, current);
+        }
+
+        const colours = Array.from(buckets.values())
+          .sort((a, b) => b.count - a.count)
+          .map((bucket) => rgbToHex(
+            Math.round(bucket.r / bucket.count),
+            Math.round(bucket.g / bucket.count),
+            Math.round(bucket.b / bucket.count),
+          ));
+
+        URL.revokeObjectURL(objectUrl);
+        resolve(uniqueColours(colours, 42).slice(0, maxColours));
+      } catch (error) {
+        console.error("Palette extraction error:", error);
+        URL.revokeObjectURL(objectUrl);
+        resolve([]);
+      }
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve([]);
+    };
+
+    img.src = objectUrl;
+  });
+}
+
 function CustomBackgroundControls({ value, onChange }) {
   const fileRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const settings = parseCustomBackgroundTheme(value);
   const hasCustomPhoto = isCustomBackgroundTheme(value) && Boolean(settings.url);
+  const accentSwatches = swatchesForSettings(settings);
 
   function updateSetting(field, nextValue) {
     onChange(createCustomBackgroundThemeValue({ ...settings, [field]: nextValue }));
@@ -105,6 +220,7 @@ function CustomBackgroundControls({ value, onChange }) {
 
     setUploading(true);
     try {
+      const extractedAccentColours = await extractAccentColours(file);
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData?.user?.id || "pilot";
       const compressed = await compressBackgroundImage(file);
@@ -123,6 +239,8 @@ function CustomBackgroundControls({ value, onChange }) {
         zoom: settings.zoom || "normal",
         headingTextColour: settings.headingTextColour || settings.textColour || "white",
         descriptionTextColour: settings.descriptionTextColour || "grey",
+        accentColour: settings.accentColour || CUSTOM_PHOTO_DEFAULT_ACCENTS[0].value,
+        extractedAccentColours,
       }));
     } catch (err) {
       console.error("Background upload error:", err);
@@ -169,6 +287,21 @@ function CustomBackgroundControls({ value, onChange }) {
 
       {hasCustomPhoto && (
         <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
+          <div>
+            <div style={{ fontSize:"13px", color:DARK, fontWeight:900, marginBottom:"4px" }}>Match your photo</div>
+            <div style={{ fontSize:"11px", color:"#888", lineHeight:1.45, marginBottom:"9px" }}>Suggested colours from your photo. Use one for buttons, borders and highlights.</div>
+            <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
+              {accentSwatches.map((item) => {
+                const selected = (settings.accentColour || CUSTOM_PHOTO_DEFAULT_ACCENTS[0].value).toLowerCase() === item.value.toLowerCase();
+                return (
+                  <button key={`${item.name}-${item.value}`} type="button" title={item.name} onClick={() => updateSetting("accentColour", item.value)}
+                    style={{ width:"36px", height:"36px", borderRadius:"999px", border:selected ? `3px solid ${DARK}` : "1.5px solid #d8d8d4", background:item.value, cursor:"pointer", boxShadow:selected ? `0 0 0 3px #fff, 0 0 0 5px ${item.value}` : "none" }}
+                    aria-label={`Use ${item.name} as accent colour`}
+                  />
+                );
+              })}
+            </div>
+          </div>
           <div>
             <div style={{ fontSize:"11px", color:"#555", fontWeight:900, marginBottom:"7px" }}>Overlay</div>
             <div style={{ display:"flex", gap:"7px", flexWrap:"wrap" }}>
