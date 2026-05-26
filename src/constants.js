@@ -86,6 +86,8 @@ export const CUSTOM_BACKGROUND_DEFAULTS = {
   position: "center",
   zoom: "normal",
   textColour: "white",
+  headingTextColour: "white",
+  descriptionTextColour: "grey",
 };
 
 export function isCustomBackgroundTheme(value) {
@@ -112,18 +114,26 @@ export function createCustomBackgroundThemeValue(settings = {}) {
   return JSON.stringify(clean);
 }
 
+export function resolveCustomTextColour(value, fallback = "#ffffff") {
+  return CUSTOM_TEXT_COLOURS.find((item) => item.value === value)?.css || fallback;
+}
+
 export function resolveBackgroundTheme(savedTheme, fallbackAccent = PINK) {
   const custom = parseCustomBackgroundTheme(savedTheme);
   if (custom.url) {
     const overlay = CUSTOM_BACKGROUND_OVERLAYS.find((item) => item.value === custom.overlay) || CUSTOM_BACKGROUND_OVERLAYS[1];
     const position = CUSTOM_BACKGROUND_POSITIONS.find((item) => item.value === custom.position) || CUSTOM_BACKGROUND_POSITIONS[0];
     const zoom = CUSTOM_BACKGROUND_ZOOMS.find((item) => item.value === custom.zoom) || CUSTOM_BACKGROUND_ZOOMS[0];
-    const textColour = CUSTOM_TEXT_COLOURS.find((item) => item.value === custom.textColour) || CUSTOM_TEXT_COLOURS[0];
+    const headingText = resolveCustomTextColour(custom.headingTextColour || custom.textColour, "#ffffff");
+    const descriptionText = resolveCustomTextColour(custom.descriptionTextColour, "#e7e7e7");
     const shade = `rgba(0,0,0,${overlay.alpha})`;
     return {
       name: "Custom Photo",
       value: shade,
-      text: textColour.css,
+      text: headingText,
+      headingText,
+      descriptionText,
+      metaText: descriptionText,
       accent: fallbackAccent,
       isCustomPhoto: true,
       backgroundImage: `linear-gradient(135deg, ${shade}, ${shade}), url("${custom.url}")`,
@@ -135,11 +145,11 @@ export function resolveBackgroundTheme(savedTheme, fallbackAccent = PINK) {
 
   const savedLower = typeof savedTheme === "string" ? savedTheme.toLowerCase() : "";
   const matched = BG_COLOURS.find((c) => c.value === savedTheme || c.name.toLowerCase() === savedLower);
-  if (matched) return matched;
+  if (matched) return { ...matched, headingText: matched.text, descriptionText: matched.text === "#ffffff" ? "rgba(255,255,255,0.72)" : "rgba(0,0,0,0.58)", metaText: matched.text === "#ffffff" ? "rgba(255,255,255,0.56)" : "rgba(0,0,0,0.44)" };
   if (savedTheme && typeof savedTheme === "string" && savedTheme.startsWith("#")) {
-    return { value: DARK, text: "#ffffff", accent: savedTheme };
+    return { value: DARK, text: "#ffffff", headingText: "#ffffff", descriptionText: "rgba(255,255,255,0.72)", metaText: "rgba(255,255,255,0.56)", accent: savedTheme };
   }
-  return { value: DARK, text: "#ffffff", accent: fallbackAccent };
+  return { value: DARK, text: "#ffffff", headingText: "#ffffff", descriptionText: "rgba(255,255,255,0.72)", metaText: "rgba(255,255,255,0.56)", accent: fallbackAccent };
 }
 
 export function backgroundStyleForTheme(theme) {
