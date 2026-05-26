@@ -1,5 +1,5 @@
 import React from "react";
-import { BG_COLOURS, FONTS } from "../constants";
+import { FONTS, backgroundStyleForTheme, resolveBackgroundTheme } from "../constants";
 import { businessDescriptionOrDefault } from "../businessDescriptions";
 import { injectFont, waLink } from "../utils";
 import Logo from "./Logo";
@@ -7,13 +7,13 @@ import Logo from "./Logo";
 function readableTextOn(hex) {
   if (!hex || !hex.startsWith("#") || hex.length < 7) return "#202021";
   const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
+  const g = parseInt(hex.slice(1 + 2, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? "#202021" : "#ffffff";
 }
 
 export function BusinessPagePreview({ form, products, logoUrl, isFullPage }) {
-  const bg   = BG_COLOURS.find((c) => c.value === form.bgColour) || BG_COLOURS[0];
+  const bg   = resolveBackgroundTheme(form.bgColour);
   const font = FONTS.find((f) => f.value === form.font) || FONTS[0];
   const message = `Hi ${form.name || "there"}, I'm interested in your products/services on VulaTrade.`;
   const whatsappUrl = form.whatsapp
@@ -21,8 +21,8 @@ export function BusinessPagePreview({ form, products, logoUrl, isFullPage }) {
     : "#";
   const activeProducts = products.filter((p) => p.is_active !== false);
   const accentText = readableTextOn(bg.accent);
-  const mutedText = bg.text === "#ffffff" ? "rgba(255,255,255,0.68)" : "rgba(0,0,0,0.58)";
-  const faintText = bg.text === "#ffffff" ? "rgba(255,255,255,0.52)" : "rgba(0,0,0,0.44)";
+  const mutedText = bg.text === "#ffffff" ? "rgba(255,255,255,0.72)" : "rgba(0,0,0,0.58)";
+  const faintText = bg.text === "#ffffff" ? "rgba(255,255,255,0.56)" : "rgba(0,0,0,0.44)";
   const displayDescription = businessDescriptionOrDefault(form.description, form.category);
 
   if (font.import) injectFont(font.import);
@@ -31,8 +31,8 @@ export function BusinessPagePreview({ form, products, logoUrl, isFullPage }) {
     <div style={{ background:"#fbfbfb", borderRadius:isFullPage?"0":"30px", overflow:"hidden", width:isFullPage?"100%":"330px", maxWidth:isFullPage?"560px":"330px", boxShadow:isFullPage?"none":"0 24px 64px rgba(0,0,0,0.25)", fontFamily: font.value + ", 'Inter', sans-serif" }}>
 
       {/* Header */}
-      <div style={{ background:bg.value, padding:"24px 20px 22px", borderBottomLeftRadius:"24px", borderBottomRightRadius:"24px" }}>
-        <div style={{ display:"inline-flex", alignItems:"center", gap:"6px", background:bg.text === "#ffffff" ? "rgba(255,255,255,0.09)" : "rgba(0,0,0,0.06)", border:`1px solid ${bg.accent}66`, color:bg.accent, borderRadius:"999px", padding:"6px 10px", fontSize:"9px", fontWeight:800, letterSpacing:"0.07em", textTransform:"uppercase", marginBottom:"16px" }}>
+      <div style={{ ...backgroundStyleForTheme(bg), padding:"24px 20px 22px", borderBottomLeftRadius:"24px", borderBottomRightRadius:"24px" }}>
+        <div style={{ display:"inline-flex", alignItems:"center", gap:"6px", background:bg.text === "#ffffff" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.06)", border:`1px solid ${bg.accent}66`, color:bg.accent, borderRadius:"999px", padding:"6px 10px", fontSize:"9px", fontWeight:800, letterSpacing:"0.07em", textTransform:"uppercase", marginBottom:"16px", backdropFilter:bg.isCustomPhoto?"blur(6px)":"none" }}>
           <span style={{ width:"5px", height:"5px", borderRadius:"50%", background:bg.accent }} />
           Open for enquiries
         </div>
@@ -40,19 +40,19 @@ export function BusinessPagePreview({ form, products, logoUrl, isFullPage }) {
           {logoUrl ? (
             <img src={logoUrl} alt="logo" style={{ width:"64px", height:"64px", borderRadius:"18px", objectFit:"cover", border:`2px solid ${bg.accent}`, boxShadow:"0 12px 28px rgba(0,0,0,0.18)" }} />
           ) : (
-            <div style={{ width:"64px", height:"64px", borderRadius:"18px", background:bg.text === "#ffffff" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)", border:`2px solid ${bg.accent}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"30px" }}>
+            <div style={{ width:"64px", height:"64px", borderRadius:"18px", background:bg.text === "#ffffff" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.06)", border:`2px solid ${bg.accent}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"30px", backdropFilter:bg.isCustomPhoto?"blur(6px)":"none" }}>
               {form.icon || "⭐"}
             </div>
           )}
           <div>
-            <div style={{ fontSize:"25px", fontWeight:900, color:bg.text, lineHeight:1.02, letterSpacing:"0" }}>{form.name || "Your Business Name"}</div>
-            <div style={{ fontSize:"11px", color:faintText, marginTop:"6px", fontWeight:700 }}>
+            <div style={{ fontSize:"25px", fontWeight:900, color:bg.text, lineHeight:1.02, letterSpacing:"0", textShadow:bg.isCustomPhoto?"0 2px 12px rgba(0,0,0,0.35)":"none" }}>{form.name || "Your Business Name"}</div>
+            <div style={{ fontSize:"11px", color:faintText, marginTop:"6px", fontWeight:700, textShadow:bg.isCustomPhoto?"0 1px 8px rgba(0,0,0,0.28)":"none" }}>
               {form.category || "Business type"}{form.area ? ` · ${form.area}` : ""}
             </div>
           </div>
         </div>
         {displayDescription && (
-          <div style={{ fontSize:"12px", color:mutedText, lineHeight:1.65, marginBottom:"14px" }}>
+          <div style={{ fontSize:"12px", color:mutedText, lineHeight:1.65, marginBottom:"14px", textShadow:bg.isCustomPhoto?"0 1px 8px rgba(0,0,0,0.28)":"none" }}>
             {displayDescription}
           </div>
         )}
