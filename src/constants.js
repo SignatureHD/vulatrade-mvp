@@ -39,9 +39,6 @@ export const PILOT_UNLOCK_ALL_VISUALS = true;
 export function isPlanLocked(requiredPlan) { return PILOT_UNLOCK_ALL_VISUALS ? false : PLAN_RANK[USER_PLAN] < PLAN_RANK[requiredPlan]; }
 export function planLabel(plan) { if (plan === "starter") return "Starter"; if (plan === "pro") return "Pro"; return ""; }
 
-const photoBackground = (imageUrl, overlay = "rgba(32,32,33,0.38)") =>
-  `linear-gradient(135deg, ${overlay}, rgba(32,32,33,0.18)), url("${imageUrl}") center / cover no-repeat`;
-
 export const BG_COLOURS = [
   { name: "Vula Pink", value: PINK, text: "#ffffff", accent: SOFT_PINK, plan: "free" },
   { name: "Charcoal", value: "#111214", text: "#ffffff", accent: PINK, plan: "free" },
@@ -54,39 +51,109 @@ export const BG_COLOURS = [
   { name: "Soft Waves", value: "radial-gradient(circle at 0% 0%, rgba(234,76,137,0.25), transparent 32%), radial-gradient(circle at 100% 20%, rgba(248,184,210,0.34), transparent 28%), #fffafc", text: DARK, accent: PINK, plan: "starter" },
   { name: "Diagonal Lines", value: "repeating-linear-gradient(135deg, rgba(234,76,137,0.13) 0 8px, rgba(255,255,255,0.92) 8px 18px), #ffffff", text: DARK, accent: PINK, plan: "pro" },
   { name: "Soft Texture", value: "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.22), transparent 18%), radial-gradient(circle at 80% 0%, rgba(234,76,137,0.18), transparent 22%), linear-gradient(135deg, #202021 0%, #2c2230 100%)", text: "#ffffff", accent: LIGHT_PINK_BORDER, plan: "pro" },
-  {
-    id: "salon-photo",
-    name: "Salon Photo",
-    value: photoBackground("https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1200&q=80"),
-    text: "#ffffff",
-    accent: LIGHT_PINK_BORDER,
-    plan: "pro",
-  },
-  {
-    id: "food-photo",
-    name: "Food Photo",
-    value: photoBackground("https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80", "rgba(32,32,33,0.34)"),
-    text: "#ffffff",
-    accent: "#ffd7a8",
-    plan: "pro",
-  },
-  {
-    id: "street-photo",
-    name: "Street Photo",
-    value: photoBackground("https://images.unsplash.com/photo-1449824913935-59a10b8d2000?auto=format&fit=crop&w=1200&q=80", "rgba(32,32,33,0.42)"),
-    text: "#ffffff",
-    accent: "#d9e9ff",
-    plan: "pro",
-  },
-  {
-    id: "fashion-photo",
-    name: "Fashion Photo",
-    value: photoBackground("https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=1200&q=80", "rgba(32,32,33,0.36)"),
-    text: "#ffffff",
-    accent: "#f6d6c8",
-    plan: "pro",
-  },
 ];
+
+export const CUSTOM_BACKGROUND_OVERLAYS = [
+  { value: "light", label: "Light", alpha: 0.28 },
+  { value: "medium", label: "Medium", alpha: 0.46 },
+  { value: "dark", label: "Dark", alpha: 0.62 },
+];
+
+export const CUSTOM_BACKGROUND_POSITIONS = [
+  { value: "center", label: "Centre", css: "center center" },
+  { value: "top", label: "Top", css: "center top" },
+  { value: "bottom", label: "Bottom", css: "center bottom" },
+];
+
+export const CUSTOM_BACKGROUND_ZOOMS = [
+  { value: "normal", label: "Normal", css: "cover" },
+  { value: "zoomed", label: "Zoomed", css: "115% auto" },
+  { value: "close", label: "Close-up", css: "135% auto" },
+];
+
+export const CUSTOM_TEXT_COLOURS = [
+  { value: "white", label: "White", css: "#ffffff" },
+  { value: "charcoal", label: "Charcoal", css: DARK },
+  { value: "grey", label: "Soft Grey", css: "#e7e7e7" },
+  { value: "cream", label: "Cream", css: "#fff1d6" },
+  { value: "pink", label: "Vula Pink", css: PINK },
+];
+
+export const CUSTOM_BACKGROUND_DEFAULTS = {
+  type: "custom-photo",
+  url: "",
+  overlay: "medium",
+  position: "center",
+  zoom: "normal",
+  textColour: "white",
+};
+
+export function isCustomBackgroundTheme(value) {
+  if (!value || typeof value !== "string") return false;
+  try {
+    return JSON.parse(value)?.type === "custom-photo";
+  } catch {
+    return false;
+  }
+}
+
+export function parseCustomBackgroundTheme(value) {
+  if (!isCustomBackgroundTheme(value)) return { ...CUSTOM_BACKGROUND_DEFAULTS };
+  try {
+    const parsed = JSON.parse(value);
+    return { ...CUSTOM_BACKGROUND_DEFAULTS, ...parsed };
+  } catch {
+    return { ...CUSTOM_BACKGROUND_DEFAULTS };
+  }
+}
+
+export function createCustomBackgroundThemeValue(settings = {}) {
+  const clean = { ...CUSTOM_BACKGROUND_DEFAULTS, ...settings, type: "custom-photo" };
+  return JSON.stringify(clean);
+}
+
+export function resolveBackgroundTheme(savedTheme, fallbackAccent = PINK) {
+  const custom = parseCustomBackgroundTheme(savedTheme);
+  if (custom.url) {
+    const overlay = CUSTOM_BACKGROUND_OVERLAYS.find((item) => item.value === custom.overlay) || CUSTOM_BACKGROUND_OVERLAYS[1];
+    const position = CUSTOM_BACKGROUND_POSITIONS.find((item) => item.value === custom.position) || CUSTOM_BACKGROUND_POSITIONS[0];
+    const zoom = CUSTOM_BACKGROUND_ZOOMS.find((item) => item.value === custom.zoom) || CUSTOM_BACKGROUND_ZOOMS[0];
+    const textColour = CUSTOM_TEXT_COLOURS.find((item) => item.value === custom.textColour) || CUSTOM_TEXT_COLOURS[0];
+    const shade = `rgba(0,0,0,${overlay.alpha})`;
+    return {
+      name: "Custom Photo",
+      value: shade,
+      text: textColour.css,
+      accent: fallbackAccent,
+      isCustomPhoto: true,
+      backgroundImage: `linear-gradient(135deg, ${shade}, ${shade}), url("${custom.url}")`,
+      backgroundPosition: position.css,
+      backgroundSize: zoom.css,
+      backgroundRepeat: "no-repeat",
+    };
+  }
+
+  const savedLower = typeof savedTheme === "string" ? savedTheme.toLowerCase() : "";
+  const matched = BG_COLOURS.find((c) => c.value === savedTheme || c.name.toLowerCase() === savedLower);
+  if (matched) return matched;
+  if (savedTheme && typeof savedTheme === "string" && savedTheme.startsWith("#")) {
+    return { value: DARK, text: "#ffffff", accent: savedTheme };
+  }
+  return { value: DARK, text: "#ffffff", accent: fallbackAccent };
+}
+
+export function backgroundStyleForTheme(theme) {
+  if (theme?.isCustomPhoto) {
+    return {
+      backgroundColor: DARK,
+      backgroundImage: theme.backgroundImage,
+      backgroundPosition: theme.backgroundPosition,
+      backgroundSize: theme.backgroundSize,
+      backgroundRepeat: theme.backgroundRepeat || "no-repeat",
+    };
+  }
+  return { background: theme?.value || DARK };
+}
 
 export const FONTS = [
   { name: "Clean", value: "Inter", label: "Inter", sample: "Aa", plan: "free", import: null },
