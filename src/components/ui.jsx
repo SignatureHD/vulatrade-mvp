@@ -64,6 +64,19 @@ function selectorButtonStyle(active) {
   };
 }
 
+function colourButtonStyle(active, css) {
+  return {
+    ...selectorButtonStyle(active),
+    display:"inline-flex",
+    alignItems:"center",
+    gap:"6px",
+  };
+}
+
+function ensureCustomTheme(value) {
+  return isCustomBackgroundTheme(value) ? parseCustomBackgroundTheme(value) : null;
+}
+
 function CustomBackgroundControls({ value, onChange }) {
   const fileRef = useRef(null);
   const [uploading, setUploading] = useState(false);
@@ -108,7 +121,8 @@ function CustomBackgroundControls({ value, onChange }) {
         overlay: settings.overlay || "medium",
         position: settings.position || "center",
         zoom: settings.zoom || "normal",
-        textColour: settings.textColour || "white",
+        headingTextColour: settings.headingTextColour || settings.textColour || "white",
+        descriptionTextColour: settings.descriptionTextColour || "grey",
       }));
     } catch (err) {
       console.error("Background upload error:", err);
@@ -173,12 +187,6 @@ function CustomBackgroundControls({ value, onChange }) {
               {CUSTOM_BACKGROUND_ZOOMS.map((item) => <button type="button" key={item.value} onClick={() => updateSetting("zoom", item.value)} style={selectorButtonStyle(settings.zoom === item.value)}>{item.label}</button>)}
             </div>
           </div>
-          <div>
-            <div style={{ fontSize:"11px", color:"#555", fontWeight:900, marginBottom:"7px" }}>Text colour</div>
-            <div style={{ display:"flex", gap:"7px", flexWrap:"wrap" }}>
-              {CUSTOM_TEXT_COLOURS.map((item) => <button type="button" key={item.value} onClick={() => updateSetting("textColour", item.value)} style={{ ...selectorButtonStyle(settings.textColour === item.value), display:"inline-flex", alignItems:"center", gap:"6px" }}><span style={{ width:"10px", height:"10px", borderRadius:"50%", background:item.css, border:"1px solid #d8d8d4" }} />{item.label}</button>)}
-            </div>
-          </div>
         </div>
       )}
     </div>
@@ -239,6 +247,48 @@ export function ColourPicker({ value, onChange, onViewPlans }) {
         Pilot mode: all Starter and Pro colours, patterns and custom photo backgrounds are unlocked for testing.
       </div>
       {nudgePlan && <UpgradeNudge plan={nudgePlan} onViewPlans={() => { setNudgePlan(null); onViewPlans(); }} />}
+    </div>
+  );
+}
+
+export function TextColourPicker({ value, onChange }) {
+  const settings = ensureCustomTheme(value);
+  const hasCustomPhoto = Boolean(settings?.url);
+
+  function updateTheme(field, nextValue) {
+    if (!settings) return;
+    onChange(createCustomBackgroundThemeValue({ ...settings, [field]: nextValue }));
+  }
+
+  if (!hasCustomPhoto) {
+    return (
+      <div style={{ marginTop:"12px", background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"14px", padding:"12px", fontSize:"12px", color:"#888", lineHeight:1.45 }}>
+        Text colour controls appear after you upload a custom background photo.
+      </div>
+    );
+  }
+
+  const headingValue = settings.headingTextColour || settings.textColour || "white";
+  const descriptionValue = settings.descriptionTextColour || "grey";
+
+  return (
+    <div style={{ marginTop:"14px", background:"#fff", border:"1.5px solid #eeeeea", borderRadius:"16px", padding:"14px" }}>
+      <div style={{ fontSize:"13px", color:DARK, fontWeight:900, marginBottom:"4px" }}>Page text colours</div>
+      <div style={{ fontSize:"11px", color:"#888", lineHeight:1.45, marginBottom:"12px" }}>Choose separate colours for the business name and description.</div>
+      <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
+        <div>
+          <div style={{ fontSize:"11px", color:"#555", fontWeight:900, marginBottom:"7px" }}>Business heading colour</div>
+          <div style={{ display:"flex", gap:"7px", flexWrap:"wrap" }}>
+            {CUSTOM_TEXT_COLOURS.map((item) => <button type="button" key={item.value} onClick={() => updateTheme("headingTextColour", item.value)} style={colourButtonStyle(headingValue === item.value, item.css)}><span style={{ width:"10px", height:"10px", borderRadius:"50%", background:item.css, border:"1px solid #d8d8d4" }} />{item.label}</button>)}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize:"11px", color:"#555", fontWeight:900, marginBottom:"7px" }}>Description colour</div>
+          <div style={{ display:"flex", gap:"7px", flexWrap:"wrap" }}>
+            {CUSTOM_TEXT_COLOURS.map((item) => <button type="button" key={item.value} onClick={() => updateTheme("descriptionTextColour", item.value)} style={colourButtonStyle(descriptionValue === item.value, item.css)}><span style={{ width:"10px", height:"10px", borderRadius:"50%", background:item.css, border:"1px solid #d8d8d4" }} />{item.label}</button>)}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
