@@ -157,8 +157,8 @@ export function backgroundStyleForTheme(theme) {
 
 export const FONTS = [
   { name: "Clean", value: "Inter", label: "Inter", sample: "Aa", plan: "free", import: null },
-  { name: "Friendly", value: "'DM Sans'", label: "DM Sans", sample: "Aa", plan: "starter", import: null },
-  { name: "Elegant", value: "'Playfair Display'", label: "Playfair Display", sample: "Aa", plan: "pro", import: null },
+  { name: "Friendly", value: "'DM Sans'", label: "DM Sans", sample: "Aa", plan: "starter", import: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800;900&display=swap" },
+  { name: "Elegant", value: "'Playfair Display'", label: "Playfair Display", sample: "Aa", plan: "pro", import: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800;900&display=swap" },
 ];
 
 export const CATEGORIES = [
