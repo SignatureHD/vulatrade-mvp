@@ -64,7 +64,7 @@ function selectorButtonStyle(active) {
   };
 }
 
-function colourButtonStyle(active, css) {
+function colourButtonStyle(active) {
   return {
     ...selectorButtonStyle(active),
     display:"inline-flex",
@@ -197,6 +197,10 @@ function CustomBackgroundControls({ value, onChange }) {
 export function ColourPicker({ value, onChange, onViewPlans }) {
   const [nudgePlan, setNudgePlan] = useState(null);
 
+  if (typeof window !== "undefined") {
+    window.__vulaPageTextColourControl = { value, onChange };
+  }
+
   function handleClick(colour) {
     if (isPlanLocked(colour.plan)) {
       setNudgePlan(nudgePlan === colour.plan ? null : colour.plan);
@@ -279,13 +283,13 @@ export function TextColourPicker({ value, onChange }) {
         <div>
           <div style={{ fontSize:"11px", color:"#555", fontWeight:900, marginBottom:"7px" }}>Business heading colour</div>
           <div style={{ display:"flex", gap:"7px", flexWrap:"wrap" }}>
-            {CUSTOM_TEXT_COLOURS.map((item) => <button type="button" key={item.value} onClick={() => updateTheme("headingTextColour", item.value)} style={colourButtonStyle(headingValue === item.value, item.css)}><span style={{ width:"10px", height:"10px", borderRadius:"50%", background:item.css, border:"1px solid #d8d8d4" }} />{item.label}</button>)}
+            {CUSTOM_TEXT_COLOURS.map((item) => <button type="button" key={item.value} onClick={() => updateTheme("headingTextColour", item.value)} style={colourButtonStyle(headingValue === item.value)}><span style={{ width:"10px", height:"10px", borderRadius:"50%", background:item.css, border:"1px solid #d8d8d4" }} />{item.label}</button>)}
           </div>
         </div>
         <div>
           <div style={{ fontSize:"11px", color:"#555", fontWeight:900, marginBottom:"7px" }}>Description colour</div>
           <div style={{ display:"flex", gap:"7px", flexWrap:"wrap" }}>
-            {CUSTOM_TEXT_COLOURS.map((item) => <button type="button" key={item.value} onClick={() => updateTheme("descriptionTextColour", item.value)} style={colourButtonStyle(descriptionValue === item.value, item.css)}><span style={{ width:"10px", height:"10px", borderRadius:"50%", background:item.css, border:"1px solid #d8d8d4" }} />{item.label}</button>)}
+            {CUSTOM_TEXT_COLOURS.map((item) => <button type="button" key={item.value} onClick={() => updateTheme("descriptionTextColour", item.value)} style={colourButtonStyle(descriptionValue === item.value)}><span style={{ width:"10px", height:"10px", borderRadius:"50%", background:item.css, border:"1px solid #d8d8d4" }} />{item.label}</button>)}
           </div>
         </div>
       </div>
@@ -296,6 +300,7 @@ export function TextColourPicker({ value, onChange }) {
 // ── FONT PICKER ────────────────────────────────────────────
 export function FontPicker({ value, onChange, onViewPlans }) {
   const [nudgePlan, setNudgePlan] = useState(null);
+  const textColourControl = typeof window !== "undefined" ? window.__vulaPageTextColourControl : null;
 
   function handleClick(font) {
     if (isPlanLocked(font.plan)) {
@@ -347,6 +352,7 @@ export function FontPicker({ value, onChange, onViewPlans }) {
           );
         })}
       </div>
+      {textColourControl && <TextColourPicker value={textColourControl.value} onChange={textColourControl.onChange} />}
       {nudgePlan && <UpgradeNudge plan={nudgePlan} onViewPlans={() => { setNudgePlan(null); onViewPlans(); }} />}
     </div>
   );
