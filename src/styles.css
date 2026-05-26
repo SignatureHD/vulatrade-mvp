@@ -46,6 +46,17 @@
   }
 }
 
+@media (min-width: 768px) {
+  #setup-preview-panel {
+    position: sticky !important;
+    top: 88px !important;
+    align-self: flex-start !important;
+    max-height: calc(100vh - 104px) !important;
+    overflow: visible !important;
+    z-index: 6 !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
