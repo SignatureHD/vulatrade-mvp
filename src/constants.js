@@ -61,8 +61,8 @@ export const CUSTOM_BACKGROUND_OVERLAYS = [
 
 export const CUSTOM_BACKGROUND_POSITIONS = [
   { value: "center", label: "Centre", css: "center center" },
-  { value: "top", label: "Top", css: "center top" },
-  { value: "bottom", label: "Bottom", css: "center bottom" },
+  { value: "top", label: "Top", css: "center bottom" },
+  { value: "bottom", label: "Bottom", css: "center top" },
 ];
 
 export const CUSTOM_BACKGROUND_ZOOMS = [
