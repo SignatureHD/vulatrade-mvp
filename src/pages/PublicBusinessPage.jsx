@@ -228,9 +228,11 @@ export default function PublicBusinessPage({ slug }) {
   const activeProducts = products.filter((p) => p.is_active !== false);
   const pageTheme = resolvePageTheme(business);
   const accentText = readableTextOn(pageTheme.accent);
-  const mutedHeaderText = pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.70)" : "rgba(0,0,0,0.58)";
-  const faintHeaderText = pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.56)" : "rgba(0,0,0,0.45)";
-  const logoCardBg = pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)";
+  const headingHeaderText = pageTheme.headingText || pageTheme.text;
+  const mutedHeaderText = pageTheme.descriptionText || (pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.70)" : "rgba(0,0,0,0.58)");
+  const faintHeaderText = pageTheme.metaText || (pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.56)" : "rgba(0,0,0,0.45)");
+  const headerBaseText = headingHeaderText === "#ffffff" ? "#ffffff" : pageTheme.text;
+  const logoCardBg = headerBaseText === "#ffffff" ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)";
   const heroGlow = `${pageTheme.accent}24`;
   const displayDescription = businessDescriptionOrDefault(business.description, business.category);
   const customTextShadow = pageTheme.isCustomPhoto ? "0 2px 14px rgba(0,0,0,0.35)" : "none";
@@ -240,23 +242,23 @@ export default function PublicBusinessPage({ slug }) {
     <main style={{ minHeight: "100vh", background: "linear-gradient(180deg, #fbfbfb 0%, #f8f8f8 46%, #ffffff 100%)", fontFamily: "'Inter', -apple-system, sans-serif", color: DARK, padding: "18px" }}>
       <style>{`@keyframes reviewSlideIn { from { opacity: 0; transform: translateX(38px); } to { opacity: 1; transform: translateX(0); } }.review-slide-card { animation: reviewSlideIn 420ms ease both; }.product-card-clickable:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(15,23,42,0.07); }`}</style>
       <div style={{ width: "100%", maxWidth: "760px", margin: "0 auto" }}>
-        <section style={{ position: "relative", overflow: "hidden", ...backgroundStyleForTheme(pageTheme), color: pageTheme.text, padding: "26px 22px 24px", borderRadius: "34px", boxShadow: "0 22px 70px rgba(32,32,33,0.14)" }}>
+        <section style={{ position: "relative", overflow: "hidden", ...backgroundStyleForTheme(pageTheme), color: headingHeaderText, padding: "26px 22px 24px", borderRadius: "34px", boxShadow: "0 22px 70px rgba(32,32,33,0.14)" }}>
           <div style={{ position: "absolute", inset: "-40% -25% auto auto", width: "220px", height: "220px", borderRadius: "50%", background: heroGlow, filter: "blur(4px)" }} />
           <div style={{ position: "relative" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.11)" : "rgba(0,0,0,0.06)", border: `1px solid ${pageTheme.accent}66`, color: pageTheme.accent, borderRadius: "999px", padding: "7px 11px", fontSize: "11px", fontWeight: 850, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "22px", backdropFilter: softPanelBlur }}><span style={{ width: "6px", height: "6px", borderRadius: "50%", background: pageTheme.accent }} />Open for enquiries</div>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: headerBaseText === "#ffffff" ? "rgba(255,255,255,0.11)" : "rgba(0,0,0,0.06)", border: `1px solid ${pageTheme.accent}66`, color: pageTheme.accent, borderRadius: "999px", padding: "7px 11px", fontSize: "11px", fontWeight: 850, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "22px", backdropFilter: softPanelBlur }}><span style={{ width: "6px", height: "6px", borderRadius: "50%", background: pageTheme.accent }} />Open for enquiries</div>
             <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "18px" }}>
               {logoUrl ? <img src={logoUrl} alt={`${business.name} logo`} style={{ width: "84px", height: "84px", borderRadius: "24px", objectFit: "cover", border: `2px solid ${pageTheme.accent}`, boxShadow: "0 14px 36px rgba(0,0,0,0.22)" }} /> : <div style={{ width: "84px", height: "84px", borderRadius: "24px", background: logoCardBg, border: `2px solid ${pageTheme.accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "38px", boxShadow: "0 14px 36px rgba(0,0,0,0.16)", backdropFilter: softPanelBlur }}>{business.background_style || "⭐"}</div>}
               <div style={{ minWidth: 0 }}>
-                <h1 style={{ fontSize: "clamp(34px, 7vw, 54px)", lineHeight: 0.95, margin: "0 0 10px", fontWeight: 950, letterSpacing: "0", textShadow: customTextShadow }}>{business.name}</h1>
+                <h1 style={{ fontSize: "clamp(34px, 7vw, 54px)", lineHeight: 0.95, margin: "0 0 10px", fontWeight: 950, letterSpacing: "0", color: headingHeaderText, textShadow: customTextShadow }}>{business.name}</h1>
                 <p style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: "6px", margin: 0, fontSize: "13px", color: faintHeaderText, fontWeight: 750, textShadow: customTextShadow }}><span>{business.category || "Local business"}</span>{business.area && <span style={{ opacity: 0.55 }}>•</span>}{business.area && <span>{business.area}</span>}</p>
               </div>
             </div>
             {displayDescription && <p style={{ fontSize: "16px", lineHeight: 1.7, color: mutedHeaderText, margin: "0 0 22px", maxWidth: "620px", textShadow: customTextShadow }}>{displayDescription}</p>}
             <div style={{ display: "grid", gridTemplateColumns: business.whatsapp && phone ? "1fr auto" : "1fr", gap: "10px", alignItems: "stretch" }}>
               {business.whatsapp && <a href={whatsappLink(business.whatsapp, business.name)} target="_blank" rel="noopener noreferrer" style={{ textAlign: "center", background: pageTheme.accent, color: accentText, borderRadius: "16px", padding: "15px 18px", fontSize: "15px", fontWeight: 950, textDecoration: "none", boxShadow: `0 12px 30px ${pageTheme.accent}36` }}>Enquire on WhatsApp</a>}
-              {phone && <a href={`tel:${phone.replace(/\s/g, "")}`} style={{ textAlign: "center", background: pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)", color: pageTheme.accent, border: `1.5px solid ${pageTheme.accent}`, borderRadius: "16px", padding: "14px 18px", fontSize: "15px", fontWeight: 850, textDecoration: "none", minWidth: "92px", backdropFilter: softPanelBlur }}>Call</a>}
+              {phone && <a href={`tel:${phone.replace(/\s/g, "")}`} style={{ textAlign: "center", background: headerBaseText === "#ffffff" ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)", color: pageTheme.accent, border: `1.5px solid ${pageTheme.accent}`, borderRadius: "16px", padding: "14px 18px", fontSize: "15px", fontWeight: 850, textDecoration: "none", minWidth: "92px", backdropFilter: softPanelBlur }}>Call</a>}
             </div>
-            {links.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "14px" }}>{links.map((link) => <a key={link.label} href={normaliseUrl(link.url)} target="_blank" rel="noopener noreferrer" style={{ background: pageTheme.text === "#ffffff" ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)", border: `1px solid ${pageTheme.accent}55`, borderRadius: "999px", padding: "8px 12px", fontSize: "12px", fontWeight: 850, color: pageTheme.text, textDecoration: "none", backdropFilter: softPanelBlur }}>{link.label}</a>)}</div>}
+            {links.length > 0 && <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "14px" }}>{links.map((link) => <a key={link.label} href={normaliseUrl(link.url)} target="_blank" rel="noopener noreferrer" style={{ background: headerBaseText === "#ffffff" ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.05)", border: `1px solid ${pageTheme.accent}55`, borderRadius: "999px", padding: "8px 12px", fontSize: "12px", fontWeight: 850, color: headingHeaderText, textDecoration: "none", backdropFilter: softPanelBlur }}>{link.label}</a>)}</div>}
           </div>
         </section>
 
