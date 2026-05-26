@@ -39,6 +39,9 @@ export const PILOT_UNLOCK_ALL_VISUALS = true;
 export function isPlanLocked(requiredPlan) { return PILOT_UNLOCK_ALL_VISUALS ? false : PLAN_RANK[USER_PLAN] < PLAN_RANK[requiredPlan]; }
 export function planLabel(plan) { if (plan === "starter") return "Starter"; if (plan === "pro") return "Pro"; return ""; }
 
+const photoBackground = (imageUrl, overlay = "rgba(32,32,33,0.38)") =>
+  `linear-gradient(135deg, ${overlay}, rgba(32,32,33,0.18)), url("${imageUrl}") center / cover no-repeat`;
+
 export const BG_COLOURS = [
   { name: "Vula Pink", value: PINK, text: "#ffffff", accent: SOFT_PINK, plan: "free" },
   { name: "Charcoal", value: "#111214", text: "#ffffff", accent: PINK, plan: "free" },
@@ -51,6 +54,38 @@ export const BG_COLOURS = [
   { name: "Soft Waves", value: "radial-gradient(circle at 0% 0%, rgba(234,76,137,0.25), transparent 32%), radial-gradient(circle at 100% 20%, rgba(248,184,210,0.34), transparent 28%), #fffafc", text: DARK, accent: PINK, plan: "starter" },
   { name: "Diagonal Lines", value: "repeating-linear-gradient(135deg, rgba(234,76,137,0.13) 0 8px, rgba(255,255,255,0.92) 8px 18px), #ffffff", text: DARK, accent: PINK, plan: "pro" },
   { name: "Soft Texture", value: "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.22), transparent 18%), radial-gradient(circle at 80% 0%, rgba(234,76,137,0.18), transparent 22%), linear-gradient(135deg, #202021 0%, #2c2230 100%)", text: "#ffffff", accent: LIGHT_PINK_BORDER, plan: "pro" },
+  {
+    id: "salon-photo",
+    name: "Salon Photo",
+    value: photoBackground("https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1200&q=80"),
+    text: "#ffffff",
+    accent: LIGHT_PINK_BORDER,
+    plan: "pro",
+  },
+  {
+    id: "food-photo",
+    name: "Food Photo",
+    value: photoBackground("https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80", "rgba(32,32,33,0.34)"),
+    text: "#ffffff",
+    accent: "#ffd7a8",
+    plan: "pro",
+  },
+  {
+    id: "street-photo",
+    name: "Street Photo",
+    value: photoBackground("https://images.unsplash.com/photo-1449824913935-59a10b8d2000?auto=format&fit=crop&w=1200&q=80", "rgba(32,32,33,0.42)"),
+    text: "#ffffff",
+    accent: "#d9e9ff",
+    plan: "pro",
+  },
+  {
+    id: "fashion-photo",
+    name: "Fashion Photo",
+    value: photoBackground("https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&w=1200&q=80", "rgba(32,32,33,0.36)"),
+    text: "#ffffff",
+    accent: "#f6d6c8",
+    plan: "pro",
+  },
 ];
 
 export const FONTS = [
