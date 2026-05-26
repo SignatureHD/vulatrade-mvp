@@ -74,6 +74,20 @@ export const TEMPLATES = [
     ],
   },
   {
+    id: "fashion-clothing",
+    name: "Fashion & Clothing",
+    category: "Fashion & Clothing",
+    icon: "👗",
+    description: "Clothing, thrift, sneakers, accessories and outfit bundles.",
+    starter: "I sell clothing, fashion items, sneakers and accessories. Browse available items, ask for sizes, and order directly via WhatsApp. Collection and delivery options are available.",
+    products: [
+      { name: "Pre-loved clothing", price: 80,  description: "Affordable pre-loved clothing item", icon: "👕" },
+      { name: "Sneakers",           price: 250, description: "Fashion sneakers — ask for available sizes", icon: "👟" },
+      { name: "Outfit bundle",      price: 300, description: "Styled clothing bundle with matching items", icon: "🧥" },
+      { name: "Accessories",        price: 60,  description: "Bags, belts, jewellery or small fashion extras", icon: "👜" },
+    ],
+  },
+  {
     id: "cleaning",
     name: "Cleaning Service",
     category: "Cleaning",
