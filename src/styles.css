@@ -46,14 +46,25 @@
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 900px) {
+  #dashboard-main-content:has(#setup-preview-panel) {
+    padding-right: 430px !important;
+  }
+
   #setup-preview-panel {
-    position: sticky !important;
+    position: fixed !important;
     top: 88px !important;
-    align-self: flex-start !important;
+    right: 32px !important;
+    width: 360px !important;
     max-height: calc(100vh - 104px) !important;
     overflow: visible !important;
-    z-index: 6 !important;
+    z-index: 20 !important;
+  }
+}
+
+@media (max-width: 899px) {
+  #setup-preview-panel {
+    display: none !important;
   }
 }
 
