@@ -16,23 +16,15 @@ export function injectAllUnlockedFonts() {
   });
 }
 
-// ── IMAGE COMPRESSION ──────────────────────────────────────
-export async function compressImage(file) {
+function resizeImageFile(file, { maxWidth = 800, maxHeight = 800, quality = 0.8 } = {}) {
   return new Promise((resolve) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
-      const MAX = 800;
       let { width, height } = img;
-      if (width > MAX || height > MAX) {
-        if (width > height) {
-          height = Math.round((height * MAX) / width);
-          width = MAX;
-        } else {
-          width = Math.round((width * MAX) / height);
-          height = MAX;
-        }
-      }
+      const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
+      width = Math.round(width * ratio);
+      height = Math.round(height * ratio);
       const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
@@ -47,11 +39,24 @@ export async function compressImage(file) {
           );
         },
         "image/jpeg",
-        0.8
+        quality
       );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
     };
     img.src = url;
   });
+}
+
+// ── IMAGE COMPRESSION ──────────────────────────────────────
+export async function compressImage(file) {
+  return resizeImageFile(file, { maxWidth: 800, maxHeight: 800, quality: 0.8 });
+}
+
+export async function compressBackgroundImage(file) {
+  return resizeImageFile(file, { maxWidth: 1600, maxHeight: 900, quality: 0.78 });
 }
 
 // ── CUSTOMER HELPERS ───────────────────────────────────────
