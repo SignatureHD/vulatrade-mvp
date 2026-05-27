@@ -18,11 +18,7 @@ export default function ReviewSubmissionPage({ slug }) {
     let cancelled = false;
     async function loadBusiness() {
       setLoading(true);
-      const { data, error: loadError } = await supabase
-        .from("businesses")
-        .select("id,name,slug,category,area")
-        .eq("slug", slug)
-        .maybeSingle();
+      const { data, error: loadError } = await supabase.rpc("get_public_review_business", { input_slug: slug });
       if (cancelled) return;
       if (loadError) console.error("Review business load:", loadError);
       if (!data) {
@@ -44,18 +40,17 @@ export default function ReviewSubmissionPage({ slug }) {
 
   async function submitReview(event) {
     event.preventDefault();
-    if (!business?.id) return;
+    if (!business?.slug) return;
     if (!form.customer_name.trim()) { setError("Please add your name."); return; }
     if (!form.review_text.trim()) { setError("Please write a short review."); return; }
     setSaving(true);
     setError("");
-    const { error: saveError } = await supabase.from("reviews").insert([{
-      business_id: business.id,
-      customer_name: form.customer_name.trim(),
-      rating: Number(form.rating) || 5,
-      review_text: form.review_text.trim(),
-      approved: false,
-    }]);
+    const { error: saveError } = await supabase.rpc("submit_public_review", {
+      input_slug: business.slug,
+      input_customer_name: form.customer_name.trim(),
+      input_rating: Number(form.rating) || 5,
+      input_review_text: form.review_text.trim(),
+    });
     if (saveError) {
       console.error("Review save:", saveError);
       setError("Your review could not be saved. Please try again.");
