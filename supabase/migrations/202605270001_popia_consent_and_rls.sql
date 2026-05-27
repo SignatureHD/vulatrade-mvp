@@ -29,7 +29,6 @@ create index if not exists user_consents_user_version_idx
   on public.user_consents (user_id, consent_version, accepted_at desc);
 
 alter table public.user_consents enable row level security;
-
 revoke all on table public.user_consents from anon;
 revoke all on table public.user_consents from public;
 grant select, insert on table public.user_consents to authenticated;
@@ -51,8 +50,6 @@ create policy "Users can insert their own consent records"
 -- ─────────────────────────────────────────────────────────────
 -- 2) Enable RLS and authenticated API grants for private app tables
 -- ─────────────────────────────────────────────────────────────
--- These DO blocks let the migration run safely even if a table is not present yet.
-
 do $$
 begin
   if to_regclass('public.businesses') is not null then
@@ -83,6 +80,13 @@ begin
     grant select, insert, update, delete on table public.bookings to authenticated;
   end if;
 
+  if to_regclass('public.payments') is not null then
+    alter table public.payments enable row level security;
+    revoke all on table public.payments from anon;
+    revoke all on table public.payments from public;
+    grant select, insert, update, delete on table public.payments to authenticated;
+  end if;
+
   if to_regclass('public.sales') is not null then
     alter table public.sales enable row level security;
     revoke all on table public.sales from anon;
@@ -108,8 +112,6 @@ end $$;
 -- ─────────────────────────────────────────────────────────────
 -- 3) Owner-only policies
 -- ─────────────────────────────────────────────────────────────
--- Drop/recreate policy names used here so future edits stay predictable.
-
 do $$
 begin
   if to_regclass('public.businesses') is not null then
@@ -131,20 +133,8 @@ begin
       on public.products
       for all
       to authenticated
-      using (
-        exists (
-          select 1 from public.businesses b
-          where b.id = products.business_id
-          and b.user_id = auth.uid()
-        )
-      )
-      with check (
-        exists (
-          select 1 from public.businesses b
-          where b.id = products.business_id
-          and b.user_id = auth.uid()
-        )
-      );
+      using (exists (select 1 from public.businesses b where b.id = products.business_id and b.user_id = auth.uid()))
+      with check (exists (select 1 from public.businesses b where b.id = products.business_id and b.user_id = auth.uid()));
   end if;
 end $$;
 
@@ -156,20 +146,8 @@ begin
       on public.customers
       for all
       to authenticated
-      using (
-        exists (
-          select 1 from public.businesses b
-          where b.id = customers.business_id
-          and b.user_id = auth.uid()
-        )
-      )
-      with check (
-        exists (
-          select 1 from public.businesses b
-          where b.id = customers.business_id
-          and b.user_id = auth.uid()
-        )
-      );
+      using (exists (select 1 from public.businesses b where b.id = customers.business_id and b.user_id = auth.uid()))
+      with check (exists (select 1 from public.businesses b where b.id = customers.business_id and b.user_id = auth.uid()));
   end if;
 end $$;
 
@@ -181,20 +159,21 @@ begin
       on public.bookings
       for all
       to authenticated
-      using (
-        exists (
-          select 1 from public.businesses b
-          where b.id = bookings.business_id
-          and b.user_id = auth.uid()
-        )
-      )
-      with check (
-        exists (
-          select 1 from public.businesses b
-          where b.id = bookings.business_id
-          and b.user_id = auth.uid()
-        )
-      );
+      using (exists (select 1 from public.businesses b where b.id = bookings.business_id and b.user_id = auth.uid()))
+      with check (exists (select 1 from public.businesses b where b.id = bookings.business_id and b.user_id = auth.uid()));
+  end if;
+end $$;
+
+do $$
+begin
+  if to_regclass('public.payments') is not null and to_regclass('public.businesses') is not null then
+    drop policy if exists "Users can manage payments for their businesses" on public.payments;
+    create policy "Users can manage payments for their businesses"
+      on public.payments
+      for all
+      to authenticated
+      using (exists (select 1 from public.businesses b where b.id = payments.business_id and b.user_id = auth.uid()))
+      with check (exists (select 1 from public.businesses b where b.id = payments.business_id and b.user_id = auth.uid()));
   end if;
 end $$;
 
@@ -206,20 +185,8 @@ begin
       on public.sales
       for all
       to authenticated
-      using (
-        exists (
-          select 1 from public.businesses b
-          where b.id = sales.business_id
-          and b.user_id = auth.uid()
-        )
-      )
-      with check (
-        exists (
-          select 1 from public.businesses b
-          where b.id = sales.business_id
-          and b.user_id = auth.uid()
-        )
-      );
+      using (exists (select 1 from public.businesses b where b.id = sales.business_id and b.user_id = auth.uid()))
+      with check (exists (select 1 from public.businesses b where b.id = sales.business_id and b.user_id = auth.uid()));
   end if;
 end $$;
 
@@ -231,20 +198,8 @@ begin
       on public.expenses
       for all
       to authenticated
-      using (
-        exists (
-          select 1 from public.businesses b
-          where b.id = expenses.business_id
-          and b.user_id = auth.uid()
-        )
-      )
-      with check (
-        exists (
-          select 1 from public.businesses b
-          where b.id = expenses.business_id
-          and b.user_id = auth.uid()
-        )
-      );
+      using (exists (select 1 from public.businesses b where b.id = expenses.business_id and b.user_id = auth.uid()))
+      with check (exists (select 1 from public.businesses b where b.id = expenses.business_id and b.user_id = auth.uid()));
   end if;
 end $$;
 
@@ -256,29 +211,17 @@ begin
       on public.reviews
       for all
       to authenticated
-      using (
-        exists (
-          select 1 from public.businesses b
-          where b.id = reviews.business_id
-          and b.user_id = auth.uid()
-        )
-      )
-      with check (
-        exists (
-          select 1 from public.businesses b
-          where b.id = reviews.business_id
-          and b.user_id = auth.uid()
-        )
-      );
+      using (exists (select 1 from public.businesses b where b.id = reviews.business_id and b.user_id = auth.uid()))
+      with check (exists (select 1 from public.businesses b where b.id = reviews.business_id and b.user_id = auth.uid()));
   end if;
 end $$;
 
 -- ─────────────────────────────────────────────────────────────
--- 4) Safe anonymous public-page RPC
+-- 4) Safe anonymous public-page RPCs
 -- ─────────────────────────────────────────────────────────────
--- Public business pages need anonymous access, but not to raw private tables.
--- This function returns only safe public catalogue fields and keeps private
--- customer, sales, expense, booking and exact location data closed.
+-- Public pages need anonymous access, but not to raw private tables.
+-- These functions return only safe public fields and keep private customer,
+-- sales/payment, expense, booking and exact location data closed.
 
 create or replace function public.get_public_business_page(input_slug text)
 returns jsonb
@@ -287,7 +230,8 @@ security definer
 set search_path = public
 as $$
 declare
-  found_business public.businesses%rowtype;
+  business_json jsonb;
+  business_id uuid;
   safe_business jsonb;
   safe_products jsonb := '[]'::jsonb;
   safe_reviews jsonb := '[]'::jsonb;
@@ -296,44 +240,51 @@ begin
     return null;
   end if;
 
-  select * into found_business
-  from public.businesses
-  where slug = input_slug
+  select to_jsonb(b), b.id into business_json, business_id
+  from public.businesses b
+  where b.slug = input_slug
   limit 1;
 
-  if not found then
+  if business_json is null then
     return null;
   end if;
 
   safe_business := jsonb_strip_nulls(jsonb_build_object(
-    'id', found_business.id,
-    'name', found_business.name,
-    'slug', found_business.slug,
-    'category', found_business.category,
-    'area', found_business.area,
-    'location_label', found_business.location_label,
-    'delivery_radius_km', found_business.delivery_radius_km,
-    'description', found_business.description,
-    'whatsapp', found_business.whatsapp,
-    'phone', found_business.phone,
-    'catalogue', found_business.catalogue,
-    'background_style', found_business.background_style,
-    'theme', found_business.theme,
-    'instagram', found_business.instagram,
-    'instagram_url', found_business.instagram_url,
-    'facebook', found_business.facebook,
-    'facebook_url', found_business.facebook_url,
-    'tiktok', found_business.tiktok,
-    'tiktok_url', found_business.tiktok_url,
-    'website', found_business.website,
-    'website_url', found_business.website_url
+    'id', business_json->'id',
+    'name', business_json->'name',
+    'slug', business_json->'slug',
+    'category', business_json->'category',
+    'area', business_json->'area',
+    'location_label', business_json->'location_label',
+    'delivery_radius_km', business_json->'delivery_radius_km',
+    'description', business_json->'description',
+    'whatsapp', business_json->'whatsapp',
+    'phone', business_json->'phone',
+    'catalogue', business_json->'catalogue',
+    'logo_url', business_json->'logo_url',
+    'image_url', business_json->'image_url',
+    'background_style', business_json->'background_style',
+    'theme', business_json->'theme',
+    'instagram', business_json->'instagram',
+    'instagram_url', business_json->'instagram_url',
+    'facebook', business_json->'facebook',
+    'facebook_url', business_json->'facebook_url',
+    'tiktok', business_json->'tiktok',
+    'tiktok_url', business_json->'tiktok_url',
+    'website', business_json->'website',
+    'website_url', business_json->'website_url'
   ));
 
   if to_regclass('public.products') is not null then
-    select coalesce(jsonb_agg(to_jsonb(p) order by p.created_at), '[]'::jsonb)
-      into safe_products
+    select coalesce(
+      jsonb_agg(
+        (to_jsonb(p) - 'business_id' - 'user_id' - 'owner_id')
+        order by p.created_at
+      ),
+      '[]'::jsonb
+    ) into safe_products
     from public.products p
-    where p.business_id = found_business.id
+    where p.business_id = business_id
       and coalesce(p.is_active, true) = true;
   end if;
 
@@ -351,7 +302,7 @@ begin
       '[]'::jsonb
     ) into safe_reviews
     from public.reviews r
-    where r.business_id = found_business.id
+    where r.business_id = business_id
       and coalesce(r.approved, false) = true;
   end if;
 
@@ -365,6 +316,87 @@ $$;
 
 revoke all on function public.get_public_business_page(text) from public;
 grant execute on function public.get_public_business_page(text) to anon, authenticated;
+
+create or replace function public.get_public_review_business(input_slug text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  business_json jsonb;
+begin
+  if to_regclass('public.businesses') is null then
+    return null;
+  end if;
+
+  select jsonb_strip_nulls(jsonb_build_object(
+    'id', b.id,
+    'name', b.name,
+    'slug', b.slug,
+    'category', to_jsonb(b)->'category',
+    'area', to_jsonb(b)->'area'
+  )) into business_json
+  from public.businesses b
+  where b.slug = input_slug
+  limit 1;
+
+  return business_json;
+end;
+$$;
+
+revoke all on function public.get_public_review_business(text) from public;
+grant execute on function public.get_public_review_business(text) to anon, authenticated;
+
+create or replace function public.submit_public_review(
+  input_slug text,
+  input_customer_name text,
+  input_rating integer,
+  input_review_text text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  business_id uuid;
+  clean_name text := nullif(trim(input_customer_name), '');
+  clean_review text := nullif(trim(input_review_text), '');
+  safe_rating integer := greatest(1, least(5, coalesce(input_rating, 5)));
+  inserted_review public.reviews%rowtype;
+begin
+  if to_regclass('public.businesses') is null or to_regclass('public.reviews') is null then
+    raise exception 'Review submission is not available.';
+  end if;
+
+  if clean_name is null then
+    raise exception 'Customer name is required.';
+  end if;
+
+  if clean_review is null then
+    raise exception 'Review text is required.';
+  end if;
+
+  select b.id into business_id
+  from public.businesses b
+  where b.slug = input_slug
+  limit 1;
+
+  if business_id is null then
+    raise exception 'Business not found.';
+  end if;
+
+  insert into public.reviews (business_id, customer_name, rating, review_text, approved)
+  values (business_id, clean_name, safe_rating, clean_review, false)
+  returning * into inserted_review;
+
+  return jsonb_build_object('id', inserted_review.id, 'approved', inserted_review.approved);
+end;
+$$;
+
+revoke all on function public.submit_public_review(text, text, integer, text) from public;
+grant execute on function public.submit_public_review(text, text, integer, text) to anon, authenticated;
 
 -- Keep precise latitude/longitude private. Public pages should use area,
 -- location_label and delivery_radius_km only.
