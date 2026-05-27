@@ -258,10 +258,44 @@ export const proofItems = [
 ];
 
 export const footerLinks = [
-  { title: "Product", links: ["Business Page", "Sales Records", "Customer List", "Expenses", "Business File", "Pricing"] },
-  { title: "Business Types", links: ["Kasipreneurs", "Small Businesses", "Growing Businesses", "Enterprise"] },
-  { title: "Learn", links: ["Vula Academy", "Blog", "FAQs", "Support"] },
-  { title: "Company", links: ["About", "Contact", "Privacy Policy", "Terms"] },
+  {
+    title: "Product",
+    links: [
+      { label: "Business Page", href: "/business-page" },
+      { label: "Sales Records", href: "/record-sales" },
+      { label: "Customer List", href: "/manage-customers" },
+      { label: "Expenses", href: "/track-expenses" },
+      { label: "Business File", href: "/business-file" },
+      { label: "Pricing", href: "#pricing" },
+    ],
+  },
+  {
+    title: "Business Types",
+    links: [
+      { label: "Kasipreneurs", href: "/signup" },
+      { label: "Small Businesses", href: "/signup" },
+      { label: "Growing Businesses", href: "/signup" },
+      { label: "Enterprise", href: "#pricing" },
+    ],
+  },
+  {
+    title: "Learn",
+    links: [
+      { label: "Vula Academy", href: "/learn/academy" },
+      { label: "Blog", href: "/learn/blog" },
+      { label: "FAQs", href: "/faqs" },
+      { label: "Support", href: "/support" },
+    ],
+  },
+  {
+    title: "Company",
+    links: [
+      { label: "About", href: "/about" },
+      { label: "Contact", href: "/contact" },
+      { label: "Privacy Policy", href: "/privacy-policy" },
+      { label: "Terms", href: "/terms" },
+    ],
+  },
 ];
 
 export const valueIcons = [
