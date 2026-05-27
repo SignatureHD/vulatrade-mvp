@@ -1,18 +1,36 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { DARK, inputStyle } from "../constants";
 import { supabase } from "../lib/supabase";
 import { DEMO_PHONE_ERROR, normalizeSouthAfricanPhone } from "../utils/demoAccess";
 import Logo from "./Logo";
+
+const EMPTY_SIGNUP_CONSENT = {
+  terms_accepted: false,
+  privacy_accepted: false,
+  popia_accepted: false,
+  marketing_opt_in: false,
+  whatsapp_opt_in: false,
+};
 
 export function AuthScreen({ initialMode = "signin" }) {
   const [mode, setMode] = useState(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [demoPhone, setDemoPhone] = useState("");
+  const [signupConsent, setSignupConsent] = useState(EMPTY_SIGNUP_CONSENT);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [demoMessage, setDemoMessage] = useState("");
   const [demoError, setDemoError] = useState("");
+
+  const signupConsentComplete = useMemo(
+    () => signupConsent.terms_accepted && signupConsent.privacy_accepted && signupConsent.popia_accepted,
+    [signupConsent]
+  );
+
+  function toggleSignupConsent(field) {
+    setSignupConsent((prev) => ({ ...prev, [field]: !prev[field] }));
+  }
 
   async function handleSignIn() {
     setLoading(true); setMessage("");
@@ -22,9 +40,22 @@ export function AuthScreen({ initialMode = "signin" }) {
   }
 
   async function handleSignUp() {
-    setLoading(true); setMessage("");
+    setMessage("");
+
+    if (!signupConsentComplete) {
+      setMessage("Please accept the required Terms, Privacy Policy and POPIA consent before creating your account.");
+      return;
+    }
+
+    setLoading(true);
+    localStorage.setItem("vula_signup_consent", JSON.stringify(signupConsent));
+
     const { error } = await supabase.auth.signUp({ email, password });
-    if (error) { setMessage(error.message); } else { setMessage("Check your email to confirm your account."); }
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage("Check your email to confirm your account. Your consent choices will be saved when you first sign in.");
+    }
     setLoading(false);
   }
 
@@ -81,6 +112,20 @@ export function AuthScreen({ initialMode = "signin" }) {
     sessionStorage.setItem("vula_demo_phone_number", normalizedPhone);
     setDemoMessage("Demo access approved. Continue to VulaTrade.");
     setLoading(false);
+  }
+
+  function renderSignupConsent(field, label, required = false) {
+    return (
+      <label key={field} style={{ display:"flex", alignItems:"flex-start", gap:"9px", fontSize:"12px", color:DARK, lineHeight:1.45, cursor:"pointer" }}>
+        <input
+          type="checkbox"
+          checked={Boolean(signupConsent[field])}
+          onChange={() => toggleSignupConsent(field)}
+          style={{ width:"16px", height:"16px", marginTop:"1px", accentColor:"#ea4c89", flexShrink:0 }}
+        />
+        <span>{label} {required && <strong style={{ color:"#d93f7b" }}>*</strong>}</span>
+      </label>
+    );
   }
 
   return (
@@ -155,13 +200,24 @@ export function AuthScreen({ initialMode = "signin" }) {
         <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
           <input type="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
           <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={inputStyle} />
+
+          {mode === "signup" && (
+            <div style={{ background:"#fff5f9", border:"1px solid #f8b8d2", borderRadius:"14px", padding:"12px", display:"grid", gap:"9px" }}>
+              {renderSignupConsent("terms_accepted", "I accept the VulaTrade Terms of Use.", true)}
+              {renderSignupConsent("privacy_accepted", "I accept the VulaTrade Privacy Policy.", true)}
+              {renderSignupConsent("popia_accepted", "I consent to VulaTrade processing my personal information for account, business profile and support purposes in line with POPIA.", true)}
+              {renderSignupConsent("marketing_opt_in", "Send me optional VulaTrade marketing, tips and product updates.")}
+              {renderSignupConsent("whatsapp_opt_in", "Contact me on WhatsApp for optional onboarding support and VulaTrade updates.")}
+            </div>
+          )}
+
           {message && (
             <div style={{ fontSize:"13px", color:message.includes("Check")?"#d93f7b":"#cc3300", background:message.includes("Check")?"#fff5f9":"#fff0ee", padding:"10px 14px", borderRadius:"10px" }}>
               {message}
             </div>
           )}
-          <button onClick={mode==="signin" ? handleSignIn : handleSignUp} disabled={loading}
-            style={{ backgroundColor:"#ea4c89", color:"#fff", border:"none", borderRadius:"12px", padding:"14px", fontSize:"15px", fontWeight:800, cursor:loading?"not-allowed":"pointer", marginTop:"4px" }}>
+          <button onClick={mode==="signin" ? handleSignIn : handleSignUp} disabled={loading || (mode === "signup" && !signupConsentComplete)}
+            style={{ backgroundColor:(mode === "signup" && !signupConsentComplete) ? "#d4d7db" : "#ea4c89", color:"#fff", border:"none", borderRadius:"12px", padding:"14px", fontSize:"15px", fontWeight:800, cursor:loading || (mode === "signup" && !signupConsentComplete)?"not-allowed":"pointer", marginTop:"4px" }}>
             {loading ? "Please wait..." : mode==="signin" ? "Sign In" : "Create Account"}
           </button>
           <button onClick={() => { setMode(mode==="signin"?"signup":"signin"); setMessage(""); }}
