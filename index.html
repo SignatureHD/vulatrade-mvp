@@ -13,9 +13,29 @@
     <script type="module" src="/src/main.jsx"></script>
     <script>
       (function () {
-        var isPublicBusinessPage = window.location.pathname.startsWith('/b/');
+        var appRoutes = [
+          '/dashboard',
+          '/public-page',
+          '/setup',
+          '/location',
+          '/products',
+          '/customers',
+          '/messages',
+          '/bookings',
+          '/sales',
+          '/expenses',
+          '/reviews',
+          '/business-file',
+          '/vuke',
+          '/plans',
+          '/settings'
+        ];
 
-        if (isPublicBusinessPage) {
+        var shouldLoadChat = appRoutes.some(function (route) {
+          return window.location.pathname === route || window.location.pathname.startsWith(route + '/');
+        });
+
+        if (!shouldLoadChat) {
           return;
         }
 
