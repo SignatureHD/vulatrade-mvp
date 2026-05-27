@@ -5,6 +5,7 @@ import PublicBusinessPage from "./pages/PublicBusinessPage";
 import ReviewSubmissionPage from "./pages/ReviewSubmissionPage";
 import SolutionPage, { solutionRoutes } from "./pages/SolutionPage";
 import VulaAcademyPage from "./pages/VulaAcademyPage";
+import LegalPage from "./pages/LegalPage";
 
 function routeFromPath(pathname) {
   if (pathname === "/login") return { view: "dashboard", authMode: "signin", initialTab: "Dashboard" };
@@ -30,6 +31,9 @@ function routeFromPath(pathname) {
   if (pathname === "/growth") return { view: "dashboard", authMode: "signin", initialTab: "BusinessFile" };
   if (pathname === "/messages") return { view: "dashboard", authMode: "signin", initialTab: "Messages" };
   if (pathname === "/learn" || pathname === "/learn/academy" || pathname === "/learn/academy/start-with-r20") return { view: "academy" };
+  if (pathname === "/terms") return { view: "legal", legalType: "terms" };
+  if (pathname === "/privacy-policy" || pathname === "/privacy") return { view: "legal", legalType: "privacy" };
+  if (pathname === "/popia-consent") return { view: "legal", legalType: "popia" };
   if (solutionRoutes[pathname]) return { view: "solution", solutionKey: solutionRoutes[pathname], authMode: "signin", initialTab: "Dashboard" };
   return { view: "landing", authMode: "signin", initialTab: "Dashboard" };
 }
@@ -82,6 +86,10 @@ export default function App() {
 
   if (route.view === "academy") {
     return <VulaAcademyPage />;
+  }
+
+  if (route.view === "legal") {
+    return <LegalPage type={route.legalType} />;
   }
 
   return (
