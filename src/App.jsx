@@ -22,6 +22,7 @@ function routeFromPath(pathname) {
   if (pathname === "/reviews") return { view: "dashboard", authMode: "signin", initialTab: "Reviews" };
   if (pathname === "/business-file") return { view: "dashboard", authMode: "signin", initialTab: "BusinessFile" };
   if (pathname === "/dashboard/business-file") return { view: "dashboard", authMode: "signin", initialTab: "BusinessFile" };
+  if (pathname === "/whatsapp-status" || pathname === "/growth/whatsapp-status-builder") return { view: "dashboard", authMode: "signin", initialTab: "WhatsAppStatus" };
   if (pathname === "/vuke") return { view: "dashboard", authMode: "signin", initialTab: "Vuke" };
   if (pathname === "/plans") return { view: "dashboard", authMode: "signin", initialTab: "Plans" };
   if (pathname === "/settings") return { view: "dashboard", authMode: "signin", initialTab: "Settings" };
