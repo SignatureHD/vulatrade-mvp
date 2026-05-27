@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Crosshair, MapPin } from "lucide-react";
+import { Crosshair, Info, MapPin } from "lucide-react";
 import { inputStyle, labelStyle } from "../../constants";
 import { supabase } from "../../lib/supabase";
 
@@ -14,6 +14,7 @@ export function BusinessLocationTab({ business, setBusiness }) {
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
   const [message, setMessage] = useState("");
+  const [showAreaInfo, setShowAreaInfo] = useState(false);
 
   const canSave = useMemo(() => !!business?.id && form.area.trim().length > 0, [business?.id, form.area]);
 
@@ -91,8 +92,30 @@ export function BusinessLocationTab({ business, setBusiness }) {
         </div>
 
         <div>
-          <label style={labelStyle}>Delivery radius (km)</label>
+          <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "7px" }}>
+            <label style={{ ...labelStyle, marginBottom: 0 }}>Service / Delivery area (optional)</label>
+            <button
+              type="button"
+              onClick={() => setShowAreaInfo((value) => !value)}
+              aria-label="What is service or delivery area?"
+              title="What is this?"
+              style={{ width: "20px", height: "20px", borderRadius: "50%", border: "1.5px solid #f8b8d2", background: "#fff5f9", color: "#ea4c89", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}
+            >
+              <Info size={13} strokeWidth={2.4} />
+            </button>
+          </div>
           <input type="number" min="0" step="1" style={inputStyle} value={form.delivery_radius_km} onChange={(e) => update("delivery_radius_km", e.target.value)} />
+          <div style={{ fontSize: "11px", color: "#888", marginTop: "6px", lineHeight: 1.45 }}>
+            0 = collection only · 5 = nearby area · 10 = wider area
+          </div>
+          {showAreaInfo && (
+            <div style={{ marginTop: "10px", background: "#fff5f9", border: "1.5px solid #f8b8d2", borderRadius: "12px", padding: "12px", fontSize: "12px", color: "#555", lineHeight: 1.5 }}>
+              <strong style={{ color: "#202021" }}>What does this mean?</strong>
+              <div style={{ marginTop: "5px" }}>
+                This helps customers understand the area you serve. Use 0 km if customers collect from you or you work from one location only. Use 2–10 km if you deliver, travel to customers, or serve nearby areas. Your exact location pin stays private.
+              </div>
+            </div>
+          )}
         </div>
 
         <button type="button" onClick={useCurrentLocation} disabled={locating}
