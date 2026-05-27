@@ -20,6 +20,7 @@ import {
 import { DARK } from "../constants";
 import { supabase } from "../lib/supabase";
 import { AuthScreen } from "../components/AuthScreen";
+import { ConsentScreen, getLatestConsentForUser, userHasCurrentConsent } from "../components/ConsentScreen";
 import Logo from "../components/Logo";
 import { DashboardHome } from "../components/dashboard/DashboardHome";
 import { SetupTab } from "../components/dashboard/SetupTab";
@@ -121,8 +122,21 @@ function normalizeTab(value) {
   return value || "Dashboard";
 }
 
+function LoadingScreen({ message = "Loading VulaTrade..." }) {
+  return (
+    <div style={{ minHeight: "100vh", background: "#fbfbfb", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', -apple-system, sans-serif" }}>
+      <div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "22px", padding: "24px", boxShadow: "0 18px 60px rgba(32,32,33,0.08)", color: DARK, fontWeight: 800 }}>
+        {message}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard({ authMode = "signin", initialTab = "Dashboard", onBack }) {
   const [user, setUser]           = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [hasCurrentConsent, setHasCurrentConsent] = useState(false);
   const [tab, setTab]             = useState(() => normalizeTab(initialTab));
   const [business, setBusiness]   = useState(null);
   const [prefilledTemplate, setPrefilledTemplate] = useState(null);
@@ -132,12 +146,43 @@ export default function Dashboard({ authMode = "signin", initialTab = "Dashboard
 
   // ── AUTH LISTENER ──────────────────────────────────────────
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user || null);
+      setAuthChecked(true);
+    });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user || null);
+      setConsentChecked(false);
+      setHasCurrentConsent(false);
+      setAuthChecked(true);
     });
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkConsent() {
+      if (!user) {
+        setConsentChecked(false);
+        setHasCurrentConsent(false);
+        return;
+      }
+
+      const { consent, error } = await getLatestConsentForUser(user.id);
+      if (cancelled) return;
+
+      if (error) {
+        console.warn("Consent check failed", error.message);
+      }
+
+      setHasCurrentConsent(userHasCurrentConsent(consent));
+      setConsentChecked(true);
+    }
+
+    checkConsent();
+    return () => { cancelled = true; };
+  }, [user]);
 
   useEffect(() => {
     setTab(normalizeTab(initialTab));
@@ -154,7 +199,7 @@ export default function Dashboard({ authMode = "signin", initialTab = "Dashboard
 
   // ── LOAD BUSINESS + PRODUCTS ───────────────────────────────
   useEffect(() => {
-    if (!user) return;
+    if (!user || !hasCurrentConsent) return;
     supabase.from("businesses").select("*").eq("user_id", user.id).single().then(({ data }) => {
       if (data) {
         setBusiness(data);
@@ -170,9 +215,25 @@ export default function Dashboard({ authMode = "signin", initialTab = "Dashboard
         });
       }
     });
-  }, [user]);
+  }, [user, hasCurrentConsent]);
 
+  async function signOutAndReturnHome() {
+    await supabase.auth.signOut();
+    onBack?.();
+  }
+
+  if (!authChecked) return <LoadingScreen />;
   if (!user) return <AuthScreen initialMode={authMode} />;
+  if (!consentChecked) return <LoadingScreen message="Checking privacy consent..." />;
+  if (!hasCurrentConsent) {
+    return (
+      <ConsentScreen
+        user={user}
+        onAccepted={() => setHasCurrentConsent(true)}
+        onSignOut={signOutAndReturnHome}
+      />
+    );
+  }
 
   function renderTab() {
     switch (tab) {
@@ -227,7 +288,7 @@ export default function Dashboard({ authMode = "signin", initialTab = "Dashboard
           <SettingsTab
             onEditBusiness={() => selectTab("Setup")}
             onEditPublicPage={() => selectTab("Page")}
-            onSignOut={async () => { await supabase.auth.signOut(); onBack(); }}
+            onSignOut={signOutAndReturnHome}
           />
         );
       default:
@@ -250,7 +311,7 @@ export default function Dashboard({ authMode = "signin", initialTab = "Dashboard
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <button
-            onClick={async () => { await supabase.auth.signOut(); onBack(); }}
+            onClick={signOutAndReturnHome}
             style={{ fontSize: "12px", color: "#454545", background: "#fff", border: "1px solid #eeeeea", borderRadius: "10px", padding: "7px 12px", cursor: "pointer", fontWeight: 700 }}
           >
             Sign out
