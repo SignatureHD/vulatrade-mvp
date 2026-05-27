@@ -201,20 +201,32 @@ export default function PublicBusinessPage({ slug }) {
   useEffect(() => {
     let cancelled = false;
     async function loadBusiness() {
-      setLoading(true); setNotFound(false);
-      const { data: foundBusiness, error: businessError } = await supabase.from("businesses").select("*").eq("slug", slug).maybeSingle();
+      setLoading(true);
+      setNotFound(false);
+
+      const { data: pageData, error } = await supabase.rpc("get_public_business_page", { input_slug: slug });
       if (cancelled) return;
-      if (foundBusiness) {
-        const { data: foundProducts, error: productsError } = await supabase.from("products").select("*").eq("business_id", foundBusiness.id).eq("is_active", true).order("created_at");
-        const { data: foundReviews, error: reviewsError } = await supabase.from("reviews").select("*").eq("business_id", foundBusiness.id).eq("approved", true).order("created_at", { ascending: false });
-        if (productsError) console.error("Public products load:", productsError);
-        if (reviewsError) console.error("Public reviews load:", reviewsError);
-        if (!cancelled) { setBusiness(foundBusiness); setProducts(foundProducts || []); setReviews(foundReviews || []); setLoading(false); }
+
+      if (error) console.error("Public business page load:", error);
+
+      if (pageData?.business) {
+        setBusiness(pageData.business);
+        setProducts(Array.isArray(pageData.products) ? pageData.products : []);
+        setReviews(Array.isArray(pageData.reviews) ? pageData.reviews : []);
+        setLoading(false);
         return;
       }
-      if (businessError) console.error("Public business load:", businessError);
-      if (slug === "nomsa-nails") { setBusiness(NOMSA_FALLBACK.business); setProducts(NOMSA_FALLBACK.products); setReviews([]); setLoading(false); return; }
-      setNotFound(true); setLoading(false);
+
+      if (slug === "nomsa-nails") {
+        setBusiness(NOMSA_FALLBACK.business);
+        setProducts(NOMSA_FALLBACK.products);
+        setReviews([]);
+        setLoading(false);
+        return;
+      }
+
+      setNotFound(true);
+      setLoading(false);
     }
     loadBusiness(); return () => { cancelled = true; };
   }, [slug]);
