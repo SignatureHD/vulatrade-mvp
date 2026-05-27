@@ -12,6 +12,7 @@ function routeFromPath(pathname) {
   if (pathname === "/dashboard") return { view: "dashboard", authMode: "signin", initialTab: "Dashboard" };
   if (pathname === "/onboarding") return { view: "dashboard", authMode: "signup", initialTab: "Setup" };
   if (pathname === "/setup") return { view: "dashboard", authMode: "signin", initialTab: "Setup" };
+  if (pathname === "/location") return { view: "dashboard", authMode: "signin", initialTab: "Location" };
   if (pathname === "/public-page") return { view: "dashboard", authMode: "signin", initialTab: "Page" };
   if (pathname === "/products") return { view: "dashboard", authMode: "signin", initialTab: "Products" };
   if (pathname === "/customers") return { view: "dashboard", authMode: "signin", initialTab: "Customers" };
