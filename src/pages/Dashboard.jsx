@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  MapPin,
   MessageCircle,
   Package,
   ReceiptText,
@@ -30,6 +31,7 @@ import { ExpensesTab } from "../components/dashboard/ExpensesTab";
 import { ReviewsTab } from "../components/dashboard/ReviewsTab";
 import { BusinessFileTab } from "../components/dashboard/BusinessFileTab";
 import { PlansTab } from "../components/dashboard/PlansTab";
+import { BusinessLocationTab } from "../components/dashboard/BusinessLocationTab";
 import {
   ComingSoon,
   MessagesTab,
@@ -45,6 +47,7 @@ const TAB_ROUTES = {
   Dashboard: "/dashboard",
   Page: "/public-page",
   Setup: "/setup",
+  Location: "/location",
   Products: "/products",
   Customers: "/customers",
   Messages: "/messages",
@@ -67,6 +70,7 @@ const NAV_GROUPS = [
     items: [
       { tab: "Page", label: "Public Page", icon: Globe },
       { tab: "Setup", label: "Setup", icon: Settings },
+      { tab: "Location", label: "Location", icon: MapPin },
       { tab: "Products", label: "Products / Services", icon: Package },
       { tab: "Customers", label: "Customers", icon: Users },
       { tab: "Messages", label: "Messages", icon: MessageCircle },
@@ -100,6 +104,7 @@ const MOBILE_TABS = [
 const MORE_ITEMS = [
   { tab: "Page", label: "Public Page", icon: Globe },
   { tab: "Setup", label: "Setup", icon: Settings },
+  { tab: "Location", label: "Location", icon: MapPin },
   { tab: "Messages", label: "Messages", icon: MessageCircle },
   { tab: "Bookings", label: "Bookings", icon: CalendarDays },
   { tab: "Expenses", label: "Expenses", icon: WalletCards },
@@ -188,6 +193,8 @@ export default function Dashboard({ authMode = "signin", initialTab = "Dashboard
             setGlobalLogoUrl={setLogoUrl}
           />
         );
+      case "Location":
+        return <BusinessLocationTab business={business} setBusiness={setBusiness} />;
       case "Products":
         return <ProductsTab user={user} business={business} setGlobalProducts={setProducts} />;
       case "Page":
