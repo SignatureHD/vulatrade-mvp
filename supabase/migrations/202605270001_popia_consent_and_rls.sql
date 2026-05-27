@@ -34,12 +34,14 @@ revoke all on table public.user_consents from anon;
 revoke all on table public.user_consents from public;
 grant select, insert on table public.user_consents to authenticated;
 
+drop policy if exists "Users can read their own consent records" on public.user_consents;
 create policy "Users can read their own consent records"
   on public.user_consents
   for select
   to authenticated
   using (auth.uid() = user_id);
 
+drop policy if exists "Users can insert their own consent records" on public.user_consents;
 create policy "Users can insert their own consent records"
   on public.user_consents
   for insert
@@ -272,10 +274,97 @@ begin
 end $$;
 
 -- ─────────────────────────────────────────────────────────────
--- 4) Public page safety notes
+-- 4) Safe anonymous public-page RPC
 -- ─────────────────────────────────────────────────────────────
--- This migration intentionally removes anon table access from private tables.
--- If VulaTrade public business pages need anonymous reads, expose only safe public
--- fields through a dedicated view or RPC. Do not grant anon access to raw
--- businesses/products/customers/bookings/sales/expenses/reviews tables.
--- Keep precise latitude/longitude private; show area/location_label publicly only.
+-- Public business pages need anonymous access, but not to raw private tables.
+-- This function returns only safe public catalogue fields and keeps private
+-- customer, sales, expense, booking and exact location data closed.
+
+create or replace function public.get_public_business_page(input_slug text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  found_business public.businesses%rowtype;
+  safe_business jsonb;
+  safe_products jsonb := '[]'::jsonb;
+  safe_reviews jsonb := '[]'::jsonb;
+begin
+  if to_regclass('public.businesses') is null then
+    return null;
+  end if;
+
+  select * into found_business
+  from public.businesses
+  where slug = input_slug
+  limit 1;
+
+  if not found then
+    return null;
+  end if;
+
+  safe_business := jsonb_strip_nulls(jsonb_build_object(
+    'id', found_business.id,
+    'name', found_business.name,
+    'slug', found_business.slug,
+    'category', found_business.category,
+    'area', found_business.area,
+    'location_label', found_business.location_label,
+    'delivery_radius_km', found_business.delivery_radius_km,
+    'description', found_business.description,
+    'whatsapp', found_business.whatsapp,
+    'phone', found_business.phone,
+    'catalogue', found_business.catalogue,
+    'background_style', found_business.background_style,
+    'theme', found_business.theme,
+    'instagram', found_business.instagram,
+    'instagram_url', found_business.instagram_url,
+    'facebook', found_business.facebook,
+    'facebook_url', found_business.facebook_url,
+    'tiktok', found_business.tiktok,
+    'tiktok_url', found_business.tiktok_url,
+    'website', found_business.website,
+    'website_url', found_business.website_url
+  ));
+
+  if to_regclass('public.products') is not null then
+    select coalesce(jsonb_agg(to_jsonb(p) order by p.created_at), '[]'::jsonb)
+      into safe_products
+    from public.products p
+    where p.business_id = found_business.id
+      and coalesce(p.is_active, true) = true;
+  end if;
+
+  if to_regclass('public.reviews') is not null then
+    select coalesce(
+      jsonb_agg(
+        jsonb_build_object(
+          'id', r.id,
+          'rating', r.rating,
+          'review_text', r.review_text,
+          'customer_name', r.customer_name,
+          'created_at', r.created_at
+        ) order by r.created_at desc
+      ),
+      '[]'::jsonb
+    ) into safe_reviews
+    from public.reviews r
+    where r.business_id = found_business.id
+      and coalesce(r.approved, false) = true;
+  end if;
+
+  return jsonb_build_object(
+    'business', safe_business,
+    'products', safe_products,
+    'reviews', safe_reviews
+  );
+end;
+$$;
+
+revoke all on function public.get_public_business_page(text) from public;
+grant execute on function public.get_public_business_page(text) to anon, authenticated;
+
+-- Keep precise latitude/longitude private. Public pages should use area,
+-- location_label and delivery_radius_km only.
