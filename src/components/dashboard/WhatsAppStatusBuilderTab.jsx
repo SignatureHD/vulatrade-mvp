@@ -13,14 +13,14 @@ const LOOKS = [
 
 const card = { background: "#fff", border: `1px solid ${SOFT_BORDER}`, borderRadius: 20, padding: 18 };
 
-function rand(value) {
+function formatPrice(value) {
   const n = Number(value || 0);
-  return n ? `rand ${n.toLocaleString("en-ZA")}` : "";
+  return n ? `R${n.toLocaleString("en-ZA")}` : "";
 }
 
 function buildOutput(form) {
   const item = form.productName || "your offer";
-  const price = rand(form.price);
+  const price = formatPrice(form.price);
   const when = form.deadline || "today";
   const area = form.area || "your area";
   const payment = form.paymentMethods || "cash or EFT";
