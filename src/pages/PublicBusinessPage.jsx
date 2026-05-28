@@ -34,18 +34,21 @@ function normaliseUrl(value) {
   return `https://${value}`;
 }
 
+function money(value) {
+  const amount = Number(value || 0);
+  return amount > 0 ? `rand ${amount.toLocaleString()}` : "Ask price";
+}
+
 function whatsappLink(number, businessName) {
   if (!number) return "#";
   const text = `Hi ${businessName}, I'm interested in your products/services on VulaTrade.`;
   return waLink(number, text);
 }
 
-function productWhatsappLink(number, businessName, product, variant) {
-  if (!number || !product) return "#";
-  const text = variant
-    ? `Hi ${businessName}, I saw your ${product.name} on VulaTrade. I would like to order / enquire about ${variant.name} for R${Number(variant.price || 0).toLocaleString()}.`
-    : `Hi ${businessName}, I saw your ${product.name} on VulaTrade. Please can I order / enquire?`;
-  return waLink(number, text);
+function productWhatsappMessage(product, variant) {
+  const itemName = variant?.name ? `${product.name} - ${variant.name}` : product.name;
+  const price = variant?.price ?? product.price;
+  return `Hi, I saw ${itemName} on your VulaTrade page.\nPrice: ${money(price)}\nI am interested. Please let me know if this is still available.`;
 }
 
 function normaliseVariants(variants = []) {
@@ -109,10 +112,37 @@ function ProductImage({ product, size = 66 }) {
 function ProductDetailModal({ product, business, accent, accentText, onClose }) {
   const variants = normaliseVariants(product?.variants || []);
   const [selectedVariantId, setSelectedVariantId] = useState(variants[0]?.id || "");
+  const [saving, setSaving] = useState(false);
   const selectedVariant = variants.find((variant) => variant.id === selectedVariantId) || null;
 
   useEffect(() => { setSelectedVariantId(variants[0]?.id || ""); }, [product?.id]);
   if (!product) return null;
+
+  async function handleWhatsAppEnquiry() {
+    if (!business?.whatsapp) return;
+    const message = productWhatsappMessage(product, selectedVariant);
+    const price = selectedVariant?.price ?? product.price ?? null;
+    const productName = selectedVariant?.name ? `${product.name} - ${selectedVariant.name}` : product.name;
+
+    setSaving(true);
+    try {
+      if (business?.id && !String(business.id).startsWith("nomsa")) {
+        const { error } = await supabase.from("enquiries").insert({
+          business_id: business.id,
+          product_id: String(product.id || "").includes("-") && product.id.length > 20 ? product.id : null,
+          product_name: productName,
+          product_price: Number(price || 0) || null,
+          message,
+          source: "public_page",
+          status: "new",
+        });
+        if (error) console.warn("Enquiry capture failed", error.message);
+      }
+    } finally {
+      setSaving(false);
+      window.open(waLink(business.whatsapp, message), "_blank", "noopener,noreferrer");
+    }
+  }
 
   return (
     <div role="dialog" aria-modal="true" style={{ position:"fixed", inset:0, background:"rgba(15,23,42,0.48)", zIndex:1000, display:"flex", alignItems:"flex-end", justifyContent:"center", padding:"18px" }} onClick={onClose}>
@@ -148,7 +178,7 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
           </div>
         )}
         {business.whatsapp ? (
-          <a href={productWhatsappLink(business.whatsapp, business.name, product, selectedVariant)} target="_blank" rel="noopener noreferrer" style={{ display:"block", textAlign:"center", background:accent, color:accentText, borderRadius:"16px", padding:"15px 18px", fontSize:"15px", fontWeight:950, textDecoration:"none", boxShadow:`0 12px 30px ${accent}36` }}>Order on WhatsApp</a>
+          <button type="button" onClick={handleWhatsAppEnquiry} disabled={saving} style={{ width:"100%", display:"block", textAlign:"center", background:accent, color:accentText, borderRadius:"16px", padding:"15px 18px", fontSize:"15px", fontWeight:950, border:"none", cursor:"pointer", boxShadow:`0 12px 30px ${accent}36` }}>{saving ? "Opening WhatsApp..." : "Message business"}</button>
         ) : (
           <div style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"16px", padding:"14px", fontSize:"13px", color:"#888", textAlign:"center" }}>WhatsApp number not available.</div>
         )}
@@ -181,11 +211,7 @@ function ReviewCarousel({ reviews, accent }) {
           {hasMultiple && <div style={{ fontSize:"11px", color:"#aaa", fontWeight:800 }}>{activeIndex + 1} of {reviews.length}</div>}
         </div>
       </div>
-      {hasMultiple && (
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"6px", marginTop:"12px" }}>
-          {reviews.map((review, index) => <button key={review.id || index} type="button" aria-label={`Show review ${index + 1}`} onClick={() => setActiveIndex(index)} style={{ width: activeIndex === index ? "18px" : "7px", height: "7px", borderRadius: "999px", border: "none", padding: 0, cursor: "pointer", background: activeIndex === index ? accent : "#d8d8d4", transition: "all 180ms ease" }} />)}
-        </div>
-      )}
+      {hasMultiple && <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:"6px", marginTop:"12px" }}>{reviews.map((review, index) => <button key={review.id || index} type="button" aria-label={`Show review ${index + 1}`} onClick={() => setActiveIndex(index)} style={{ width: activeIndex === index ? "18px" : "7px", height: "7px", borderRadius: "999px", border: "none", padding: 0, cursor: "pointer", background: activeIndex === index ? accent : "#d8d8d4", transition: "all 180ms ease" }} />)}</div>}
     </div>
   );
 }
@@ -203,12 +229,9 @@ export default function PublicBusinessPage({ slug }) {
     async function loadBusiness() {
       setLoading(true);
       setNotFound(false);
-
       const { data: pageData, error } = await supabase.rpc("get_public_business_page", { input_slug: slug });
       if (cancelled) return;
-
       if (error) console.error("Public business page load:", error);
-
       if (pageData?.business) {
         setBusiness(pageData.business);
         setProducts(Array.isArray(pageData.products) ? pageData.products : []);
@@ -216,7 +239,6 @@ export default function PublicBusinessPage({ slug }) {
         setLoading(false);
         return;
       }
-
       if (slug === "nomsa-nails") {
         setBusiness(NOMSA_FALLBACK.business);
         setProducts(NOMSA_FALLBACK.products);
@@ -224,7 +246,6 @@ export default function PublicBusinessPage({ slug }) {
         setLoading(false);
         return;
       }
-
       setNotFound(true);
       setLoading(false);
     }
