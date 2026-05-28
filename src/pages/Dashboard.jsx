@@ -26,6 +26,7 @@ import { DashboardHome } from "../components/dashboard/DashboardHome";
 import { SetupTab } from "../components/dashboard/SetupTab";
 import { ProductsTab } from "../components/dashboard/ProductsTab";
 import { CustomersTab } from "../components/dashboard/CustomersTab";
+import { EnquiriesTab } from "../components/dashboard/EnquiriesTab";
 import { BookingsTab } from "../components/dashboard/BookingsTab";
 import { SalesTab as ProductSalesTab } from "../components/dashboard/SalesTab";
 import { ExpensesTab } from "../components/dashboard/ExpensesTab";
@@ -52,6 +53,7 @@ const TAB_ROUTES = {
   Location: "/location",
   Products: "/products",
   Customers: "/customers",
+  Enquiries: "/enquiries",
   Messages: "/messages",
   Bookings: "/bookings",
   Sales: "/sales",
@@ -74,6 +76,7 @@ const NAV_GROUPS = [
       { tab: "Location", label: "Location", icon: MapPin },
       { tab: "Products", label: "Products / Services", icon: Package },
       { tab: "Customers", label: "Customers", icon: Users },
+      { tab: "Enquiries", label: "Enquiries", icon: MessageCircle },
       { tab: "Messages", label: "Messages", icon: MessageCircle },
       { tab: "Bookings", label: "Bookings", icon: CalendarDays },
       { tab: "Sales", label: "Sales", icon: ReceiptText },
@@ -95,9 +98,9 @@ const NAV_GROUPS = [
 
 const MOBILE_TABS = [
   { tab: "Dashboard", label: "Home", icon: Home },
+  { tab: "Enquiries", label: "Leads", icon: MessageCircle },
   { tab: "Sales", label: "Sales", icon: ReceiptText },
   { tab: "Products", label: "Products", icon: Package },
-  { tab: "Customers", label: "Customers", icon: Users },
   { tab: "More", label: "More", icon: Menu, opensMore: true },
 ];
 
@@ -105,6 +108,8 @@ const MORE_ITEMS = [
   { tab: "Page", label: "Public Page", icon: Globe },
   { tab: "Setup", label: "Setup", icon: Settings },
   { tab: "Location", label: "Location", icon: MapPin },
+  { tab: "Customers", label: "Customers", icon: Users },
+  { tab: "Enquiries", label: "Enquiries", icon: MessageCircle },
   { tab: "Messages", label: "Messages", icon: MessageCircle },
   { tab: "Bookings", label: "Bookings", icon: CalendarDays },
   { tab: "Expenses", label: "Expenses", icon: WalletCards },
@@ -231,6 +236,8 @@ export default function Dashboard({ authMode = "signin", initialTab = "Dashboard
         return <PageTab business={business} products={products} logoUrl={logoUrl} />;
       case "Customers":
         return <CustomersTab business={business} onMessageCustomer={(customer) => { window.history.pushState({}, "", `/messages?customerId=${encodeURIComponent(customer.id)}`); setTab("Messages"); }} />;
+      case "Enquiries":
+        return <EnquiriesTab business={business} />;
       case "Messages":
         return <MessagesTab business={business} />;
       case "Bookings":
