@@ -14,7 +14,12 @@
     <script>
       (function () {
         var appRoutes = [
+          '/',
           '/dashboard',
+          '/login',
+          '/signup',
+          '/learn',
+          '/learn/academy',
           '/public-page',
           '/setup',
           '/location',
@@ -28,11 +33,15 @@
           '/business-file',
           '/vuke',
           '/plans',
-          '/settings'
+          '/settings',
+          '/terms',
+          '/privacy',
+          '/privacy-policy',
+          '/popia-consent'
         ];
 
         var shouldLoadChat = appRoutes.some(function (route) {
-          return window.location.pathname === route || window.location.pathname.startsWith(route + '/');
+          return window.location.pathname === route || (route !== '/' && window.location.pathname.startsWith(route + '/'));
         });
 
         if (!shouldLoadChat) {
