@@ -230,7 +230,7 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
           product_price: Number(price || 0) || null,
           message,
           source: "public_page",
-          status: "new",
+          status: "interested",
         });
         if (error) console.warn("Enquiry capture failed", error.message);
       }
