@@ -92,15 +92,19 @@ function badgeForTab(tab, counts) {
 }
 
 function DashboardAttentionCards({ counts, onSelect }) {
-  const cards = [
+  const activeCards = [
     { key: "enquiries", label: "Open enquiries", value: counts.enquiries, sub: "Leads waiting for action", tab: "Enquiries", icon: MessageCircle },
     { key: "follow", label: "Follow-up needed", value: counts.followUps, sub: "People to message again", tab: "Enquiries", icon: MessageCircle },
     { key: "waiting", label: "Waiting payment", value: counts.waitingPayment, sub: "Price sent, not finalised", tab: "Enquiries", icon: ReceiptText },
+    { key: "unpaid", label: "Unpaid sales", value: counts.unpaid, sub: "Payments to follow up", tab: "Sales", icon: ReceiptText },
     { key: "bookings", label: "Upcoming bookings", value: counts.bookings, sub: "Today or coming soon", tab: "Bookings", icon: CalendarDays },
   ].filter((card) => card.value > 0);
 
-  if (cards.length === 0) return null;
-  return <div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "20px", padding: "18px", marginBottom: "18px", boxShadow: "0 12px 34px rgba(15,23,42,0.04)" }}><div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "center", marginBottom: "12px" }}><div><div style={{ color: BRAND, fontSize: "11px", fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase" }}>Needs attention</div><div style={{ color: DARK, fontSize: "16px", fontWeight: 950, marginTop: "3px" }}>Things waiting for you</div></div></div><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "10px" }}>{cards.map((card) => { const Icon = card.icon; return <button key={card.key} onClick={() => onSelect(card.tab)} style={{ textAlign: "left", background: "#fbfbfb", border: "1px solid #eeeeea", borderRadius: "16px", padding: "13px", cursor: "pointer", display: "flex", gap: "10px", alignItems: "center" }}><span style={{ width: "38px", height: "38px", borderRadius: "50%", background: "#fde8f1", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", flexShrink: 0 }}><Icon size={18} color={BRAND} /><span style={{ position: "absolute", right: "-4px", top: "-5px" }}><Badge value={card.value} small /></span></span><span style={{ minWidth: 0 }}><span style={{ display: "block", fontSize: "13px", color: DARK, fontWeight: 900 }}>{card.label}</span><span style={{ display: "block", fontSize: "11px", color: "#888", fontWeight: 700, marginTop: "2px" }}>{card.sub}</span></span></button>; })}</div></div>;
+  const cards = activeCards.length > 0 ? activeCards : [
+    { key: "clear", label: "All clear for now", value: 0, sub: "No urgent items waiting", tab: "Dashboard", icon: Star },
+  ];
+
+  return <div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "20px", padding: "18px", marginBottom: "18px", boxShadow: "0 12px 34px rgba(15,23,42,0.04)" }}><div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "center", marginBottom: "12px" }}><div><div style={{ color: BRAND, fontSize: "11px", fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase" }}>Quick things to handle today</div><div style={{ color: DARK, fontSize: "16px", fontWeight: 950, marginTop: "3px" }}>{activeCards.length > 0 ? "Things waiting for you" : "You are up to date"}</div></div></div><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "10px" }}>{cards.map((card) => { const Icon = card.icon; return <button key={card.key} onClick={() => onSelect(card.tab)} style={{ textAlign: "left", background: "#fbfbfb", border: "1px solid #eeeeea", borderRadius: "16px", padding: "13px", cursor: "pointer", display: "flex", gap: "10px", alignItems: "center" }}><span style={{ width: "38px", height: "38px", borderRadius: "50%", background: "#fde8f1", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", flexShrink: 0 }}><Icon size={18} color={BRAND} /><span style={{ position: "absolute", right: "-4px", top: "-5px" }}><Badge value={card.value} small /></span></span><span style={{ minWidth: 0 }}><span style={{ display: "block", fontSize: "13px", color: DARK, fontWeight: 900 }}>{card.label}</span><span style={{ display: "block", fontSize: "11px", color: "#888", fontWeight: 700, marginTop: "2px" }}>{card.sub}</span></span></button>; })}</div></div>;
 }
 
 export default function Dashboard({ authMode = "signin", initialTab = "Dashboard", onBack }) {
