@@ -3,7 +3,7 @@ import { DARK, LIME, backgroundStyleForTheme, resolveBackgroundTheme } from "../
 import { businessDescriptionOrDefault } from "../businessDescriptions";
 import { supabase } from "../lib/supabase";
 import Logo from "../components/Logo";
-import { waLink } from "../utils";
+import { formatPhone, waLink } from "../utils";
 
 const FALLBACK_ACCENT = "#ea4c89";
 
@@ -36,7 +36,23 @@ function normaliseUrl(value) {
 
 function money(value) {
   const amount = Number(value || 0);
-  return amount > 0 ? `rand ${amount.toLocaleString()}` : "Ask price";
+  return amount > 0 ? `R${amount.toLocaleString()}` : "Ask price";
+}
+
+function digitsOnly(value = "") {
+  return String(value).replace(/\D/g, "");
+}
+
+function samePhone(left = "", right = "") {
+  const a = digitsOnly(formatPhone(left));
+  const b = digitsOnly(formatPhone(right));
+  return Boolean(a && b && a === b);
+}
+
+function mergeInterestedIn(current = [], productName = "") {
+  const existing = Array.isArray(current) ? current : [];
+  if (!productName || existing.includes(productName)) return existing;
+  return [...existing, productName];
 }
 
 function whatsappLink(number, businessName) {
@@ -45,10 +61,10 @@ function whatsappLink(number, businessName) {
   return waLink(number, text);
 }
 
-function productWhatsappMessage(product, variant) {
+function productWhatsappMessage(businessName, product, variant, customerName, customerPhone) {
   const itemName = variant?.name ? `${product.name} - ${variant.name}` : product.name;
   const price = variant?.price ?? product.price;
-  return `Hi, I saw ${itemName} on your VulaTrade page.\nPrice: ${money(price)}\nI am interested. Please let me know if this is still available.`;
+  return `Hi ${businessName}, I saw ${itemName} on your VulaTrade page.\nPrice: ${money(price)}\nMy name is ${customerName}.\nMy WhatsApp number is ${customerPhone}.\nI am interested. Please let me know if this is still available.`;
 }
 
 function normaliseVariants(variants = []) {
@@ -113,23 +129,103 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
   const variants = normaliseVariants(product?.variants || []);
   const [selectedVariantId, setSelectedVariantId] = useState(variants[0]?.id || "");
   const [saving, setSaving] = useState(false);
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [formError, setFormError] = useState("");
   const selectedVariant = variants.find((variant) => variant.id === selectedVariantId) || null;
 
   useEffect(() => { setSelectedVariantId(variants[0]?.id || ""); }, [product?.id]);
   if (!product) return null;
 
+  async function findOrCreateCustomer({ name, phone, productName }) {
+    if (!business?.id || String(business.id).startsWith("nomsa")) return null;
+
+    const { data: existingCustomers, error: customerLoadError } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("business_id", business.id);
+
+    if (customerLoadError) {
+      console.warn("Customer match failed", customerLoadError.message);
+      return null;
+    }
+
+    const matchedCustomer = (existingCustomers || []).find((customer) => samePhone(customer.whatsapp, phone));
+    if (matchedCustomer) {
+      const patch = {
+        name: matchedCustomer.name || name,
+        whatsapp: formatPhone(matchedCustomer.whatsapp || phone),
+        interested_in: mergeInterestedIn(matchedCustomer.interested_in, productName),
+        last_contacted: new Date().toISOString(),
+      };
+
+      const { data: updatedCustomer, error: updateError } = await supabase
+        .from("customers")
+        .update(patch)
+        .eq("id", matchedCustomer.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.warn("Customer update failed", updateError.message);
+        return matchedCustomer;
+      }
+      return updatedCustomer;
+    }
+
+    const { data: newCustomer, error: createError } = await supabase
+      .from("customers")
+      .insert([{
+        business_id: business.id,
+        name,
+        whatsapp: phone,
+        area: "",
+        notes: `Created from public enquiry about ${productName}.`,
+        status: "lead",
+        interested_in: productName ? [productName] : [],
+        last_contacted: new Date().toISOString(),
+      }])
+      .select()
+      .single();
+
+    if (createError) {
+      console.warn("Customer create failed", createError.message);
+      return null;
+    }
+    return newCustomer;
+  }
+
   async function handleWhatsAppEnquiry() {
     if (!business?.whatsapp) return;
-    const message = productWhatsappMessage(product, selectedVariant);
+
+    const name = customerName.trim();
+    const phone = formatPhone(customerPhone.trim());
+
+    if (!name) {
+      setFormError("Please add your name before continuing.");
+      return;
+    }
+    if (!phone) {
+      setFormError("Please add your WhatsApp number before continuing.");
+      return;
+    }
+
     const price = selectedVariant?.price ?? product.price ?? null;
     const productName = selectedVariant?.name ? `${product.name} - ${selectedVariant.name}` : product.name;
+    const message = productWhatsappMessage(business.name, product, selectedVariant, name, phone);
 
     setSaving(true);
+    setFormError("");
+
     try {
+      const customer = await findOrCreateCustomer({ name, phone, productName });
       if (business?.id && !String(business.id).startsWith("nomsa")) {
         const { error } = await supabase.from("enquiries").insert({
           business_id: business.id,
           product_id: String(product.id || "").includes("-") && product.id.length > 20 ? product.id : null,
+          customer_id: customer?.id || null,
+          customer_name: customer?.name || name,
+          customer_phone: customer?.whatsapp || phone,
           product_name: productName,
           product_price: Number(price || 0) || null,
           message,
@@ -141,6 +237,7 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
     } finally {
       setSaving(false);
       window.open(waLink(business.whatsapp, message), "_blank", "noopener,noreferrer");
+      onClose();
     }
   }
 
@@ -177,8 +274,21 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
             </div>
           </div>
         )}
+
+        <div style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"18px", padding:"14px", marginBottom:"14px" }}>
+          <div style={{ fontSize:"15px", fontWeight:950, color:DARK, marginBottom:"4px" }}>Almost done</div>
+          <p style={{ margin:"0 0 12px", fontSize:"13px", color:"#777", lineHeight:1.55 }}>Add your details so {business.name} can reply to the right person. We will then open WhatsApp.</p>
+          <label style={{ display:"grid", gap:"5px", fontSize:"12px", color:"#888", fontWeight:850, marginBottom:"10px" }}>Your name
+            <input value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="e.g. Sipho" style={{ border:"1px solid #eeeeea", borderRadius:"12px", padding:"11px 12px", fontSize:"14px" }} />
+          </label>
+          <label style={{ display:"grid", gap:"5px", fontSize:"12px", color:"#888", fontWeight:850 }}>Your WhatsApp number
+            <input value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} placeholder="e.g. 071 123 4567" style={{ border:"1px solid #eeeeea", borderRadius:"12px", padding:"11px 12px", fontSize:"14px" }} />
+          </label>
+          {formError && <div style={{ color:"#9f1239", background:"#fff5f7", border:"1px solid #ffd7e4", borderRadius:"12px", padding:"9px 10px", marginTop:"10px", fontSize:"12px", fontWeight:800 }}>{formError}</div>}
+        </div>
+
         {business.whatsapp ? (
-          <button type="button" onClick={handleWhatsAppEnquiry} disabled={saving} style={{ width:"100%", display:"block", textAlign:"center", background:accent, color:accentText, borderRadius:"16px", padding:"15px 18px", fontSize:"15px", fontWeight:950, border:"none", cursor:"pointer", boxShadow:`0 12px 30px ${accent}36` }}>{saving ? "Opening WhatsApp..." : "Message business"}</button>
+          <button type="button" onClick={handleWhatsAppEnquiry} disabled={saving} style={{ width:"100%", display:"block", textAlign:"center", background:accent, color:accentText, borderRadius:"16px", padding:"15px 18px", fontSize:"15px", fontWeight:950, border:"none", cursor:"pointer", boxShadow:`0 12px 30px ${accent}36` }}>{saving ? "Saving enquiry..." : "Continue to WhatsApp"}</button>
         ) : (
           <div style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"16px", padding:"14px", fontSize:"13px", color:"#888", textAlign:"center" }}>WhatsApp number not available.</div>
         )}
