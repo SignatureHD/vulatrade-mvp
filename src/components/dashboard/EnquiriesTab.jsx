@@ -5,18 +5,19 @@ import { supabase } from "../../lib/supabase";
 import { formatPhone, waLink } from "../../utils";
 
 const BRAND = "#ea4c89";
-const OPEN_STATUSES = ["new", "replied", "interested", "quoted", "booked", "follow_up"];
+const OPEN_STATUSES = ["new", "replied", "interested", "quoted", "waiting_payment", "booked", "follow_up"];
 const DONE_STATUSES = ["paid", "completed"];
 
 const STATUS_OPTIONS = [
   { value: "new", label: "New" },
-  { value: "replied", label: "Replied" },
   { value: "interested", label: "Interested" },
-  { value: "quoted", label: "Quoted" },
+  { value: "replied", label: "Replied" },
+  { value: "quoted", label: "Quoted / price sent" },
+  { value: "waiting_payment", label: "Waiting for payment / booking" },
   { value: "booked", label: "Booked" },
   { value: "paid", label: "Paid" },
   { value: "completed", label: "Completed" },
-  { value: "follow_up", label: "Follow-up" },
+  { value: "follow_up", label: "Follow-up needed" },
   { value: "lost", label: "Lost / not now" },
 ];
 
@@ -32,101 +33,37 @@ const SOURCE_OPTIONS = [
   { value: "yoco", label: "Yoco / payment" },
 ];
 
-function money(value) {
-  const amount = Number(value || 0);
-  if (!amount) return "Ask price";
-  return `R${amount.toLocaleString()}`;
-}
-
-function formatDate(value) {
-  if (!value) return "";
-  return new Date(value).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-function statusLabel(value) {
-  return STATUS_OPTIONS.find((status) => status.value === value)?.label || value || "New";
-}
-
-function sourceLabel(value) {
-  return SOURCE_OPTIONS.find((source) => source.value === value)?.label || value || "Manual";
-}
-
-function digitsOnly(value = "") {
-  return String(value).replace(/\D/g, "");
-}
-
-function samePhone(left = "", right = "") {
-  const a = digitsOnly(formatPhone(left));
-  const b = digitsOnly(formatPhone(right));
-  return Boolean(a && b && a === b);
-}
-
-function mergeInterestedIn(current = [], productName = "") {
-  const existing = Array.isArray(current) ? current : [];
-  if (!productName || existing.includes(productName)) return existing;
-  return [...existing, productName];
-}
-
-function enquiryBucket(enquiry) {
-  if (enquiry.is_archived) return "done";
-  if (enquiry.status === "lost") return "lost";
-  if (DONE_STATUSES.includes(enquiry.status)) return "done";
-  if (enquiry.status === "follow_up") return "follow_up";
-  if (OPEN_STATUSES.includes(enquiry.status || "new")) return "open";
-  return "open";
-}
-
-function Field({ label, children }) {
-  return <label style={{ display: "grid", gap: "5px", fontSize: "12px", color: "#888", fontWeight: 850 }}>{label}{children}</label>;
-}
-
 const fieldStyle = { border: "1px solid #eeeeea", borderRadius: "12px", padding: "10px 11px", fontSize: "13px", background: "#fff" };
+function Field({ label, children }) { return <label style={{ display: "grid", gap: "5px", fontSize: "12px", color: "#888", fontWeight: 850 }}>{label}{children}</label>; }
+function money(value) { const amount = Number(value || 0); return amount > 0 ? `R${amount.toLocaleString()}` : "Ask price"; }
+function formatDate(value) { return value ? new Date(value).toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" }) : ""; }
+function statusLabel(value) { return STATUS_OPTIONS.find((s) => s.value === value)?.label || value || "New"; }
+function sourceLabel(value) { return SOURCE_OPTIONS.find((s) => s.value === value)?.label || value || "Manual"; }
+function digitsOnly(value = "") { return String(value).replace(/\D/g, ""); }
+function samePhone(left = "", right = "") { const a = digitsOnly(formatPhone(left)); const b = digitsOnly(formatPhone(right)); return Boolean(a && b && a === b); }
+function mergeInterestedIn(current = [], productName = "") { const existing = Array.isArray(current) ? current : []; return !productName || existing.includes(productName) ? existing : [...existing, productName]; }
+function shouldArchiveStatus(status) { return DONE_STATUSES.includes(status) || status === "lost"; }
+function enquiryBucket(enquiry) { if (enquiry.is_archived) return "done"; if (enquiry.status === "lost") return "lost"; if (DONE_STATUSES.includes(enquiry.status)) return "done"; if (enquiry.status === "follow_up") return "follow_up"; return "open"; }
 
 function ManualEnquiryModal({ business, customers, onClose, onCreated }) {
-  const [form, setForm] = useState({
-    customer_name: "",
-    customer_phone: "",
-    product_name: "",
-    product_price: "",
-    source: "whatsapp_catalogue",
-    status: "interested",
-    notes: "",
-  });
+  const [form, setForm] = useState({ customer_name: "", customer_phone: "", product_name: "", product_price: "", source: "whatsapp_catalogue", status: "interested", notes: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-
   function update(key, value) { setForm((prev) => ({ ...prev, [key]: value })); }
 
   async function findOrCreateCustomer() {
     const phone = formatPhone(form.customer_phone || "");
     const name = form.customer_name.trim();
     const productName = form.product_name.trim();
-
     if (!phone) return null;
-
-    const matchedCustomer = customers.find((customer) => samePhone(customer.whatsapp, phone));
-    if (matchedCustomer) {
-      const patch = {
-        whatsapp: formatPhone(matchedCustomer.whatsapp || phone),
-        name: matchedCustomer.name || name || "WhatsApp Customer",
-        interested_in: mergeInterestedIn(matchedCustomer.interested_in, productName),
-        last_contacted: new Date().toISOString(),
-      };
-      const { data, error: updateError } = await supabase.from("customers").update(patch).eq("id", matchedCustomer.id).select().single();
+    const matched = customers.find((customer) => samePhone(customer.whatsapp, phone));
+    if (matched) {
+      const patch = { whatsapp: formatPhone(matched.whatsapp || phone), name: matched.name || name || "WhatsApp Customer", interested_in: mergeInterestedIn(matched.interested_in, productName), last_contacted: new Date().toISOString() };
+      const { data, error: updateError } = await supabase.from("customers").update(patch).eq("id", matched.id).select().single();
       if (updateError) throw updateError;
-      return data || matchedCustomer;
+      return data || matched;
     }
-
-    const { data, error: createError } = await supabase.from("customers").insert([{
-      business_id: business.id,
-      name: name || "WhatsApp Customer",
-      whatsapp: phone,
-      area: "",
-      notes: `Created from manual enquiry about ${productName || "a product/service"}.`,
-      status: "lead",
-      interested_in: productName ? [productName] : [],
-      last_contacted: new Date().toISOString(),
-    }]).select().single();
+    const { data, error: createError } = await supabase.from("customers").insert([{ business_id: business.id, name: name || "WhatsApp Customer", whatsapp: phone, area: "", notes: `Created from manual enquiry about ${productName || "a product/service"}.`, status: "lead", interested_in: productName ? [productName] : [], last_contacted: new Date().toISOString() }]).select().single();
     if (createError) throw createError;
     return data;
   }
@@ -135,202 +72,41 @@ function ManualEnquiryModal({ business, customers, onClose, onCreated }) {
     const productName = form.product_name.trim();
     if (!productName) { setError("Add the product or service the customer asked about."); return; }
     if (!form.customer_name.trim() && !form.customer_phone.trim()) { setError("Add at least the customer's name or WhatsApp number."); return; }
-
-    setSaving(true);
-    setError("");
+    setSaving(true); setError("");
     try {
       const customer = await findOrCreateCustomer();
       const phone = formatPhone(form.customer_phone || "");
-      const price = Number(form.product_price || 0) || null;
-      const { data, error: enquiryError } = await supabase.from("enquiries").insert({
-        business_id: business.id,
-        customer_id: customer?.id || null,
-        customer_name: customer?.name || form.customer_name.trim() || null,
-        customer_phone: customer?.whatsapp || phone || null,
-        product_name: productName,
-        product_price: price,
-        message: form.notes.trim() || null,
-        source: form.source,
-        status: form.status,
-        notes: form.notes.trim() || null,
-        is_archived: DONE_STATUSES.includes(form.status) || form.status === "lost",
-        archived_at: DONE_STATUSES.includes(form.status) || form.status === "lost" ? new Date().toISOString() : null,
-      }).select().single();
-
+      const archived = shouldArchiveStatus(form.status);
+      const { data, error: enquiryError } = await supabase.from("enquiries").insert({ business_id: business.id, customer_id: customer?.id || null, customer_name: customer?.name || form.customer_name.trim() || null, customer_phone: customer?.whatsapp || phone || null, product_name: productName, product_price: Number(form.product_price || 0) || null, message: form.notes.trim() || null, source: form.source, status: form.status, notes: form.notes.trim() || null, is_archived: archived, archived_at: archived ? new Date().toISOString() : null }).select().single();
       if (enquiryError) throw enquiryError;
       onCreated(data, customer);
       onClose();
-    } catch (saveError) {
-      setError(saveError.message || "Could not save enquiry.");
-    }
+    } catch (saveError) { setError(saveError.message || "Could not save enquiry."); }
     setSaving(false);
   }
 
-  return (
-    <div role="dialog" aria-modal="true" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "18px" }} onClick={onClose}>
-      <div style={{ width: "100%", maxWidth: "560px", background: "#fff", borderRadius: "26px", padding: "18px", boxShadow: "0 24px 80px rgba(0,0,0,0.24)", maxHeight: "88vh", overflowY: "auto" }} onClick={(event) => event.stopPropagation()}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "16px" }}>
-          <div><h2 style={{ margin: 0, color: DARK, fontSize: "22px", fontWeight: 950 }}>Add enquiry</h2><p style={{ margin: "5px 0 0", color: "#777", fontSize: "13px", lineHeight: 1.5 }}>Capture leads from WhatsApp Catalogue, calls, walk-ins, referrals or Yoco.</p></div>
-          <button onClick={onClose} style={{ border: "1px solid #eeeeea", background: "#fff", borderRadius: "999px", width: "36px", height: "36px", color: "#767b81", fontSize: "18px", cursor: "pointer" }}>×</button>
-        </div>
-
-        <div style={{ display: "grid", gap: "12px" }}>
-          <Field label="Product / service asked about"><input style={fieldStyle} value={form.product_name} onChange={(event) => update("product_name", event.target.value)} placeholder="e.g. Toasted Sandwich" autoFocus /></Field>
-          <Field label="Price"><input style={fieldStyle} value={form.product_price} onChange={(event) => update("product_price", event.target.value)} type="number" placeholder="e.g. 80" /></Field>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px" }}>
-            <Field label="Customer name"><input style={fieldStyle} value={form.customer_name} onChange={(event) => update("customer_name", event.target.value)} placeholder="e.g. Sipho" /></Field>
-            <Field label="Customer WhatsApp"><input style={fieldStyle} value={form.customer_phone} onChange={(event) => update("customer_phone", event.target.value)} placeholder="e.g. 071 123 4567" /></Field>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px" }}>
-            <Field label="Source"><select style={fieldStyle} value={form.source} onChange={(event) => update("source", event.target.value)}>{SOURCE_OPTIONS.map((source) => <option key={source.value} value={source.value}>{source.label}</option>)}</select></Field>
-            <Field label="Status"><select style={fieldStyle} value={form.status} onChange={(event) => update("status", event.target.value)}>{STATUS_OPTIONS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></Field>
-          </div>
-          <Field label="Notes"><textarea style={{ ...fieldStyle, minHeight: "86px", resize: "vertical" }} value={form.notes} onChange={(event) => update("notes", event.target.value)} placeholder="What did they ask? Any payment or follow-up notes?" /></Field>
-          {error && <div style={{ background: "#fff5f7", border: "1px solid #ffd7e4", color: "#9f1239", borderRadius: "14px", padding: "10px 12px", fontSize: "12px", fontWeight: 800 }}>{error}</div>}
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button onClick={saveManualEnquiry} disabled={saving} style={{ flex: 1, border: "none", background: BRAND, color: "#fff", borderRadius: "14px", padding: "13px", fontSize: "14px", fontWeight: 950, cursor: "pointer" }}>{saving ? "Saving..." : "Save enquiry"}</button>
-            <button onClick={onClose} style={{ border: "1px solid #eeeeea", background: "#fff", color: "#777", borderRadius: "14px", padding: "13px 16px", fontSize: "14px", fontWeight: 850, cursor: "pointer" }}>Cancel</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return <div role="dialog" aria-modal="true" style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "18px" }} onClick={onClose}><div style={{ width: "100%", maxWidth: "560px", background: "#fff", borderRadius: "26px", padding: "18px", boxShadow: "0 24px 80px rgba(0,0,0,0.24)", maxHeight: "88vh", overflowY: "auto" }} onClick={(event) => event.stopPropagation()}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "16px" }}><div><h2 style={{ margin: 0, color: DARK, fontSize: "22px", fontWeight: 950 }}>Add enquiry</h2><p style={{ margin: "5px 0 0", color: "#777", fontSize: "13px", lineHeight: 1.5 }}>Capture leads from WhatsApp Catalogue, calls, walk-ins, referrals or Yoco.</p></div><button onClick={onClose} style={{ border: "1px solid #eeeeea", background: "#fff", borderRadius: "999px", width: "36px", height: "36px", color: "#767b81", fontSize: "18px", cursor: "pointer" }}>×</button></div><div style={{ display: "grid", gap: "12px" }}><Field label="Product / service asked about"><input style={fieldStyle} value={form.product_name} onChange={(event) => update("product_name", event.target.value)} placeholder="e.g. Toasted Sandwich" autoFocus /></Field><Field label="Price"><input style={fieldStyle} value={form.product_price} onChange={(event) => update("product_price", event.target.value)} type="number" placeholder="e.g. 80" /></Field><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px" }}><Field label="Customer name"><input style={fieldStyle} value={form.customer_name} onChange={(event) => update("customer_name", event.target.value)} placeholder="e.g. Sipho" /></Field><Field label="Customer WhatsApp"><input style={fieldStyle} value={form.customer_phone} onChange={(event) => update("customer_phone", event.target.value)} placeholder="e.g. 071 123 4567" /></Field></div><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px" }}><Field label="Source"><select style={fieldStyle} value={form.source} onChange={(event) => update("source", event.target.value)}>{SOURCE_OPTIONS.map((source) => <option key={source.value} value={source.value}>{source.label}</option>)}</select></Field><Field label="Status"><select style={fieldStyle} value={form.status} onChange={(event) => update("status", event.target.value)}>{STATUS_OPTIONS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></Field></div><Field label="Notes"><textarea style={{ ...fieldStyle, minHeight: "86px", resize: "vertical" }} value={form.notes} onChange={(event) => update("notes", event.target.value)} placeholder="What did they ask? Any payment or follow-up notes?" /></Field>{error && <div style={{ background: "#fff5f7", border: "1px solid #ffd7e4", color: "#9f1239", borderRadius: "14px", padding: "10px 12px", fontSize: "12px", fontWeight: 800 }}>{error}</div>}<div style={{ display: "flex", gap: "8px" }}><button onClick={saveManualEnquiry} disabled={saving} style={{ flex: 1, border: "none", background: BRAND, color: "#fff", borderRadius: "14px", padding: "13px", fontSize: "14px", fontWeight: 950, cursor: "pointer" }}>{saving ? "Saving..." : "Save enquiry"}</button><button onClick={onClose} style={{ border: "1px solid #eeeeea", background: "#fff", color: "#777", borderRadius: "14px", padding: "13px 16px", fontSize: "14px", fontWeight: 850, cursor: "pointer" }}>Cancel</button></div></div></div></div>;
 }
 
 export function EnquiriesTab({ business }) {
-  const [enquiries, setEnquiries] = useState([]);
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [savingId, setSavingId] = useState(null);
-  const [linkingId, setLinkingId] = useState(null);
-  const [filter, setFilter] = useState("open");
-  const [showManualForm, setShowManualForm] = useState(false);
-  const [error, setError] = useState("");
-  const [toast, setToast] = useState("");
-
+  const [enquiries, setEnquiries] = useState([]); const [customers, setCustomers] = useState([]); const [loading, setLoading] = useState(false); const [savingId, setSavingId] = useState(null); const [linkingId, setLinkingId] = useState(null); const [filter, setFilter] = useState("open"); const [showManualForm, setShowManualForm] = useState(false); const [error, setError] = useState(""); const [toast, setToast] = useState("");
   function showToast(message) { setToast(message); setTimeout(() => setToast(""), 2800); }
+  const customerById = useMemo(() => customers.reduce((acc, c) => ({ ...acc, [c.id]: c }), {}), [customers]);
+  const counts = useMemo(() => enquiries.reduce((acc, e) => { const bucket = enquiryBucket(e); acc.total += 1; acc[bucket] = (acc[bucket] || 0) + 1; acc[e.status || "new"] = (acc[e.status || "new"] || 0) + 1; if (e.customer_id) acc.linked += 1; return acc; }, { total: 0, linked: 0, open: 0, done: 0, lost: 0, follow_up: 0, waiting_payment: 0 }), [enquiries]);
+  const filteredEnquiries = useMemo(() => filter === "all" ? enquiries : enquiries.filter((e) => enquiryBucket(e) === filter), [enquiries, filter]);
 
-  const customerById = useMemo(() => customers.reduce((acc, customer) => { acc[customer.id] = customer; return acc; }, {}), [customers]);
-
-  const counts = useMemo(() => enquiries.reduce((acc, enquiry) => {
-    const bucket = enquiryBucket(enquiry);
-    acc.total += 1;
-    acc[bucket] = (acc[bucket] || 0) + 1;
-    acc[enquiry.status || "new"] = (acc[enquiry.status || "new"] || 0) + 1;
-    if (enquiry.customer_id) acc.linked += 1;
-    return acc;
-  }, { total: 0, linked: 0, open: 0, done: 0, lost: 0, follow_up: 0 }), [enquiries]);
-
-  const filteredEnquiries = useMemo(() => filter === "all" ? enquiries : enquiries.filter((enquiry) => enquiryBucket(enquiry) === filter), [enquiries, filter]);
-
-  async function loadEnquiries() {
-    if (!business?.id) return;
-    setLoading(true);
-    setError("");
-    const [{ data: enquiryRows, error: loadError }, { data: customerRows, error: customerError }] = await Promise.all([
-      supabase.from("enquiries").select("*").eq("business_id", business.id).order("created_at", { ascending: false }),
-      supabase.from("customers").select("*").eq("business_id", business.id).order("created_at", { ascending: false }),
-    ]);
-    if (loadError) { setError(loadError.message || "Could not load enquiries."); setEnquiries([]); } else { setEnquiries(enquiryRows || []); }
-    if (customerError) { console.warn("Could not load customers for enquiry linking", customerError.message); setCustomers([]); } else { setCustomers(customerRows || []); }
-    setLoading(false);
-  }
-
+  async function loadEnquiries() { if (!business?.id) return; setLoading(true); setError(""); const [{ data: enquiryRows, error: loadError }, { data: customerRows, error: customerError }] = await Promise.all([supabase.from("enquiries").select("*").eq("business_id", business.id).order("created_at", { ascending: false }), supabase.from("customers").select("*").eq("business_id", business.id).order("created_at", { ascending: false })]); if (loadError) { setError(loadError.message || "Could not load enquiries."); setEnquiries([]); } else setEnquiries(enquiryRows || []); if (customerError) { console.warn("Could not load customers for enquiry linking", customerError.message); setCustomers([]); } else setCustomers(customerRows || []); setLoading(false); }
   useEffect(() => { loadEnquiries(); }, [business?.id]);
+  async function updateEnquiry(id, patch) { setSavingId(id); setError(""); const { error: updateError } = await supabase.from("enquiries").update(patch).eq("id", id); if (updateError) setError(updateError.message || "Could not update enquiry."); else setEnquiries((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item)); setSavingId(null); }
+  async function markDone(enquiry) { const patch = { is_archived: true, archived_at: new Date().toISOString() }; if (!DONE_STATUSES.includes(enquiry.status) && enquiry.status !== "lost") patch.status = "completed"; await updateEnquiry(enquiry.id, patch); showToast("Enquiry marked as done"); }
+  async function restoreEnquiry(enquiry) { await updateEnquiry(enquiry.id, { is_archived: false, archived_at: null }); showToast("Enquiry restored to open list"); }
 
-  async function updateEnquiry(id, patch) {
-    setSavingId(id);
-    setError("");
-    const { error: updateError } = await supabase.from("enquiries").update(patch).eq("id", id);
-    if (updateError) setError(updateError.message || "Could not update enquiry."); else setEnquiries((current) => current.map((item) => item.id === id ? { ...item, ...patch } : item));
-    setSavingId(null);
-  }
-
-  async function markDone(enquiry) {
-    const patch = { is_archived: true, archived_at: new Date().toISOString() };
-    if (!DONE_STATUSES.includes(enquiry.status) && enquiry.status !== "lost") patch.status = "completed";
-    await updateEnquiry(enquiry.id, patch);
-    showToast("Enquiry marked as done");
-  }
-
-  async function restoreEnquiry(enquiry) {
-    await updateEnquiry(enquiry.id, { is_archived: false, archived_at: null });
-    showToast("Enquiry restored to open list");
-  }
-
-  async function linkEnquiryToCustomer(enquiry) {
-    if (!business?.id || !enquiry?.id) return;
-    const phone = formatPhone(enquiry.customer_phone || "");
-    const name = (enquiry.customer_name || "").trim();
-    if (!phone) { setError("Add the customer WhatsApp number first, then link the enquiry."); return; }
-    setLinkingId(enquiry.id); setError("");
-    const matchingCustomer = customers.find((customer) => samePhone(customer.whatsapp, phone));
-    if (matchingCustomer) {
-      const patch = { whatsapp: formatPhone(matchingCustomer.whatsapp || phone), name: matchingCustomer.name || name || "WhatsApp Customer", interested_in: mergeInterestedIn(matchingCustomer.interested_in, enquiry.product_name), last_contacted: new Date().toISOString() };
-      const { data: updatedCustomer, error: customerError } = await supabase.from("customers").update(patch).eq("id", matchingCustomer.id).select().single();
-      if (customerError) { setError(customerError.message || "Could not update existing customer."); setLinkingId(null); return; }
-      const enquiryPatch = { customer_id: matchingCustomer.id, customer_name: updatedCustomer?.name || matchingCustomer.name || name, customer_phone: updatedCustomer?.whatsapp || phone };
-      const { error: enquiryError } = await supabase.from("enquiries").update(enquiryPatch).eq("id", enquiry.id);
-      if (enquiryError) setError(enquiryError.message || "Could not link enquiry to customer."); else { setCustomers((current) => current.map((customer) => customer.id === matchingCustomer.id ? (updatedCustomer || { ...customer, ...patch }) : customer)); setEnquiries((current) => current.map((item) => item.id === enquiry.id ? { ...item, ...enquiryPatch } : item)); showToast("Linked to existing customer"); }
-      setLinkingId(null); return;
-    }
-    const newCustomerPayload = { business_id: business.id, name: name || "WhatsApp Customer", whatsapp: phone, area: "", notes: `Created from enquiry about ${enquiry.product_name || "a product/service"}.`, status: "lead", interested_in: enquiry.product_name ? [enquiry.product_name] : [], last_contacted: new Date().toISOString() };
-    const { data: newCustomer, error: createError } = await supabase.from("customers").insert([newCustomerPayload]).select().single();
-    if (createError) { setError(createError.message || "Could not create customer."); setLinkingId(null); return; }
-    const enquiryPatch = { customer_id: newCustomer.id, customer_name: newCustomer.name, customer_phone: newCustomer.whatsapp };
-    const { error: enquiryError } = await supabase.from("enquiries").update(enquiryPatch).eq("id", enquiry.id);
-    if (enquiryError) setError(enquiryError.message || "Customer created, but enquiry could not be linked."); else { setCustomers((current) => [newCustomer, ...current]); setEnquiries((current) => current.map((item) => item.id === enquiry.id ? { ...item, ...enquiryPatch } : item)); showToast("Customer created and linked"); }
-    setLinkingId(null);
-  }
-
-  async function saveCustomerField(enquiry, patch) {
-    await updateEnquiry(enquiry.id, patch);
-    const updatedEnquiry = { ...enquiry, ...patch };
-    if (patch.customer_phone && updatedEnquiry.customer_phone) await linkEnquiryToCustomer(updatedEnquiry);
-  }
-
-  function followUp(enquiry) {
-    const message = `Hi, just following up on your enquiry about ${enquiry.product_name || "my product/service"}. Please let me know if you are still interested.`;
-    updateEnquiry(enquiry.id, { status: "follow_up", is_archived: false, archived_at: null, last_follow_up_at: new Date().toISOString() });
-    const linkedCustomer = enquiry.customer_id ? customerById[enquiry.customer_id] : null;
-    const targetNumber = enquiry.customer_phone || linkedCustomer?.whatsapp || business?.whatsapp || business?.phone || "";
-    if (targetNumber) { window.open(waLink(targetNumber, message), "_blank", "noopener,noreferrer"); return; }
-    navigator.clipboard?.writeText(message);
-  }
-
-  function handleManualCreated(enquiry, customer) {
-    setEnquiries((current) => [enquiry, ...current]);
-    if (customer) setCustomers((current) => current.some((item) => item.id === customer.id) ? current.map((item) => item.id === customer.id ? customer : item) : [customer, ...current]);
-    setFilter(enquiryBucket(enquiry));
-    showToast("Manual enquiry saved");
-  }
-
+  async function linkEnquiryToCustomer(enquiry) { if (!business?.id || !enquiry?.id) return; const phone = formatPhone(enquiry.customer_phone || ""); const name = (enquiry.customer_name || "").trim(); if (!phone) { setError("Add the customer WhatsApp number first, then link the enquiry."); return; } setLinkingId(enquiry.id); setError(""); const matchingCustomer = customers.find((c) => samePhone(c.whatsapp, phone)); if (matchingCustomer) { const patch = { whatsapp: formatPhone(matchingCustomer.whatsapp || phone), name: matchingCustomer.name || name || "WhatsApp Customer", interested_in: mergeInterestedIn(matchingCustomer.interested_in, enquiry.product_name), last_contacted: new Date().toISOString() }; const { data: updatedCustomer, error: customerError } = await supabase.from("customers").update(patch).eq("id", matchingCustomer.id).select().single(); if (customerError) { setError(customerError.message || "Could not update existing customer."); setLinkingId(null); return; } const enquiryPatch = { customer_id: matchingCustomer.id, customer_name: updatedCustomer?.name || matchingCustomer.name || name, customer_phone: updatedCustomer?.whatsapp || phone }; const { error: enquiryError } = await supabase.from("enquiries").update(enquiryPatch).eq("id", enquiry.id); if (enquiryError) setError(enquiryError.message || "Could not link enquiry to customer."); else { setCustomers((current) => current.map((customer) => customer.id === matchingCustomer.id ? (updatedCustomer || { ...customer, ...patch }) : customer)); setEnquiries((current) => current.map((item) => item.id === enquiry.id ? { ...item, ...enquiryPatch } : item)); showToast("Linked to existing customer"); } setLinkingId(null); return; } const newCustomerPayload = { business_id: business.id, name: name || "WhatsApp Customer", whatsapp: phone, area: "", notes: `Created from enquiry about ${enquiry.product_name || "a product/service"}.`, status: "lead", interested_in: enquiry.product_name ? [enquiry.product_name] : [], last_contacted: new Date().toISOString() }; const { data: newCustomer, error: createError } = await supabase.from("customers").insert([newCustomerPayload]).select().single(); if (createError) { setError(createError.message || "Could not create customer."); setLinkingId(null); return; } const enquiryPatch = { customer_id: newCustomer.id, customer_name: newCustomer.name, customer_phone: newCustomer.whatsapp }; const { error: enquiryError } = await supabase.from("enquiries").update(enquiryPatch).eq("id", enquiry.id); if (enquiryError) setError(enquiryError.message || "Customer created, but enquiry could not be linked."); else { setCustomers((current) => [newCustomer, ...current]); setEnquiries((current) => current.map((item) => item.id === enquiry.id ? { ...item, ...enquiryPatch } : item)); showToast("Customer created and linked"); } setLinkingId(null); }
+  async function saveCustomerField(enquiry, patch) { await updateEnquiry(enquiry.id, patch); const updated = { ...enquiry, ...patch }; if (patch.customer_phone && updated.customer_phone) await linkEnquiryToCustomer(updated); }
+  function followUp(enquiry) { const message = `Hi, just following up on your enquiry about ${enquiry.product_name || "my product/service"}. Please let me know if you are still interested.`; updateEnquiry(enquiry.id, { status: "follow_up", is_archived: false, archived_at: null, last_follow_up_at: new Date().toISOString() }); const linked = enquiry.customer_id ? customerById[enquiry.customer_id] : null; const targetNumber = enquiry.customer_phone || linked?.whatsapp || business?.whatsapp || business?.phone || ""; if (targetNumber) { window.open(waLink(targetNumber, message), "_blank", "noopener,noreferrer"); return; } navigator.clipboard?.writeText(message); }
+  function handleManualCreated(enquiry, customer) { setEnquiries((current) => [enquiry, ...current]); if (customer) setCustomers((current) => current.some((item) => item.id === customer.id) ? current.map((item) => item.id === customer.id ? customer : item) : [customer, ...current]); setFilter(enquiryBucket(enquiry)); showToast("Manual enquiry saved"); }
   if (!business?.id) return <div style={{ maxWidth: "900px" }}><h1 style={{ fontSize: "28px", fontWeight: 950, margin: "0 0 8px", color: DARK }}>Enquiries</h1><div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "22px", padding: "22px", color: "#777" }}>Set up your business first. Your public page enquiries will appear here.</div></div>;
 
-  const filterButtons = [
-    { key: "open", label: "Open", count: counts.open },
-    { key: "follow_up", label: "Follow-up", count: counts.follow_up },
-    { key: "done", label: "Done", count: counts.done },
-    { key: "lost", label: "Lost", count: counts.lost },
-    { key: "all", label: "All", count: counts.total },
-  ];
-
-  return (
-    <div style={{ maxWidth: "1040px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "flex-start", marginBottom: "18px", flexWrap: "wrap" }}>
-        <div><div style={{ color: BRAND, fontSize: "11px", fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>Lead control</div><h1 style={{ fontSize: "30px", fontWeight: 950, margin: "0 0 8px", color: DARK }}>Enquiries</h1><p style={{ margin: 0, color: "#777", fontSize: "14px", lineHeight: 1.6 }}>Track who asked about what, who needs a reply, and who needs a follow-up.</p></div>
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}><button onClick={() => setShowManualForm(true)} style={{ border: "none", background: BRAND, borderRadius: "14px", padding: "11px 14px", fontSize: "13px", fontWeight: 900, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}><Plus size={16} /> Add enquiry</button><button onClick={loadEnquiries} disabled={loading} style={{ border: "1px solid #eeeeea", background: "#fff", borderRadius: "14px", padding: "11px 14px", fontSize: "13px", fontWeight: 850, color: DARK, cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}><RefreshCw size={16} /> {loading ? "Refreshing..." : "Refresh"}</button></div>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "10px", marginBottom: "14px" }}><div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "18px", padding: "14px" }}><div style={{ fontSize: "24px", fontWeight: 950, color: DARK }}>{counts.open}</div><div style={{ fontSize: "12px", color: "#888", fontWeight: 800 }}>Open enquiries</div></div><div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "18px", padding: "14px" }}><div style={{ fontSize: "24px", fontWeight: 950, color: DARK }}>{counts.follow_up || 0}</div><div style={{ fontSize: "12px", color: "#888", fontWeight: 800 }}>Follow-up</div></div><div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "18px", padding: "14px" }}><div style={{ fontSize: "24px", fontWeight: 950, color: DARK }}>{counts.done || 0}</div><div style={{ fontSize: "12px", color: "#888", fontWeight: 800 }}>Done / archived</div></div><div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "18px", padding: "14px" }}><div style={{ fontSize: "24px", fontWeight: 950, color: DARK }}>{counts.linked || 0}</div><div style={{ fontSize: "12px", color: "#888", fontWeight: 800 }}>Linked customers</div></div></div>
-
-      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>{filterButtons.map((item) => { const active = filter === item.key; return <button key={item.key} onClick={() => setFilter(item.key)} style={{ border: `1.5px solid ${active ? BRAND : "#eeeeea"}`, background: active ? "#fde8f1" : "#fff", color: active ? BRAND : "#555", borderRadius: "999px", padding: "9px 13px", fontSize: "13px", fontWeight: 900, cursor: "pointer" }}>{item.label} ({item.count || 0})</button>; })}</div>
-
-      {error && <div style={{ background: "#fff5f7", border: "1px solid #ffd7e4", color: "#9f1239", borderRadius: "16px", padding: "12px 14px", marginBottom: "14px", fontSize: "13px", fontWeight: 750 }}>{error}</div>}
-
-      {loading ? <div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "22px", padding: "24px", color: "#777", fontWeight: 800 }}>Loading enquiries...</div> : filteredEnquiries.length === 0 ? <div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "24px", padding: "26px", textAlign: "center", boxShadow: "0 14px 42px rgba(15,23,42,0.06)" }}><div style={{ width: "52px", height: "52px", borderRadius: "50%", background: "#fde8f1", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}><MessageCircle size={24} color={BRAND} /></div><h2 style={{ margin: "0 0 8px", color: DARK, fontSize: "20px", fontWeight: 950 }}>No {filter === "all" ? "" : filter.replace("_", " ")} enquiries</h2><p style={{ margin: 0, color: "#777", fontSize: "14px", lineHeight: 1.6 }}>Your enquiry list is clear for this view.</p></div> : <div style={{ display: "grid", gap: "12px" }}>{filteredEnquiries.map((enquiry) => { const linkedCustomer = enquiry.customer_id ? customerById[enquiry.customer_id] : null; const archived = enquiry.is_archived || DONE_STATUSES.includes(enquiry.status); return <div key={enquiry.id} style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "22px", padding: "16px", boxShadow: "0 12px 34px rgba(15,23,42,0.05)", opacity: archived ? 0.86 : 1 }}><div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "flex-start", flexWrap: "wrap", marginBottom: "12px" }}><div style={{ minWidth: 0, flex: 1 }}><div style={{ fontSize: "17px", fontWeight: 950, color: DARK, marginBottom: "5px" }}>{enquiry.product_name || "General enquiry"}</div><div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", color: "#777", fontSize: "12px", fontWeight: 800 }}><span>{money(enquiry.product_price)}</span><span>•</span><span>{formatDate(enquiry.created_at)}</span><span>•</span><span>{sourceLabel(enquiry.source)}</span>{enquiry.archived_at && <><span>•</span><span>Done {formatDate(enquiry.archived_at)}</span></>}</div></div><span style={{ background: archived ? "#f4f4f5" : "#fde8f1", color: archived ? "#666" : BRAND, borderRadius: "999px", padding: "7px 10px", fontSize: "12px", fontWeight: 900 }}>{archived ? "Done" : statusLabel(enquiry.status || "new")}</span></div>{linkedCustomer && <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#f7fff5", border: "1px solid #d6f5cc", borderRadius: "14px", padding: "10px 12px", marginBottom: "12px", color: "#247a2b", fontSize: "12px", fontWeight: 850 }}><Link2 size={15} /> Linked to customer: {linkedCustomer.name} {linkedCustomer.whatsapp ? `(${linkedCustomer.whatsapp})` : ""}</div>}<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px", marginBottom: "12px" }}><Field label="Customer name"><input value={enquiry.customer_name || ""} onChange={(event) => setEnquiries((current) => current.map((item) => item.id === enquiry.id ? { ...item, customer_name: event.target.value } : item))} onBlur={(event) => saveCustomerField(enquiry, { customer_name: event.target.value })} placeholder="Add name" style={fieldStyle} /></Field><Field label="Customer WhatsApp"><input value={enquiry.customer_phone || ""} onChange={(event) => setEnquiries((current) => current.map((item) => item.id === enquiry.id ? { ...item, customer_phone: event.target.value } : item))} onBlur={(event) => saveCustomerField(enquiry, { customer_phone: event.target.value })} placeholder="e.g. 071 123 4567" style={fieldStyle} /></Field><Field label="Status"><select value={enquiry.status || "new"} onChange={(event) => updateEnquiry(enquiry.id, { status: event.target.value, is_archived: DONE_STATUSES.includes(event.target.value) || event.target.value === "lost", archived_at: DONE_STATUSES.includes(event.target.value) || event.target.value === "lost" ? new Date().toISOString() : null })} disabled={savingId === enquiry.id} style={fieldStyle}>{STATUS_OPTIONS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></Field></div><Field label="Notes"><textarea value={enquiry.notes || ""} onChange={(event) => setEnquiries((current) => current.map((item) => item.id === enquiry.id ? { ...item, notes: event.target.value } : item))} onBlur={(event) => updateEnquiry(enquiry.id, { notes: event.target.value })} placeholder="Add notes, payment info or next step" rows={2} style={{ ...fieldStyle, resize: "vertical", marginBottom: "12px" }} /></Field><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "8px" }}><button onClick={() => linkEnquiryToCustomer(enquiry)} disabled={linkingId === enquiry.id || !enquiry.customer_phone} style={{ border: "1px solid #eeeeea", background: enquiry.customer_phone ? "#fff" : "#f7f7f7", color: enquiry.customer_phone ? DARK : "#aaa", borderRadius: "14px", padding: "12px 14px", fontSize: "13px", fontWeight: 950, cursor: enquiry.customer_phone ? "pointer" : "not-allowed", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }}><UserPlus size={17} /> {linkingId === enquiry.id ? "Linking..." : linkedCustomer ? "Update customer link" : "Create / link customer"}</button><button onClick={() => followUp(enquiry)} style={{ border: "none", background: BRAND, color: "#fff", borderRadius: "14px", padding: "12px 14px", fontSize: "13px", fontWeight: 950, cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }}><MessageCircle size={17} /> Follow up on WhatsApp</button>{archived ? <button onClick={() => restoreEnquiry(enquiry)} style={{ border: "1px solid #eeeeea", background: "#fff", color: DARK, borderRadius: "14px", padding: "12px 14px", fontSize: "13px", fontWeight: 950, cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }}><RotateCcw size={17} /> Restore</button> : <button onClick={() => markDone(enquiry)} style={{ border: "1px solid #eeeeea", background: "#fff", color: DARK, borderRadius: "14px", padding: "12px 14px", fontSize: "13px", fontWeight: 950, cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }}><Archive size={17} /> Mark as done</button>}</div></div>; })}</div>}
-      {showManualForm && <ManualEnquiryModal business={business} customers={customers} onClose={() => setShowManualForm(false)} onCreated={handleManualCreated} />}
-      {toast && <div style={{ position: "fixed", bottom: "28px", left: "50%", transform: "translateX(-50%)", background: DARK, color: "#fff", padding: "12px 24px", borderRadius: "999px", fontSize: "13px", fontWeight: 800, zIndex: 2000, boxShadow: "0 8px 32px rgba(0,0,0,0.25)", whiteSpace: "nowrap" }}>{toast}</div>}
-    </div>
-  );
+  const filterButtons = [{ key: "open", label: "Open", count: counts.open }, { key: "follow_up", label: "Follow-up", count: counts.follow_up }, { key: "done", label: "Done", count: counts.done }, { key: "lost", label: "Lost", count: counts.lost }, { key: "all", label: "All", count: counts.total }];
+  return <div style={{ maxWidth: "1040px" }}><div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "flex-start", marginBottom: "18px", flexWrap: "wrap" }}><div><div style={{ color: BRAND, fontSize: "11px", fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>Lead control</div><h1 style={{ fontSize: "30px", fontWeight: 950, margin: "0 0 8px", color: DARK }}>Enquiries</h1><p style={{ margin: 0, color: "#777", fontSize: "14px", lineHeight: 1.6 }}>Track who asked about what, who needs a reply, and who needs a follow-up.</p></div><div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}><button onClick={() => setShowManualForm(true)} style={{ border: "none", background: BRAND, borderRadius: "14px", padding: "11px 14px", fontSize: "13px", fontWeight: 900, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}><Plus size={16} /> Add enquiry</button><button onClick={loadEnquiries} disabled={loading} style={{ border: "1px solid #eeeeea", background: "#fff", borderRadius: "14px", padding: "11px 14px", fontSize: "13px", fontWeight: 850, color: DARK, cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}><RefreshCw size={16} /> {loading ? "Refreshing..." : "Refresh"}</button></div></div><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "10px", marginBottom: "14px" }}><div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "18px", padding: "14px" }}><div style={{ fontSize: "24px", fontWeight: 950, color: DARK }}>{counts.open}</div><div style={{ fontSize: "12px", color: "#888", fontWeight: 800 }}>Open enquiries</div></div><div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "18px", padding: "14px" }}><div style={{ fontSize: "24px", fontWeight: 950, color: DARK }}>{counts.waiting_payment || 0}</div><div style={{ fontSize: "12px", color: "#888", fontWeight: 800 }}>Waiting payment</div></div><div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "18px", padding: "14px" }}><div style={{ fontSize: "24px", fontWeight: 950, color: DARK }}>{counts.done || 0}</div><div style={{ fontSize: "12px", color: "#888", fontWeight: 800 }}>Done / archived</div></div><div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "18px", padding: "14px" }}><div style={{ fontSize: "24px", fontWeight: 950, color: DARK }}>{counts.linked || 0}</div><div style={{ fontSize: "12px", color: "#888", fontWeight: 800 }}>Linked customers</div></div></div><div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>{filterButtons.map((item) => { const active = filter === item.key; return <button key={item.key} onClick={() => setFilter(item.key)} style={{ border: `1.5px solid ${active ? BRAND : "#eeeeea"}`, background: active ? "#fde8f1" : "#fff", color: active ? BRAND : "#555", borderRadius: "999px", padding: "9px 13px", fontSize: "13px", fontWeight: 900, cursor: "pointer" }}>{item.label} ({item.count || 0})</button>; })}</div>{error && <div style={{ background: "#fff5f7", border: "1px solid #ffd7e4", color: "#9f1239", borderRadius: "16px", padding: "12px 14px", marginBottom: "14px", fontSize: "13px", fontWeight: 750 }}>{error}</div>}{loading ? <div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "22px", padding: "24px", color: "#777", fontWeight: 800 }}>Loading enquiries...</div> : filteredEnquiries.length === 0 ? <div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "24px", padding: "26px", textAlign: "center", boxShadow: "0 14px 42px rgba(15,23,42,0.06)" }}><div style={{ width: "52px", height: "52px", borderRadius: "50%", background: "#fde8f1", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}><MessageCircle size={24} color={BRAND} /></div><h2 style={{ margin: "0 0 8px", color: DARK, fontSize: "20px", fontWeight: 950 }}>No enquiries</h2><p style={{ margin: 0, color: "#777", fontSize: "14px", lineHeight: 1.6 }}>Your enquiry list is clear for this view.</p></div> : <div style={{ display: "grid", gap: "12px" }}>{filteredEnquiries.map((enquiry) => { const linked = enquiry.customer_id ? customerById[enquiry.customer_id] : null; const archived = enquiry.is_archived || DONE_STATUSES.includes(enquiry.status); return <div key={enquiry.id} style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "22px", padding: "16px", boxShadow: "0 12px 34px rgba(15,23,42,0.05)", opacity: archived ? 0.86 : 1 }}><div style={{ display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "flex-start", flexWrap: "wrap", marginBottom: "12px" }}><div style={{ minWidth: 0, flex: 1 }}><div style={{ fontSize: "17px", fontWeight: 950, color: DARK, marginBottom: "5px" }}>{enquiry.product_name || "General enquiry"}</div><div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", color: "#777", fontSize: "12px", fontWeight: 800 }}><span>{money(enquiry.product_price)}</span><span>•</span><span>{formatDate(enquiry.created_at)}</span><span>•</span><span>{sourceLabel(enquiry.source)}</span>{enquiry.archived_at && <><span>•</span><span>Done {formatDate(enquiry.archived_at)}</span></>}</div></div><span style={{ background: archived ? "#f4f4f5" : "#fde8f1", color: archived ? "#666" : BRAND, borderRadius: "999px", padding: "7px 10px", fontSize: "12px", fontWeight: 900 }}>{archived ? "Done" : statusLabel(enquiry.status || "new")}</span></div>{linked && <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#f7fff5", border: "1px solid #d6f5cc", borderRadius: "14px", padding: "10px 12px", marginBottom: "12px", color: "#247a2b", fontSize: "12px", fontWeight: 850 }}><Link2 size={15} /> Linked to customer: {linked.name} {linked.whatsapp ? `(${linked.whatsapp})` : ""}</div>}<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px", marginBottom: "12px" }}><Field label="Customer name"><input value={enquiry.customer_name || ""} onChange={(event) => setEnquiries((current) => current.map((item) => item.id === enquiry.id ? { ...item, customer_name: event.target.value } : item))} onBlur={(event) => saveCustomerField(enquiry, { customer_name: event.target.value })} placeholder="Add name" style={fieldStyle} /></Field><Field label="Customer WhatsApp"><input value={enquiry.customer_phone || ""} onChange={(event) => setEnquiries((current) => current.map((item) => item.id === enquiry.id ? { ...item, customer_phone: event.target.value } : item))} onBlur={(event) => saveCustomerField(enquiry, { customer_phone: event.target.value })} placeholder="e.g. 071 123 4567" style={fieldStyle} /></Field><Field label="Status"><select value={enquiry.status || "new"} onChange={(event) => { const archivedStatus = shouldArchiveStatus(event.target.value); updateEnquiry(enquiry.id, { status: event.target.value, is_archived: archivedStatus, archived_at: archivedStatus ? new Date().toISOString() : null }); }} disabled={savingId === enquiry.id} style={fieldStyle}>{STATUS_OPTIONS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></Field></div><Field label="Notes"><textarea value={enquiry.notes || ""} onChange={(event) => setEnquiries((current) => current.map((item) => item.id === enquiry.id ? { ...item, notes: event.target.value } : item))} onBlur={(event) => updateEnquiry(enquiry.id, { notes: event.target.value })} placeholder="Add notes, payment info or next step" rows={2} style={{ ...fieldStyle, resize: "vertical", marginBottom: "12px" }} /></Field><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "8px" }}><button onClick={() => linkEnquiryToCustomer(enquiry)} disabled={linkingId === enquiry.id || !enquiry.customer_phone} style={{ border: "1px solid #eeeeea", background: enquiry.customer_phone ? "#fff" : "#f7f7f7", color: enquiry.customer_phone ? DARK : "#aaa", borderRadius: "14px", padding: "12px 14px", fontSize: "13px", fontWeight: 950, cursor: enquiry.customer_phone ? "pointer" : "not-allowed", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }}><UserPlus size={17} /> {linkingId === enquiry.id ? "Linking..." : linked ? "Update customer link" : "Create / link customer"}</button><button onClick={() => followUp(enquiry)} style={{ border: "none", background: BRAND, color: "#fff", borderRadius: "14px", padding: "12px 14px", fontSize: "13px", fontWeight: 950, cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }}><MessageCircle size={17} /> Follow up on WhatsApp</button>{archived ? <button onClick={() => restoreEnquiry(enquiry)} style={{ border: "1px solid #eeeeea", background: "#fff", color: DARK, borderRadius: "14px", padding: "12px 14px", fontSize: "13px", fontWeight: 950, cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }}><RotateCcw size={17} /> Restore</button> : <button onClick={() => markDone(enquiry)} style={{ border: "1px solid #eeeeea", background: "#fff", color: DARK, borderRadius: "14px", padding: "12px 14px", fontSize: "13px", fontWeight: 950, cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }}><Archive size={17} /> Mark as done</button>}</div></div>; })}</div>}{showManualForm && <ManualEnquiryModal business={business} customers={customers} onClose={() => setShowManualForm(false)} onCreated={handleManualCreated} />}{toast && <div style={{ position: "fixed", bottom: "28px", left: "50%", transform: "translateX(-50%)", background: DARK, color: "#fff", padding: "12px 24px", borderRadius: "999px", fontSize: "13px", fontWeight: 800, zIndex: 2000, boxShadow: "0 8px 32px rgba(0,0,0,0.25)", whiteSpace: "nowrap" }}>{toast}</div>}</div>;
 }
