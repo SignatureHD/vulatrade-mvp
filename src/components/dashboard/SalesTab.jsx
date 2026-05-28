@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { MessageCircle } from "lucide-react";
 import { DARK, LIME, PAYMENT_METHODS, PAYMENT_STATUSES, inputStyle, labelStyle } from "../../constants";
 import { supabase } from "../../lib/supabase";
+
+const BRAND = "#ea4c89";
 
 function normaliseVariants(variants = []) {
   if (!Array.isArray(variants)) return [];
@@ -38,6 +41,31 @@ function saleOptions(products = []) {
       reference: `${product.name || "Unnamed item"} - ${variant.name}`,
     }));
   });
+}
+
+function normalizeSouthAfricanPhone(value = "") {
+  const cleaned = String(value || "").replace(/[\s().-]/g, "");
+  if (!cleaned) return "";
+  if (/^0[6-8][0-9]{8}$/.test(cleaned)) return `+27${cleaned.slice(1)}`;
+  if (/^\+27[6-8][0-9]{8}$/.test(cleaned)) return cleaned;
+  if (/^27[6-8][0-9]{8}$/.test(cleaned)) return `+${cleaned}`;
+  return "";
+}
+
+function paymentReminderMessage({ business, customer, payment }) {
+  const name = customer?.name || "there";
+  const businessName = business?.name || "my business";
+  const amount = Number(payment?.amount || 0).toLocaleString();
+  const item = payment?.reference || "your order";
+  return `Hi ${name}, friendly reminder that R${amount} is still outstanding for ${item} from ${businessName}.`;
+}
+
+function openPaymentReminder({ business, customer, payment }) {
+  const message = paymentReminderMessage({ business, customer, payment });
+  const phone = normalizeSouthAfricanPhone(customer?.whatsapp || "");
+  const encoded = encodeURIComponent(message);
+  const url = phone ? `https://wa.me/${phone.replace("+", "")}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 function PaymentForm({ business, customers, products = [], onSaved }) {
@@ -145,11 +173,7 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
             <option value="">Custom sale</option>
             {options.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
           </select>
-          {products.length === 0 && (
-            <div style={{ fontSize:"11px", color:"#aaa", marginTop:"6px", lineHeight:1.4 }}>
-              Add products or services first to use this selector.
-            </div>
-          )}
+          {products.length === 0 && <div style={{ fontSize:"11px", color:"#aaa", marginTop:"6px", lineHeight:1.4 }}>Add products or services first to use this selector.</div>}
         </div>
 
         <div>
@@ -191,16 +215,15 @@ export function SalesTab({ business, products = [] }) {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const sortedProducts = useMemo(() => {
-    return [...products].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-  }, [products]);
+  const sortedProducts = useMemo(() => [...products].sort((a, b) => (a.name || "").localeCompare(b.name || "")), [products]);
+  const customerById = useMemo(() => customers.reduce((acc, customer) => ({ ...acc, [customer.id]: customer }), {}), [customers]);
 
   useEffect(() => {
     if (!business?.id) { setLoading(false); return; }
     setLoading(true);
     Promise.all([
       supabase.from("payments").select("*").eq("business_id", business.id).order("created_at", { ascending:false }),
-      supabase.from("customers").select("id,name,status,total_spent,visit_count").eq("business_id", business.id).order("name"),
+      supabase.from("customers").select("id,name,whatsapp,status,total_spent,visit_count").eq("business_id", business.id).order("name"),
     ]).then(([{ data: pay, error: paymentError }, { data: cust, error: customerError }]) => {
       if (paymentError) console.error("Load payments:", paymentError);
       if (customerError) console.error("Load payment customers:", customerError);
@@ -211,7 +234,7 @@ export function SalesTab({ business, products = [] }) {
   }, [business?.id]);
 
   function customerName(id) {
-    return customers.find((customer) => customer.id === id)?.name || "Unknown customer";
+    return customerById[id]?.name || "Unknown customer";
   }
 
   function handleSaved(payment, updatedCustomer) {
@@ -239,13 +262,7 @@ export function SalesTab({ business, products = [] }) {
         <p style={{ fontSize:"13px", color:"#aaa" }}>Revenue, payments, deposits and unpaid sales.</p>
       </div>
 
-      {customers.length > 0 ? (
-        <PaymentForm business={business} customers={customers} products={sortedProducts} onSaved={handleSaved} />
-      ) : (
-        <div style={{ background:"#fff", border:"1px dashed #d4d7db", borderRadius:"18px", padding:"18px", marginBottom:"20px", color:"#777", fontSize:"13px", lineHeight:1.55 }}>
-          Add a customer first, then you can record a sale against them.
-        </div>
-      )}
+      {customers.length > 0 ? <PaymentForm business={business} customers={customers} products={sortedProducts} onSaved={handleSaved} /> : <div style={{ background:"#fff", border:"1px dashed #d4d7db", borderRadius:"18px", padding:"18px", marginBottom:"20px", color:"#777", fontSize:"13px", lineHeight:1.55 }}>Add a customer first, then you can record a sale against them.</div>}
 
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(130px, 1fr))", gap:"10px", marginBottom:"20px" }}>
         {[
@@ -253,45 +270,39 @@ export function SalesTab({ business, products = [] }) {
           { label:"Payments", value:payments.length },
           { label:"Deposits", value:deposits.length },
           { label:"Unpaid", value:unpaid.length },
-        ].map((stat) => (
-          <div key={stat.label} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"14px", padding:"16px" }}>
-            <div style={{ fontSize:"10px", color:"#aaa", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"6px" }}>{stat.label}</div>
-            <div style={{ fontSize:"22px", fontWeight:900, color:DARK }}>{stat.value}</div>
-          </div>
-        ))}
+        ].map((stat) => <div key={stat.label} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"14px", padding:"16px" }}><div style={{ fontSize:"10px", color:"#aaa", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"6px" }}>{stat.label}</div><div style={{ fontSize:"22px", fontWeight:900, color:DARK }}>{stat.value}</div></div>)}
       </div>
 
       {unpaid.length > 0 && (
         <div style={{ background:"#fff8ee", border:"1px solid #f0d080", borderRadius:"16px", padding:"16px", marginBottom:"20px" }}>
           <div style={{ fontSize:"14px", fontWeight:800, color:DARK, marginBottom:"10px" }}>Unpaid / follow-up</div>
-          <div style={{ display:"flex", flexDirection:"column", gap:"6px" }}>
-            {unpaid.slice(0, 5).map((payment) => (
-              <div key={payment.id} style={{ display:"flex", justifyContent:"space-between", gap:"12px", fontSize:"13px", color:"#6b5200" }}>
-                <span>{customerName(payment.customer_id)}{payment.reference ? ` · ${payment.reference}` : ""}</span>
-                <strong>R{(payment.amount || 0).toLocaleString()}</strong>
-              </div>
-            ))}
+          <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
+            {unpaid.slice(0, 10).map((payment) => {
+              const customer = customerById[payment.customer_id];
+              const canWhatsApp = Boolean(normalizeSouthAfricanPhone(customer?.whatsapp || ""));
+              return (
+                <div key={payment.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:"12px", fontSize:"13px", color:"#6b5200", background:"rgba(255,255,255,0.5)", border:"1px solid rgba(240,208,128,0.55)", borderRadius:"12px", padding:"10px 12px", flexWrap:"wrap" }}>
+                  <span style={{ minWidth:0, flex:"1 1 220px" }}>{customerName(payment.customer_id)}{payment.reference ? ` · ${payment.reference}` : ""}</span>
+                  <strong>R{(payment.amount || 0).toLocaleString()}</strong>
+                  <button onClick={() => openPaymentReminder({ business, customer, payment })} style={{ border:"none", background:BRAND, color:"#fff", borderRadius:"999px", padding:"9px 13px", fontSize:"12px", fontWeight:900, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:"7px" }} title={canWhatsApp ? "Open WhatsApp reminder" : "Opens WhatsApp without a saved number"}>
+                    <MessageCircle size={15} /> Send reminder
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
       <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"20px" }}>
         <div style={{ fontSize:"15px", fontWeight:800, color:DARK, marginBottom:"16px" }}>Recent sales</div>
-        {loading ? (
-          <div style={{ textAlign:"center", padding:"40px", color:"#aaa" }}>Loading…</div>
-        ) : payments.length === 0 ? (
-          <div style={{ background:"#fbfbfb", borderRadius:"14px", padding:"24px", textAlign:"center", color:"#888", fontSize:"13px" }}>
-            No sales recorded yet. Start building your business file by adding today's sales.
-          </div>
-        ) : (
+        {loading ? <div style={{ textAlign:"center", padding:"40px", color:"#aaa" }}>Loading…</div> : payments.length === 0 ? <div style={{ background:"#fbfbfb", borderRadius:"14px", padding:"24px", textAlign:"center", color:"#888", fontSize:"13px" }}>No sales recorded yet. Start building your business file by adding today's sales.</div> : (
           <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
             {payments.map((payment) => (
               <div key={payment.id} style={{ display:"flex", alignItems:"center", gap:"12px", padding:"12px 14px", border:"1px solid #eeeeea", borderRadius:"12px" }}>
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:"14px", fontWeight:800, color:DARK }}>{customerName(payment.customer_id)}</div>
-                  <div style={{ fontSize:"12px", color:"#aaa" }}>
-                    {payment.method || "Other"} · {payment.status || "Paid"}{payment.reference ? ` · ${payment.reference}` : ""}
-                  </div>
+                  <div style={{ fontSize:"12px", color:"#aaa" }}>{payment.method || "Other"} · {payment.status || "Paid"}{payment.reference ? ` · ${payment.reference}` : ""}</div>
                 </div>
                 <div style={{ textAlign:"right" }}>
                   <div style={{ fontSize:"15px", fontWeight:900, color:DARK }}>R{(payment.amount || 0).toLocaleString()}</div>
