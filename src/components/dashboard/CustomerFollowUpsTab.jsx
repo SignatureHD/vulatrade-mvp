@@ -6,6 +6,7 @@ import { supabase } from "../../lib/supabase";
 const BRAND = "#ea4c89";
 const SOFT = "#fde8f1";
 const BORDER = "#eeeeea";
+const FOLLOW_UP_DELAY_HOURS = 6;
 
 const CUSTOMER_STAGES = [
   { value: "new_enquiry", label: "New enquiry" },
@@ -34,11 +35,15 @@ function lastContacted(customer) {
   return customer.last_contacted_at || customer.last_contacted || null;
 }
 
-function isOlderThanDays(dateString, days) {
-  if (!dateString) return true;
+function followUpAnchor(customer) {
+  return lastContacted(customer) || customer.created_at || customer.updated_at || null;
+}
+
+function isOlderThanHours(dateString, hours) {
+  if (!dateString) return false;
   const value = new Date(dateString).getTime();
-  if (Number.isNaN(value)) return true;
-  return Date.now() - value > days * 86400000;
+  if (Number.isNaN(value)) return false;
+  return Date.now() - value > hours * 60 * 60 * 1000;
 }
 
 function formatDate(dateString) {
@@ -84,7 +89,7 @@ function SmartListCard({ label, count, active, onClick, description }) {
 export function CustomerFollowUpsTab({ business }) {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedList, setSelectedList] = useState("needs_follow_up");
+  const [selectedList, setSelectedList] = useState("new_enquiries");
   const [savingId, setSavingId] = useState(null);
   const [messageTypeById, setMessageTypeById] = useState({});
   const [toast, setToast] = useState("");
@@ -112,10 +117,11 @@ export function CustomerFollowUpsTab({ business }) {
 
   const smartLists = useMemo(() => {
     const byStage = (stage) => customers.filter((customer) => stageForCustomer(customer) === stage);
-    const needsFollowUp = customers.filter((customer) => FOLLOW_UP_STAGE_VALUES.includes(stageForCustomer(customer)) && isOlderThanDays(lastContacted(customer), 7));
+    const needsFollowUp = customers.filter((customer) => FOLLOW_UP_STAGE_VALUES.includes(stageForCustomer(customer)) && isOlderThanHours(followUpAnchor(customer), FOLLOW_UP_DELAY_HOURS));
+    const freshNewEnquiries = customers.filter((customer) => stageForCustomer(customer) === "new_enquiry" && !isOlderThanHours(followUpAnchor(customer), FOLLOW_UP_DELAY_HOURS));
     return {
       needs_follow_up: needsFollowUp,
-      new_enquiries: byStage("new_enquiry"),
+      new_enquiries: freshNewEnquiries,
       payment_pending: byStage("payment_pending"),
       repeat_customers: byStage("repeat_customer"),
       completed: byStage("completed"),
@@ -193,8 +199,8 @@ export function CustomerFollowUpsTab({ business }) {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: "10px", marginBottom: "18px" }}>
-        <SmartListCard label="Needs follow-up" count={smartLists.needs_follow_up.length} active={selectedList === "needs_follow_up"} onClick={() => setSelectedList("needs_follow_up")} description="No contact in 7 days" />
-        <SmartListCard label="New enquiries" count={smartLists.new_enquiries.length} active={selectedList === "new_enquiries"} onClick={() => setSelectedList("new_enquiries")} description="People who showed interest" />
+        <SmartListCard label="New enquiries" count={smartLists.new_enquiries.length} active={selectedList === "new_enquiries"} onClick={() => setSelectedList("new_enquiries")} description="Fresh in the last 6 hours" />
+        <SmartListCard label="Needs follow-up" count={smartLists.needs_follow_up.length} active={selectedList === "needs_follow_up"} onClick={() => setSelectedList("needs_follow_up")} description="Waiting more than 6 hours" />
         <SmartListCard label="Payment pending" count={smartLists.payment_pending.length} active={selectedList === "payment_pending"} onClick={() => setSelectedList("payment_pending")} description="Money to follow up" />
         <SmartListCard label="Repeat customers" count={smartLists.repeat_customers.length} active={selectedList === "repeat_customers"} onClick={() => setSelectedList("repeat_customers")} description="Good customers to re-engage" />
         <SmartListCard label="Completed" count={smartLists.completed.length} active={selectedList === "completed"} onClick={() => setSelectedList("completed")} description="Ask for reviews" />
