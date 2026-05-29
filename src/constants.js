@@ -214,6 +214,7 @@ export const CUSTOMER_STATUSES = [
   { value: "new", label: "New", color: DARK, bg: SOFT_PINK, border: LIGHT_PINK_BORDER, desc: "Booked once" },
   { value: "regular", label: "Regular", color: PINK_DARK, bg: SOFT_PINK, border: PINK, desc: "Comes back regularly" },
   { value: "vip", label: "VIP", color: DARK, bg: "#fff8e7", border: "#ffb60a", desc: "Your best customers" },
+  { value: "lost", label: "Lost", color: "#cc3300", bg: "#fff5f5", border: "#ffd0d0", desc: "Not interested for now" },
 ];
 
 export function statusConfig(val) { return CUSTOMER_STATUSES.find((s) => s.value === val) || CUSTOMER_STATUSES[1]; }
