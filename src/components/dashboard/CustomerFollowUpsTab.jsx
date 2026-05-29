@@ -22,6 +22,7 @@ const STAGE_LABELS = CUSTOMER_STAGES.reduce((map, item) => ({ ...map, [item.valu
 const FOLLOW_UP_STAGE_VALUES = ["new_enquiry", "followed_up", "quote_sent", "payment_pending"];
 
 function stageForCustomer(customer) {
+  if (customer.status === "lost") return "lost";
   if (customer.stage) return customer.stage;
   if (customer.status === "lead") return "new_enquiry";
   if (customer.status === "new") return "new_enquiry";
@@ -61,6 +62,7 @@ function messageFor(customer, business, type = "stage") {
   if (stage === "payment_pending") return `Hi ${name}, just a friendly reminder that payment is still pending. Once payment is confirmed, I can continue with your order or booking.`;
   if (stage === "completed") return `Hi ${name}, thank you for supporting ${businessName}. I hope you were happy with everything. Please feel free to message me again whenever you need help.`;
   if (stage === "repeat_customer") return `Hi ${name}, hope you are well. I wanted to let you know that I have something new or special available. Would you like me to send you the details?`;
+  if (stage === "lost") return `Hi ${name}, hope you are well. I know the timing was not right before, but you are welcome to message ${businessName} again whenever you need help.`;
   return `Hi ${name}, thank you for your enquiry. I wanted to follow up and check if you are still interested in ${businessName}. Please let me know how I can help.`;
 }
 
@@ -149,7 +151,9 @@ export function CustomerFollowUpsTab({ business }) {
   }
 
   function changeStage(customer, stage) {
-    updateCustomer(customer, { stage }, `${customer.name} moved to ${STAGE_LABELS[stage] || "new stage"}`);
+    const payload = { stage };
+    if (stage === "lost") payload.status = "lost";
+    updateCustomer(customer, payload, `${customer.name} moved to ${STAGE_LABELS[stage] || "new stage"}`);
   }
 
   function markFollowedUp(customer) {
