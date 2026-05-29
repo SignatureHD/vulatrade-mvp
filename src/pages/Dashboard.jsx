@@ -26,6 +26,7 @@ import { DashboardHome } from "../components/dashboard/DashboardHome";
 import { SetupTab } from "../components/dashboard/SetupTab";
 import { ProductsTab } from "../components/dashboard/ProductsTab";
 import { CustomersTab } from "../components/dashboard/CustomersTab";
+import { CustomerFollowUpsTab } from "../components/dashboard/CustomerFollowUpsTab";
 import { EnquiriesTab } from "../components/dashboard/EnquiriesTab";
 import { BookingsTab } from "../components/dashboard/BookingsTab";
 import { SalesTab as ProductSalesTab } from "../components/dashboard/SalesTab";
@@ -41,13 +42,13 @@ const BRAND = "#ea4c89";
 const ATTENTION_ENQUIRY_STATUSES = ["new", "interested", "replied", "quoted", "waiting_payment", "booked", "follow_up"];
 
 const TAB_ROUTES = {
-  Dashboard: "/dashboard", Page: "/public-page", Setup: "/setup", Location: "/location", Products: "/products", Customers: "/customers", Enquiries: "/enquiries", Messages: "/messages", Bookings: "/bookings", Sales: "/sales", Expenses: "/expenses", Reviews: "/reviews", BusinessFile: "/business-file", WhatsAppStatus: "/growth/whatsapp-status-builder", Vuke: "/vuke", Plans: "/plans", Settings: "/settings",
+  Dashboard: "/dashboard", Page: "/public-page", Setup: "/setup", Location: "/location", Products: "/products", Customers: "/customers", FollowUps: "/customer-follow-ups", Enquiries: "/enquiries", Messages: "/messages", Bookings: "/bookings", Sales: "/sales", Expenses: "/expenses", Reviews: "/reviews", BusinessFile: "/business-file", WhatsAppStatus: "/growth/whatsapp-status-builder", Vuke: "/vuke", Plans: "/plans", Settings: "/settings",
 };
 
 const NAV_GROUPS = [
   { items: [{ tab: "Dashboard", label: "Dashboard", icon: LayoutDashboard }] },
   { title: "Your Business", items: [
-    { tab: "Page", label: "Public Page", icon: Globe }, { tab: "Setup", label: "Setup", icon: Settings }, { tab: "Location", label: "Location", icon: MapPin }, { tab: "Products", label: "Products / Services", icon: Package }, { tab: "Customers", label: "Customers", icon: Users }, { tab: "Enquiries", label: "Enquiries", icon: MessageCircle }, { tab: "Messages", label: "Messages", icon: MessageCircle }, { tab: "Bookings", label: "Bookings", icon: CalendarDays }, { tab: "Sales", label: "Sales", icon: ReceiptText }, { tab: "Expenses", label: "Expenses", icon: WalletCards }, { tab: "Reviews", label: "Reviews", icon: Star },
+    { tab: "Page", label: "Public Page", icon: Globe }, { tab: "Setup", label: "Setup", icon: Settings }, { tab: "Location", label: "Location", icon: MapPin }, { tab: "Products", label: "Products / Services", icon: Package }, { tab: "Customers", label: "Customers", icon: Users }, { tab: "FollowUps", label: "Follow-Ups", icon: MessageCircle }, { tab: "Enquiries", label: "Enquiries", icon: MessageCircle }, { tab: "Messages", label: "Messages", icon: MessageCircle }, { tab: "Bookings", label: "Bookings", icon: CalendarDays }, { tab: "Sales", label: "Sales", icon: ReceiptText }, { tab: "Expenses", label: "Expenses", icon: WalletCards }, { tab: "Reviews", label: "Reviews", icon: Star },
   ]},
   { title: "Growth", items: [
     { tab: "WhatsAppStatus", label: "WhatsApp Status", icon: MessageCircle }, { tab: "BusinessFile", label: "Business File", icon: FileText }, { tab: "Vuke", label: "Vuke", icon: Store }, { tab: "Plans", label: "Plans", icon: Star },
@@ -64,7 +65,7 @@ const MOBILE_TABS = [
 ];
 
 const MORE_ITEMS = [
-  { tab: "Page", label: "Public Page", icon: Globe }, { tab: "Setup", label: "Setup", icon: Settings }, { tab: "Location", label: "Location", icon: MapPin }, { tab: "Customers", label: "Customers", icon: Users }, { tab: "Enquiries", label: "Enquiries", icon: MessageCircle }, { tab: "Messages", label: "Messages", icon: MessageCircle }, { tab: "Bookings", label: "Bookings", icon: CalendarDays }, { tab: "Expenses", label: "Expenses", icon: WalletCards }, { tab: "Reviews", label: "Reviews", icon: Star }, { tab: "WhatsAppStatus", label: "WhatsApp Status", icon: MessageCircle }, { tab: "BusinessFile", label: "Business File", icon: FileText }, { tab: "Vuke", label: "Vuke", icon: Store }, { tab: "Plans", label: "Plans", icon: Star }, { tab: "Settings", label: "Settings", icon: Settings },
+  { tab: "Page", label: "Public Page", icon: Globe }, { tab: "Setup", label: "Setup", icon: Settings }, { tab: "Location", label: "Location", icon: MapPin }, { tab: "Customers", label: "Customers", icon: Users }, { tab: "FollowUps", label: "Follow-Ups", icon: MessageCircle }, { tab: "Enquiries", label: "Enquiries", icon: MessageCircle }, { tab: "Messages", label: "Messages", icon: MessageCircle }, { tab: "Bookings", label: "Bookings", icon: CalendarDays }, { tab: "Expenses", label: "Expenses", icon: WalletCards }, { tab: "Reviews", label: "Reviews", icon: Star }, { tab: "WhatsAppStatus", label: "WhatsApp Status", icon: MessageCircle }, { tab: "BusinessFile", label: "Business File", icon: FileText }, { tab: "Vuke", label: "Vuke", icon: Store }, { tab: "Plans", label: "Plans", icon: Star }, { tab: "Settings", label: "Settings", icon: Settings },
 ];
 
 function normalizeTab(value) {
@@ -86,6 +87,7 @@ function Badge({ value, small = false }) {
 
 function badgeForTab(tab, counts) {
   if (tab === "Enquiries") return counts.enquiries || 0;
+  if (tab === "FollowUps") return counts.followUps || counts.waitingPayment || 0;
   if (tab === "Bookings") return counts.bookings || 0;
   if (tab === "Sales") return counts.unpaid || counts.waitingPayment || 0;
   return 0;
@@ -94,8 +96,8 @@ function badgeForTab(tab, counts) {
 function DashboardAttentionCards({ counts, onSelect }) {
   const activeCards = [
     { key: "enquiries", label: "Open enquiries", value: counts.enquiries, sub: "Leads waiting for action", tab: "Enquiries", icon: MessageCircle },
-    { key: "follow", label: "Follow-up needed", value: counts.followUps, sub: "People to message again", tab: "Enquiries", icon: MessageCircle },
-    { key: "waiting", label: "Waiting payment", value: counts.waitingPayment, sub: "Price sent, not finalised", tab: "Enquiries", icon: ReceiptText },
+    { key: "follow", label: "Follow-up needed", value: counts.followUps, sub: "People to message again", tab: "FollowUps", icon: MessageCircle },
+    { key: "waiting", label: "Waiting payment", value: counts.waitingPayment, sub: "Price sent, not finalised", tab: "FollowUps", icon: ReceiptText },
     { key: "unpaid", label: "Unpaid sales", value: counts.unpaid, sub: "Payments to follow up", tab: "Sales", icon: ReceiptText },
     { key: "bookings", label: "Upcoming bookings", value: counts.bookings, sub: "Today or coming soon", tab: "Bookings", icon: CalendarDays },
   ].filter((card) => card.value > 0);
@@ -189,6 +191,7 @@ export default function Dashboard({ authMode = "signin", initialTab = "Dashboard
       setNotificationCounts({ enquiries: openEnquiries.length, followUps, waitingPayment, bookings: upcomingBookings, unpaid });
     }
     loadNotifications();
+    return () => { cancelled = true; };
   }, [business?.id, tab]);
 
   async function signOutAndReturnHome() { await supabase.auth.signOut(); onBack?.(); }
@@ -207,6 +210,7 @@ export default function Dashboard({ authMode = "signin", initialTab = "Dashboard
       case "Products": return <ProductsTab user={user} business={business} setGlobalProducts={setProducts} />;
       case "Page": return <PageTab business={business} products={products} logoUrl={logoUrl} />;
       case "Customers": return <CustomersTab business={business} onMessageCustomer={(customer) => { window.history.pushState({}, "", `/messages?customerId=${encodeURIComponent(customer.id)}`); setTab("Messages"); }} />;
+      case "FollowUps": return <CustomerFollowUpsTab business={business} />;
       case "Enquiries": return <EnquiriesTab business={business} />;
       case "Messages": return <MessagesTab business={business} />;
       case "Bookings": return <BookingsTab business={business} />;
