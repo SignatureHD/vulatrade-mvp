@@ -11,26 +11,8 @@ export const OFF_WHITE = "#fbfbfb";
 export const SOFT_BORDER = "#eeeeea";
 export const MAX_IMAGES = 6;
 
-export const inputStyle = {
-  border: `1.5px solid ${SOFT_BORDER}`,
-  borderRadius: "14px",
-  padding: "13px 15px",
-  fontSize: "14px",
-  outline: "none",
-  width: "100%",
-  boxSizing: "border-box",
-  fontFamily: "inherit",
-  background: "#fff",
-  color: DARK,
-};
-
-export const labelStyle = {
-  fontSize: "12px",
-  fontWeight: 800,
-  color: "#454545",
-  marginBottom: "7px",
-  display: "block",
-};
+export const inputStyle = { border: `1.5px solid ${SOFT_BORDER}`, borderRadius: "14px", padding: "13px 15px", fontSize: "14px", outline: "none", width: "100%", boxSizing: "border-box", fontFamily: "inherit", background: "#fff", color: DARK };
+export const labelStyle = { fontSize: "12px", fontWeight: 800, color: "#454545", marginBottom: "7px", display: "block" };
 
 export const TABS = ["Dashboard", "Page", "Setup", "Products", "Customers", "Messages", "Bookings", "Sales", "Expenses", "Reviews", "BusinessFile", "Vuke", "Plans", "Settings"];
 export const USER_PLAN = "free";
@@ -53,80 +35,16 @@ export const BG_COLOURS = [
   { name: "Soft Texture", value: "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.22), transparent 18%), radial-gradient(circle at 80% 0%, rgba(234,76,137,0.18), transparent 22%), linear-gradient(135deg, #202021 0%, #2c2230 100%)", text: "#ffffff", accent: LIGHT_PINK_BORDER, plan: "pro" },
 ];
 
-export const CUSTOM_BACKGROUND_OVERLAYS = [
-  { value: "light", label: "Light", alpha: 0.28 },
-  { value: "medium", label: "Medium", alpha: 0.46 },
-  { value: "dark", label: "Dark", alpha: 0.62 },
-];
-
-export const CUSTOM_BACKGROUND_POSITIONS = [
-  { value: "center", label: "Centre", css: "center center" },
-  { value: "top", label: "Top", css: "center bottom" },
-  { value: "bottom", label: "Bottom", css: "center top" },
-];
-
-export const CUSTOM_BACKGROUND_ZOOMS = [
-  { value: "normal", label: "Normal", css: "cover" },
-  { value: "zoomed", label: "Zoomed", css: "115% auto" },
-  { value: "close", label: "Close-up", css: "135% auto" },
-];
-
-export const CUSTOM_TEXT_COLOURS = [
-  { value: "white", label: "White", css: "#ffffff" },
-  { value: "charcoal", label: "Charcoal", css: DARK },
-  { value: "grey", label: "Soft Grey", css: "#e7e7e7" },
-  { value: "cream", label: "Cream", css: "#fff1d6" },
-  { value: "pink", label: "Vula Pink", css: PINK },
-];
-
-export const CUSTOM_BACKGROUND_DEFAULTS = {
-  type: "custom-photo",
-  url: "",
-  overlay: "medium",
-  position: "center",
-  zoom: "normal",
-  textColour: "white",
-  headingTextColour: "white",
-  descriptionTextColour: "grey",
-  accentColour: PINK,
-  extractedAccentColours: [],
-};
-
-export const CUSTOM_PHOTO_DEFAULT_ACCENTS = [
-  { name: "VulaPink", value: PINK },
-  { name: "White", value: "#ffffff" },
-  { name: "Charcoal", value: DARK },
-  { name: "Grey", value: "#9ca3af" },
-];
-
-export function isCustomBackgroundTheme(value) {
-  if (!value || typeof value !== "string") return false;
-  try {
-    return JSON.parse(value)?.type === "custom-photo";
-  } catch {
-    return false;
-  }
-}
-
-export function parseCustomBackgroundTheme(value) {
-  if (!isCustomBackgroundTheme(value)) return { ...CUSTOM_BACKGROUND_DEFAULTS };
-  try {
-    const parsed = JSON.parse(value);
-    return { ...CUSTOM_BACKGROUND_DEFAULTS, ...parsed };
-  } catch {
-    return { ...CUSTOM_BACKGROUND_DEFAULTS };
-  }
-}
-
-export function createCustomBackgroundThemeValue(settings = {}) {
-  const clean = { ...CUSTOM_BACKGROUND_DEFAULTS, ...settings, type: "custom-photo" };
-  return JSON.stringify(clean);
-}
-
-export function resolveCustomTextColour(value, fallback = "#ffffff") {
-  return CUSTOM_TEXT_COLOURS.find((item) => item.value === value)?.css || fallback;
-}
-
+export const CUSTOM_BACKGROUND_OVERLAYS = [{ value: "light", label: "Light", alpha: 0.28 }, { value: "medium", label: "Medium", alpha: 0.46 }, { value: "dark", label: "Dark", alpha: 0.62 }];
+export const CUSTOM_BACKGROUND_POSITIONS = [{ value: "center", label: "Centre", css: "center center" }, { value: "top", label: "Top", css: "center bottom" }, { value: "bottom", label: "Bottom", css: "center top" }];
+export const CUSTOM_BACKGROUND_ZOOMS = [{ value: "normal", label: "Normal", css: "cover" }, { value: "zoomed", label: "Zoomed", css: "115% auto" }, { value: "close", label: "Close-up", css: "135% auto" }];
+export const CUSTOM_TEXT_COLOURS = [{ value: "white", label: "White", css: "#ffffff" }, { value: "charcoal", label: "Charcoal", css: DARK }, { value: "grey", label: "Soft Grey", css: "#e7e7e7" }, { value: "cream", label: "Cream", css: "#fff1d6" }, { value: "pink", label: "Vula Pink", css: PINK }];
+export const CUSTOM_BACKGROUND_DEFAULTS = { type: "custom-photo", url: "", overlay: "medium", position: "center", zoom: "normal", textColour: "white", headingTextColour: "white", descriptionTextColour: "grey", accentColour: PINK, extractedAccentColours: [] };
+export const CUSTOM_PHOTO_DEFAULT_ACCENTS = [{ name: "VulaPink", value: PINK }, { name: "White", value: "#ffffff" }, { name: "Charcoal", value: DARK }, { name: "Grey", value: "#9ca3af" }];
+export function isCustomBackgroundTheme(value) { if (!value || typeof value !== "string") return false; try { return JSON.parse(value)?.type === "custom-photo"; } catch { return false; } }
+export function parseCustomBackgroundTheme(value) { if (!isCustomBackgroundTheme(value)) return { ...CUSTOM_BACKGROUND_DEFAULTS }; try { const parsed = JSON.parse(value); return { ...CUSTOM_BACKGROUND_DEFAULTS, ...parsed }; } catch { return { ...CUSTOM_BACKGROUND_DEFAULTS }; } }
+export function createCustomBackgroundThemeValue(settings = {}) { const clean = { ...CUSTOM_BACKGROUND_DEFAULTS, ...settings, type: "custom-photo" }; return JSON.stringify(clean); }
+export function resolveCustomTextColour(value, fallback = "#ffffff") { return CUSTOM_TEXT_COLOURS.find((item) => item.value === value)?.css || fallback; }
 export function resolveBackgroundTheme(savedTheme, fallbackAccent = PINK) {
   const custom = parseCustomBackgroundTheme(savedTheme);
   if (custom.url) {
@@ -136,95 +54,38 @@ export function resolveBackgroundTheme(savedTheme, fallbackAccent = PINK) {
     const headingText = resolveCustomTextColour(custom.headingTextColour || custom.textColour, "#ffffff");
     const descriptionText = resolveCustomTextColour(custom.descriptionTextColour, "#e7e7e7");
     const shade = `rgba(0,0,0,${overlay.alpha})`;
-    return {
-      name: "Custom Photo",
-      value: shade,
-      text: headingText,
-      headingText,
-      descriptionText,
-      metaText: descriptionText,
-      accent: custom.accentColour || fallbackAccent,
-      isCustomPhoto: true,
-      backgroundImage: `linear-gradient(135deg, ${shade}, ${shade}), url("${custom.url}")`,
-      backgroundPosition: position.css,
-      backgroundSize: zoom.css,
-      backgroundRepeat: "no-repeat",
-    };
+    return { name: "Custom Photo", value: shade, text: headingText, headingText, descriptionText, metaText: descriptionText, accent: custom.accentColour || fallbackAccent, isCustomPhoto: true, backgroundImage: `linear-gradient(135deg, ${shade}, ${shade}), url("${custom.url}")`, backgroundPosition: position.css, backgroundSize: zoom.css, backgroundRepeat: "no-repeat" };
   }
-
   const savedLower = typeof savedTheme === "string" ? savedTheme.toLowerCase() : "";
   const matched = BG_COLOURS.find((c) => c.value === savedTheme || c.name.toLowerCase() === savedLower);
   if (matched) return { ...matched, headingText: matched.text, descriptionText: matched.text === "#ffffff" ? "rgba(255,255,255,0.72)" : "rgba(0,0,0,0.58)", metaText: matched.text === "#ffffff" ? "rgba(255,255,255,0.56)" : "rgba(0,0,0,0.44)" };
-  if (savedTheme && typeof savedTheme === "string" && savedTheme.startsWith("#")) {
-    return { value: DARK, text: "#ffffff", headingText: "#ffffff", descriptionText: "rgba(255,255,255,0.72)", metaText: "rgba(255,255,255,0.56)", accent: savedTheme };
-  }
+  if (savedTheme && typeof savedTheme === "string" && savedTheme.startsWith("#")) return { value: DARK, text: "#ffffff", headingText: "#ffffff", descriptionText: "rgba(255,255,255,0.72)", metaText: "rgba(255,255,255,0.56)", accent: savedTheme };
   return { value: DARK, text: "#ffffff", headingText: "#ffffff", descriptionText: "rgba(255,255,255,0.72)", metaText: "rgba(255,255,255,0.56)", accent: fallbackAccent };
 }
-
-export function backgroundStyleForTheme(theme) {
-  if (theme?.isCustomPhoto) {
-    return {
-      backgroundColor: DARK,
-      backgroundImage: theme.backgroundImage,
-      backgroundPosition: theme.backgroundPosition,
-      backgroundSize: theme.backgroundSize,
-      backgroundRepeat: theme.backgroundRepeat || "no-repeat",
-    };
-  }
-  return { background: theme?.value || DARK };
-}
-
-export const FONTS = [
-  { name: "Clean", value: "Inter", label: "Inter", sample: "Aa", plan: "free", import: null },
-  { name: "Friendly", value: "'DM Sans'", label: "DM Sans", sample: "Aa", plan: "starter", import: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800;900&display=swap" },
-  { name: "Elegant", value: "'Playfair Display'", label: "Playfair Display", sample: "Aa", plan: "pro", import: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800;900&display=swap" },
-];
-
-export const CATEGORIES = [
-  "Nail Tech", "Hair & Extensions", "Barber", "Food Seller", "Fresh Produce",
-  "Fashion & Clothing", "Clothing", "Fragrance / Home Scent", "Cleaning",
-  "Tutoring", "Delivery", "Photography", "Catering", "Phone Repairs", "Other",
-];
-
+export function backgroundStyleForTheme(theme) { if (theme?.isCustomPhoto) return { backgroundColor: DARK, backgroundImage: theme.backgroundImage, backgroundPosition: theme.backgroundPosition, backgroundSize: theme.backgroundSize, backgroundRepeat: theme.backgroundRepeat || "no-repeat" }; return { background: theme?.value || DARK }; }
+export const FONTS = [{ name: "Clean", value: "Inter", label: "Inter", sample: "Aa", plan: "free", import: null }, { name: "Friendly", value: "'DM Sans'", label: "DM Sans", sample: "Aa", plan: "starter", import: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800;900&display=swap" }, { name: "Elegant", value: "'Playfair Display'", label: "Playfair Display", sample: "Aa", plan: "pro", import: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800;900&display=swap" }];
+export const CATEGORIES = ["Nail Tech", "Hair & Extensions", "Barber", "Food Seller", "Fresh Produce", "Fashion & Clothing", "Clothing", "Fragrance / Home Scent", "Cleaning", "Tutoring", "Delivery", "Photography", "Catering", "Phone Repairs", "Other"];
 export const PAYMENT_METHODS = ["Cash", "EFT", "Card", "Yoco", "PayFast", "Other"];
 export const PAYMENT_STATUSES = ["Paid", "Unpaid", "Deposit paid"];
-
-export const ICON_TEMPLATES = {
-  "Nail Tech": ["💅", "✨", "💜", "🌸", "🦋"],
-  "Hair & Extensions": ["💇", "👑", "🌟", "💫", "🎀"],
-  "Barber": ["✂️", "💈", "🪒", "⚡", "🔥"],
-  "Food Seller": ["🍱", "🍳", "🥘", "🔥", "⭐"],
-  "Fresh Produce": ["🥬", "🌿", "🍅", "🌱", "💚"],
-  "Fashion & Clothing": ["👗", "👕", "👟", "🧥", "🛍️"],
-  "Clothing": ["👕", "👗", "👟", "🧥", "🛍️"],
-  "Fragrance / Home Scent": ["✨", "🧴", "🌸", "🚗", "🏠"],
-  "Cleaning": ["🧹", "✨", "🫧", "💎", "🌟"],
-  "Tutoring": ["📚", "🎓", "⭐", "💡", "🧠"],
-  "Delivery": ["🛵", "⚡", "🚀", "📦", "💨"],
-  "Photography": ["📸", "🎨", "✨", "🌟", "🎭"],
-  "Catering": ["🍽️", "👨‍🍳", "⭐", "🥂", "🎉"],
-  "Phone Repairs": ["📱", "⚡", "🔧", "💻", "🛠️"],
-  "Other": ["⭐", "💫", "✨", "🌟", "💎"],
-};
-
+export const ICON_TEMPLATES = { "Nail Tech": ["💅", "✨", "💜", "🌸", "🦋"], "Hair & Extensions": ["💇", "👑", "🌟", "💫", "🎀"], Barber: ["✂️", "💈", "🪒", "⚡", "🔥"], "Food Seller": ["🍱", "🍳", "🥘", "🔥", "⭐"], "Fresh Produce": ["🥬", "🌿", "🍅", "🌱", "💚"], "Fashion & Clothing": ["👗", "👕", "👟", "🧥", "🛍️"], Clothing: ["👕", "👗", "👟", "🧥", "🛍️"], "Fragrance / Home Scent": ["✨", "🧴", "🌸", "🚗", "🏠"], Cleaning: ["🧹", "✨", "🫧", "💎", "🌟"], Tutoring: ["📚", "🎓", "⭐", "💡", "🧠"], Delivery: ["🛵", "⚡", "🚀", "📦", "💨"], Photography: ["📸", "🎨", "✨", "🌟", "🎭"], Catering: ["🍽️", "👨‍🍳", "⭐", "🥂", "🎉"], "Phone Repairs": ["📱", "⚡", "🔧", "💻", "🛠️"], Other: ["⭐", "💫", "✨", "🌟", "💎"] };
 export const PRODUCT_ICONS = ["🛍️", "👗", "👕", "👟", "🧥", "👜", "💍", "⭐", "✨", "💎", "🔥", "💅", "✂️", "🍱", "🧹", "📚", "🛵", "📸", "🍽️", "📱", "🥬", "💆", "💪", "🎁", "🧴", "💊"];
 
 export const CUSTOMER_STATUSES = [
-  { value: "lead", label: "Lead", color: "#767b81", bg: "#f8f8f8", border: "#d4d7db", desc: "Interested but hasn't booked yet" },
-  { value: "new", label: "New", color: DARK, bg: SOFT_PINK, border: LIGHT_PINK_BORDER, desc: "Booked once" },
-  { value: "regular", label: "Regular", color: PINK_DARK, bg: SOFT_PINK, border: PINK, desc: "Comes back regularly" },
-  { value: "vip", label: "VIP", color: DARK, bg: "#fff8e7", border: "#ffb60a", desc: "Your best customers" },
-  { value: "lost", label: "Lost", color: "#cc3300", bg: "#fff5f5", border: "#ffd0d0", desc: "Not interested for now" },
+  { value: "new_enquiry", label: "New enquiry", color: "#767b81", bg: "#f8f8f8", border: "#d4d7db", desc: "Customer has asked about something" },
+  { value: "followed_up", label: "Replied / followed up", color: DARK, bg: SOFT_PINK, border: LIGHT_PINK_BORDER, desc: "You have replied or followed up" },
+  { value: "price_sent", label: "Price / quote sent", color: PINK_DARK, bg: VERY_LIGHT_PINK, border: PINK, desc: "Price, quote or offer has been sent" },
+  { value: "booking_requested", label: "Booking requested", color: "#6b4e16", bg: "#fff8e7", border: "#ffcf66", desc: "Customer wants a booking, but it is not confirmed yet" },
+  { value: "booked", label: "Booked", color: DARK, bg: "#eef7ff", border: "#b8dfff", desc: "Booking is confirmed" },
+  { value: "payment_pending", label: "Payment pending", color: "#9f1239", bg: "#fff5f7", border: "#ffd7e4", desc: "Payment still needs to be made or confirmed" },
+  { value: "paid", label: "Paid", color: "#166534", bg: "#f0fdf4", border: "#bbf7d0", desc: "Customer has paid" },
+  { value: "completed", label: "Completed / delivered", color: "#155e75", bg: "#ecfeff", border: "#a5f3fc", desc: "Work, order or delivery is complete" },
+  { value: "lost", label: "Lost / not now", color: "#cc3300", bg: "#fff5f5", border: "#ffd0d0", desc: "Customer is not going ahead now" },
+  { value: "lead", label: "New enquiry", color: "#767b81", bg: "#f8f8f8", border: "#d4d7db", desc: "Customer has asked about something" },
+  { value: "new", label: "New enquiry", color: "#767b81", bg: "#f8f8f8", border: "#d4d7db", desc: "Customer has asked about something" },
+  { value: "regular", label: "Regular", color: PINK_DARK, bg: SOFT_PINK, border: PINK, desc: "Smart tag: comes back regularly" },
+  { value: "vip", label: "VIP", color: DARK, bg: "#fff8e7", border: "#ffb60a", desc: "Smart tag: important customer" },
 ];
-
-export function statusConfig(val) { return CUSTOMER_STATUSES.find((s) => s.value === val) || CUSTOMER_STATUSES[1]; }
-
+export function statusConfig(val) { return CUSTOMER_STATUSES.find((s) => s.value === val) || CUSTOMER_STATUSES[0]; }
 export const BOOKING_TIMES = ["07:00", "07:30", "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00"];
-
-export const BOOKING_STATUS_CONFIG = {
-  confirmed: { label: "Confirmed", color: DARK, bg: SOFT_PINK, border: LIGHT_PINK_BORDER },
-  done: { label: "Done", color: PINK_DARK, bg: SOFT_PINK, border: PINK },
-  cancelled: { label: "Cancelled", color: "#cc3300", bg: "#fff5f5", border: "#ffd0d0" },
-};
-
+export const BOOKING_STATUS_CONFIG = { confirmed: { label: "Confirmed", color: DARK, bg: SOFT_PINK, border: LIGHT_PINK_BORDER }, done: { label: "Done", color: PINK_DARK, bg: SOFT_PINK, border: PINK }, cancelled: { label: "Cancelled", color: "#cc3300", bg: "#fff5f5", border: "#ffd0d0" } };
 export const CONTACT_PICKER_SUPPORTED = typeof navigator !== "undefined" && "contacts" in navigator && "ContactsManager" in window;
