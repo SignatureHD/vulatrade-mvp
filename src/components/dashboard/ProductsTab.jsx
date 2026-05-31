@@ -1,257 +1,69 @@
-import React, { useEffect, useState } from "react";
-import { PlusCircle, Trash2 } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Copy, PlusCircle, Trash2 } from "lucide-react";
 import { DARK, LIME, MAX_IMAGES, inputStyle, labelStyle } from "../../constants";
-import { isFashionBusiness, buildFashionDescription, parseFashionDescription, readFashionDetails } from "../../fashionProductHelpers";
 import { supabase } from "../../lib/supabase";
 import { ImageLibrary, ProductImagePicker } from "../ImageLibrary";
+import { DEFAULT_VULA_META, VULA_ITEM_TYPE_OPTIONS, buildReplySuggestion, currentStockValue, extractVulaMeta, itemTypeConfig, separateMetaVariants, todayIsoDate, withVulaMetaVariants } from "../../vulaItems";
 
-const EMPTY_PRODUCT = { name:"", price:"", description:"", icon:"🛍️", image:null, variants:[], fashion:{} };
+const EMPTY_PRODUCT = { name:"", price:"", description:"", icon:"🛍️", image:null, variants:[], vula:{ ...DEFAULT_VULA_META } };
+const fieldGrid = { display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:"10px" };
+const help = { fontSize:"12px", color:"#888", lineHeight:1.45 };
 
 function normaliseVariants(variants = []) {
-  if (!Array.isArray(variants)) return [];
-  return variants
-    .map((variant) => ({
-      id: variant.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      name: variant.name || "",
-      price: variant.price ?? "",
-      description: variant.description || "",
-    }))
-    .filter((variant) => variant.name || variant.price || variant.description);
+  const clean = separateMetaVariants(variants).variants;
+  return (Array.isArray(clean) ? clean : []).map((variant) => ({ id: variant.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`, name: variant.name || "", price: variant.price ?? "", description: variant.description || "" })).filter((variant) => variant.name || variant.price || variant.description);
+}
+function cleanVariantsForSave(variants = []) { return normaliseVariants(variants).filter((v) => v.name.trim() && v.price !== "").map((v) => ({ id:v.id, name:v.name.trim(), price:Number(v.price) || 0, description:v.description.trim() })); }
+function emptyVariant() { return { id:`${Date.now()}-${Math.random().toString(16).slice(2)}`, name:"", price:"", description:"" }; }
+function money(value) { return Number(value || 0) > 0 ? `R${Number(value || 0).toLocaleString()}` : "Ask price"; }
+function productThumb(product, size = 46) { const value = product.image || product.icon || "🛍️"; const isUrl = typeof value === "string" && value.startsWith("http"); if (isUrl) return <img src={value} alt={product.name} style={{ width:size, height:size, borderRadius:"12px", objectFit:"cover", flexShrink:0, border:"1px solid #f0f0f0" }} />; return <div style={{ width:size, height:size, background:"#f5f5f5", borderRadius:"12px", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"22px", flexShrink:0 }}>{value}</div>; }
+function patchForType(current = {}, itemType) { const base = { ...DEFAULT_VULA_META, ...current, item_type:itemType }; if (itemType === "daily_stock") return { ...base, track_stock:true, today_stock_date:base.today_stock_date || todayIsoDate(), selling_today:base.selling_today !== false }; if (itemType === "service") return { ...base, track_stock:false, duration_minutes:base.duration_minutes || "60", buffer_minutes:base.buffer_minutes || "0" }; if (itemType === "made_to_order") return { ...base, track_stock:false, lead_time_days:base.lead_time_days || "3" }; return base; }
+
+function ItemTypeChooser({ value, onChange }) {
+  return <div><label style={labelStyle}>What do you sell or offer?</label><div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:"10px" }}>{VULA_ITEM_TYPE_OPTIONS.map((type) => { const selected = value === type.value; return <button key={type.value} type="button" onClick={() => onChange(type.value)} style={{ textAlign:"left", background:selected?"#fff5f9":"#fff", border:`1.8px solid ${selected?"#ea4c89":"#eeeeea"}`, borderRadius:"16px", padding:"13px", cursor:"pointer" }}><div style={{ color:selected?"#ea4c89":DARK, fontSize:"13px", fontWeight:950 }}>{type.label}</div><div style={{ ...help, marginTop:"4px" }}>{type.description}</div><div style={{ fontSize:"11px", color:"#aaa", fontWeight:800, marginTop:"8px" }}>{type.examples}</div></button>; })}</div></div>;
 }
 
-function cleanVariantsForSave(variants = []) {
-  return normaliseVariants(variants)
-    .filter((variant) => variant.name.trim() && variant.price !== "")
-    .map((variant) => ({
-      id: variant.id,
-      name: variant.name.trim(),
-      price: Number(variant.price) || 0,
-      description: variant.description.trim(),
-    }));
+function VulaFields({ form, setForm }) {
+  const meta = form.vula || DEFAULT_VULA_META;
+  const config = itemTypeConfig(meta.item_type);
+  const update = (key, value) => setForm((prev) => ({ ...prev, vula:{ ...(prev.vula || DEFAULT_VULA_META), [key]:value } }));
+  const setType = (itemType) => setForm((prev) => ({ ...prev, vula:patchForType(prev.vula, itemType) }));
+  const checkbox = (key, label) => <label style={{ display:"flex", alignItems:"center", gap:"8px", fontSize:"12px", color:"#555", fontWeight:850 }}><input type="checkbox" checked={Boolean(meta[key])} onChange={(e) => update(key, e.target.checked)} /> {label}</label>;
+  const field = (key, label, placeholder, type = "text") => <div><label style={labelStyle}>{label}</label><input style={inputStyle} type={type} placeholder={placeholder} value={meta[key] ?? ""} onChange={(e) => update(key, e.target.value)} /></div>;
+  return <div style={{ display:"grid", gap:"12px" }}><ItemTypeChooser value={meta.item_type} onChange={setType} /><div style={{ background:"#fff", border:"1.5px solid #eeeeea", borderRadius:"16px", padding:"14px" }}><div style={{ fontSize:"14px", fontWeight:950, color:DARK }}>{config.behaviour === "counter" ? "Stock counter setup" : "Request setup"}</div><div style={{ ...help, marginTop:"2px", marginBottom:"12px" }}>{config.behaviour === "counter" ? "These items count down when the Vula marks them as sold." : "These items create a request that the Vula accepts, books, prepares or completes."}</div>{meta.item_type === "standard_stock" && <div style={{ display:"grid", gap:"10px" }}>{checkbox("track_stock", "Track stock for this item")}{meta.track_stock && <div style={fieldGrid}>{field("stock_quantity", "How many do you have?", "e.g. 5", "number")}{field("item_code", "Item code optional", "e.g. SHOE-BLK-06")}</div>}{checkbox("show_when_sold_out", "Show as sold out when finished")}</div>}{meta.item_type === "daily_stock" && <div style={{ display:"grid", gap:"10px" }}><div style={fieldGrid}>{field("today_stock_quantity", "Today’s stock", "e.g. 30", "number")}{field("today_stock_date", "Stock date", todayIsoDate(), "date")}</div>{checkbox("selling_today", "I am selling this today")}{checkbox("allow_preorders", "Allow customers to ask for tomorrow / later")}{checkbox("show_when_sold_out", "Show sold out when today’s stock is finished")}</div>}{meta.item_type === "service" && <div style={{ display:"grid", gap:"10px" }}><div style={fieldGrid}>{field("duration_minutes", "How long does it take?", "60", "number")}{field("buffer_minutes", "Gap between customers", "15", "number")}{field("working_days", "Working days", "Mon-Fri, Sat")}{field("working_hours", "Working hours", "09:00-17:00")}</div>{checkbox("deposit_required", "Deposit required")}{meta.deposit_required && field("deposit_amount", "Deposit amount", "e.g. 100", "number")}</div>}{meta.item_type === "made_to_order" && <div style={{ display:"grid", gap:"10px" }}><div style={fieldGrid}>{field("lead_time_days", "How many days notice?", "3", "number")}{field("max_orders_per_day", "Max orders per day", "Optional", "number")}{field("max_orders_per_week", "Max orders per week", "Optional", "number")}</div>{checkbox("deposit_required", "Deposit required")}{meta.deposit_required && field("deposit_amount", "Deposit amount", "e.g. 150", "number")}<div><label style={labelStyle}>What details must the customer send?</label><input style={inputStyle} placeholder="e.g. date, size, flavour, reference photo" value={meta.customer_details_needed || ""} onChange={(e) => update("customer_details_needed", e.target.value)} /></div></div>}</div></div>;
 }
 
-function emptyVariant() {
-  return { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, name: "", price: "", description: "" };
-}
-
-function productThumb(product, size = 46) {
-  const value = product.image || product.icon || "🛍️";
-  const isUrl = typeof value === "string" && value.startsWith("http");
-  if (isUrl) return <img src={value} alt={product.name} style={{ width:size, height:size, borderRadius:"12px", objectFit:"cover", flexShrink:0, border:"1px solid #f0f0f0" }} />;
-  return <div style={{ width:size, height:size, background:"#f5f5f5", borderRadius:"12px", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"22px", flexShrink:0 }}>{value}</div>;
-}
-
-function FashionFields({ value, onChange }) {
-  const details = value || {};
-  function update(field, next) { onChange({ ...details, [field]: next }); }
-  const field = (key, label, placeholder) => (
-    <div>
-      <label style={labelStyle}>{label}</label>
-      <input style={inputStyle} placeholder={placeholder} value={details[key] || ""} onChange={(e) => update(key, e.target.value)} />
-    </div>
-  );
-
-  return (
-    <div style={{ background:"#fff", border:"1.5px solid #f8b8d2", borderRadius:"16px", padding:"14px", marginTop:"4px" }}>
-      <div style={{ fontSize:"14px", fontWeight:900, color:DARK }}>Fashion details</div>
-      <div style={{ fontSize:"12px", color:"#888", lineHeight:1.45, marginTop:"2px", marginBottom:"12px" }}>
-        Use these for clothes, sneakers, bags, jewellery, thrift items, uniforms and boutique stock.
-      </div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:"10px" }}>
-        {field("sizes", "Size options", "e.g. S, M, L, XL or UK 6-10")}
-        {field("colours", "Colour options", "e.g. Black, white, pink")}
-        {field("stock", "Stock quantity", "e.g. 5")}
-        {field("condition", "Condition", "New or Pre-loved")}
-        {field("gender", "Gender", "Men, Women, Kids or Unisex")}
-        {field("fit", "Fit", "Slim, Regular or Oversized")}
-        {field("collectionArea", "Collection area", "e.g. Port Elizabeth")}
-        {field("delivery", "Delivery available", "Yes, No or local delivery only")}
-      </div>
-      <div style={{ fontSize:"11px", color:"#999", lineHeight:1.45, marginTop:"10px" }}>
-        VulaTrade will create the WhatsApp enquiry message automatically from this product information.
-      </div>
-    </div>
-  );
-}
-
-function VariantEditor({ variants, onChange, fashionMode }) {
+function VariantEditor({ variants, onChange }) {
   function addVariant() { onChange([...(variants || []), emptyVariant()]); }
   function updateVariant(id, field, value) { onChange((variants || []).map((variant) => variant.id === id ? { ...variant, [field]: value } : variant)); }
   function removeVariant(id) { onChange((variants || []).filter((variant) => variant.id !== id)); }
-
-  return (
-    <div style={{ background:"#fff", border:"1.5px solid #eeeeea", borderRadius:"16px", padding:"14px", marginTop:"4px" }}>
-      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:"12px", marginBottom:"10px" }}>
-        <div>
-          <div style={{ fontSize:"14px", fontWeight:900, color:DARK }}>Variants</div>
-          <div style={{ fontSize:"12px", color:"#888", lineHeight:1.45, marginTop:"2px" }}>
-            {fashionMode ? "Optional: add price options like kids size, adult size, bundle or special offer." : "Add simple options like 4 pieces, 8 pieces, small, large, flavour or package size."}
-          </div>
-        </div>
-        <button type="button" onClick={addVariant} style={{ background:"#fff5f9", color:"#d93f7b", border:"1.5px solid #f8b8d2", borderRadius:"10px", padding:"8px 10px", fontSize:"12px", fontWeight:900, cursor:"pointer", whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:"6px" }}>
-          <PlusCircle size={14} strokeWidth={2.4} /> Add
-        </button>
-      </div>
-      {(!variants || variants.length === 0) ? (
-        <div style={{ background:"#fbfbfb", borderRadius:"12px", padding:"12px", fontSize:"12px", color:"#888" }}>No variants yet. Leave this empty if the item has one fixed price.</div>
-      ) : (
-        <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
-          {variants.map((variant) => (
-            <div key={variant.id} style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"14px", padding:"12px" }}>
-              <div style={{ display:"grid", gridTemplateColumns:"minmax(0, 1.2fr) minmax(92px, 0.8fr) 34px", gap:"8px", alignItems:"center", marginBottom:"8px" }}>
-                <input style={{ ...inputStyle, minWidth:0 }} placeholder={fashionMode ? "Variant e.g. Size 6" : "Variant name e.g. 8 pieces"} value={variant.name} onChange={(e) => updateVariant(variant.id, "name", e.target.value)} />
-                <input style={{ ...inputStyle, minWidth:0 }} type="number" min="0" step="0.01" placeholder="Price" value={variant.price} onChange={(e) => updateVariant(variant.id, "price", e.target.value)} />
-                <button type="button" onClick={() => removeVariant(variant.id)} aria-label="Remove variant" style={{ width:"34px", height:"34px", borderRadius:"10px", border:"1px solid #ffd0d0", background:"#fff5f5", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
-                  <Trash2 size={15} strokeWidth={2.2} color="#cc3300" />
-                </button>
-              </div>
-              <input style={inputStyle} placeholder="Variant note (optional)" value={variant.description} onChange={(e) => updateVariant(variant.id, "description", e.target.value)} />
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  return <div style={{ background:"#fff", border:"1.5px solid #eeeeea", borderRadius:"16px", padding:"14px" }}><div style={{ display:"flex", justifyContent:"space-between", gap:"12px", marginBottom:"10px" }}><div><div style={{ fontSize:"14px", fontWeight:900, color:DARK }}>Options</div><div style={{ ...help, marginTop:"2px" }}>Optional: add size, colour, flavour, package size or special offer.</div></div><button type="button" onClick={addVariant} style={{ background:"#fff5f9", color:"#d93f7b", border:"1.5px solid #f8b8d2", borderRadius:"10px", padding:"8px 10px", fontSize:"12px", fontWeight:900, cursor:"pointer", whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:"6px" }}><PlusCircle size={14} /> Add</button></div>{(!variants || variants.length === 0) ? <div style={{ background:"#fbfbfb", borderRadius:"12px", padding:"12px", fontSize:"12px", color:"#888" }}>Leave this empty if there is one fixed price.</div> : <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>{variants.map((variant) => <div key={variant.id} style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"14px", padding:"12px" }}><div style={{ display:"grid", gridTemplateColumns:"minmax(0,1.2fr) minmax(92px,.8fr) 34px", gap:"8px", alignItems:"center", marginBottom:"8px" }}><input style={{ ...inputStyle, minWidth:0 }} placeholder="Option e.g. Size 6" value={variant.name} onChange={(e) => updateVariant(variant.id, "name", e.target.value)} /><input style={{ ...inputStyle, minWidth:0 }} type="number" min="0" step="0.01" placeholder="Price" value={variant.price} onChange={(e) => updateVariant(variant.id, "price", e.target.value)} /><button type="button" onClick={() => removeVariant(variant.id)} style={{ width:"34px", height:"34px", borderRadius:"10px", border:"1px solid #ffd0d0", background:"#fff5f5", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}><Trash2 size={15} color="#cc3300" /></button></div><input style={inputStyle} placeholder="Option note (optional)" value={variant.description} onChange={(e) => updateVariant(variant.id, "description", e.target.value)} /></div>)}</div>}</div>;
 }
 
-function ProductForm({ form, setForm, onSave, onCancel, saveLabel, saving, fashionMode, images }) {
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>
-      <div><label style={labelStyle}>Name</label><input style={inputStyle} placeholder={fashionMode ? "e.g. Nike sneakers" : "e.g. Brownies"} value={form.name || ""} onChange={(e) => setForm((current) => ({ ...current, name:e.target.value }))} /></div>
-      <div><label style={labelStyle}>Base price</label><input style={inputStyle} type="number" min="0" step="0.01" placeholder="e.g. 250" value={form.price ?? ""} onChange={(e) => setForm((current) => ({ ...current, price:e.target.value }))} /></div>
-      <div><label style={labelStyle}>Description</label><input style={inputStyle} placeholder="Describe the item" value={form.description || ""} onChange={(e) => setForm((current) => ({ ...current, description:e.target.value }))} /></div>
-      {fashionMode && <FashionFields value={form.fashion || {}} onChange={(fashion) => setForm((current) => ({ ...current, fashion }))} />}
-      <ProductImagePicker images={images} selectedImage={form.image} selectedIcon={form.icon} onImageSelect={(url) => setForm((current) => ({...current, image:url}))} onIconSelect={(icon) => setForm((current) => ({...current, icon, image:null}))} />
-      <VariantEditor variants={form.variants || []} onChange={(variants) => setForm((current) => ({ ...current, variants }))} fashionMode={fashionMode} />
-      <div style={{ display:"flex", gap:"8px" }}>
-        <button onClick={onSave} disabled={saving} style={{ backgroundColor:LIME, color:"#fff", border:"none", borderRadius:"10px", padding:"10px 20px", fontSize:"13px", fontWeight:800, cursor:saving?"not-allowed":"pointer", flex:1 }}>{saving?"Saving...":saveLabel}</button>
-        <button onClick={onCancel} style={{ background:"#fff", color:"#888", border:"1.5px solid #e0e0e0", borderRadius:"10px", padding:"10px 16px", fontSize:"13px", cursor:"pointer" }}>Cancel</button>
-      </div>
-    </div>
-  );
+function ProductForm({ form, setForm, onSave, onCancel, saveLabel, saving, images }) {
+  const meta = form.vula || DEFAULT_VULA_META;
+  return <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}><VulaFields form={form} setForm={setForm} /><div><label style={labelStyle}>Name</label><input style={inputStyle} placeholder={meta.item_type === "service" ? "e.g. Gel nails" : "e.g. Kota special"} value={form.name || ""} onChange={(e) => setForm((c) => ({ ...c, name:e.target.value }))} /></div><div><label style={labelStyle}>{meta.item_type === "made_to_order" ? "Starting price" : "Price"}</label><input style={inputStyle} type="number" min="0" step="0.01" placeholder="e.g. 250" value={form.price ?? ""} onChange={(e) => setForm((c) => ({ ...c, price:e.target.value }))} /></div><div><label style={labelStyle}>Description</label><input style={inputStyle} placeholder="Describe it simply" value={form.description || ""} onChange={(e) => setForm((c) => ({ ...c, description:e.target.value }))} /></div><ProductImagePicker images={images} selectedImage={form.image} selectedIcon={form.icon} onImageSelect={(url) => setForm((c) => ({ ...c, image:url }))} onIconSelect={(icon) => setForm((c) => ({ ...c, icon, image:null }))} /><VariantEditor variants={form.variants || []} onChange={(variants) => setForm((c) => ({ ...c, variants }))} /><div style={{ display:"flex", gap:"8px" }}><button onClick={onSave} disabled={saving} style={{ backgroundColor:LIME, color:"#fff", border:"none", borderRadius:"10px", padding:"10px 20px", fontSize:"13px", fontWeight:800, cursor:saving?"not-allowed":"pointer", flex:1 }}>{saving ? "Saving..." : saveLabel}</button><button onClick={onCancel} style={{ background:"#fff", color:"#888", border:"1.5px solid #e0e0e0", borderRadius:"10px", padding:"10px 16px", fontSize:"13px", cursor:"pointer" }}>Cancel</button></div></div>;
 }
 
-function mapProduct(data) {
-  return {
-    ...data,
-    description: parseFashionDescription(data.description || "").cleanDescription,
-    icon: data.image && !data.image.startsWith("http") ? data.image : "🛍️",
-    variants: normaliseVariants(data.variants || []),
-    fashion: readFashionDetails(data),
-  };
-}
+function mapProduct(data) { return { ...data, icon:data.image && !data.image.startsWith("http") ? data.image : "🛍️", variants:normaliseVariants(data.variants || []), vula:extractVulaMeta(data) }; }
 
 export function ProductsTab({ user, business, setGlobalProducts }) {
-  const [products, setProducts] = useState([]);
-  const [images, setImages] = useState([]);
-  const [loadingImages, setLoadingImages] = useState(true);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [adding, setAdding] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [error, setError] = useState("");
-  const [newProduct, setNewProduct] = useState(EMPTY_PRODUCT);
-  const [editForm, setEditForm] = useState({});
-  const fashionMode = isFashionBusiness(business?.category);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    async function loadImages() {
-      const { data } = await supabase.storage.from("business-images").list(`product-images/${user.id}`, { limit:MAX_IMAGES, sortBy:{ column:"created_at", order:"asc" } });
-      if (data) {
-        const mapped = data.filter((file) => file.name && file.name !== ".emptyFolderPlaceholder").map((file) => {
-          const { data:url } = supabase.storage.from("business-images").getPublicUrl(`product-images/${user.id}/${file.name}`);
-          return { url:url.publicUrl, path:`product-images/${user.id}/${file.name}` };
-        });
-        setImages(mapped);
-      }
-      setLoadingImages(false);
-    }
-    loadImages();
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!business?.id) { setLoading(false); return; }
-    setLoading(true);
-    supabase.from("products").select("*").eq("business_id", business.id).order("created_at").then(({ data, error: loadError }) => {
-      if (loadError) setError(loadError.message || "Could not load products.");
-      if (data) {
-        const mapped = data.map(mapProduct);
-        setProducts(mapped);
-        setGlobalProducts && setGlobalProducts(mapped);
-      }
-      setLoading(false);
-    });
-  }, [business?.id, setGlobalProducts]);
-
-  function updateProducts(list) {
-    setProducts(list);
-    setGlobalProducts && setGlobalProducts(list);
-  }
-
-  function payloadFromForm(form) {
-    const imageValue = form.image || form.icon || "🛍️";
-    return {
-      name: form.name.trim(),
-      price: Number(form.price) || 0,
-      description: fashionMode ? buildFashionDescription(form.description, form.fashion || {}) : (form.description || "").trim(),
-      image: imageValue,
-      variants: cleanVariantsForSave(form.variants || []),
-    };
-  }
-
-  async function handleAdd() {
-    if (!business?.id || !newProduct.name.trim() || !newProduct.price) return;
-    setSaving(true); setError("");
-    const payload = { business_id: business.id, ...payloadFromForm(newProduct), is_active: true };
-    const { data, error: insertError } = await supabase.from("products").insert([payload]).select().single();
-    if (insertError) setError(insertError.message || "Could not save product.");
-    if (data) { updateProducts([...products, mapProduct(data)]); setNewProduct(EMPTY_PRODUCT); setAdding(false); }
-    setSaving(false);
-  }
-
-  async function handleSaveEdit(id) {
-    if (!editForm.name?.trim() || !editForm.price) return;
-    setSaving(true); setError("");
-    const { data, error: updateError } = await supabase.from("products").update(payloadFromForm(editForm)).eq("id", id).select().single();
-    if (updateError) setError(updateError.message || "Could not update product.");
-    if (data) { updateProducts(products.map((product) => product.id === id ? mapProduct(data) : product)); setEditingId(null); setEditForm({}); }
-    setSaving(false);
-  }
-
-  async function handleToggleActive(product) {
-    const { data, error: toggleError } = await supabase.from("products").update({ is_active:!product.is_active }).eq("id", product.id).select().single();
-    if (toggleError) setError(toggleError.message || "Could not update product status.");
-    if (data) updateProducts(products.map((item) => item.id === product.id ? mapProduct(data) : item));
-  }
-
-  async function handleDelete(id) {
-    if (!window.confirm("Delete this product or service?")) return;
-    const { error: deleteError } = await supabase.from("products").delete().eq("id", id);
-    if (deleteError) { setError(deleteError.message || "Could not delete product."); return; }
-    updateProducts(products.filter((product) => product.id !== id));
-  }
-
-  function startEdit(product) {
-    const isUrl = product.image && product.image.startsWith("http");
-    setEditingId(product.id);
-    setEditForm({ name: product.name || "", price: product.price ?? "", description: product.description || "", icon: isUrl ? "🛍️" : (product.image || product.icon || "🛍️"), image: isUrl ? product.image : null, variants: normaliseVariants(product.variants || []), fashion: product.fashion || readFashionDetails(product) });
-  }
-
-  if (!business?.id) return <div><div style={{ marginBottom:"20px" }}><h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Products / Services</h2><p style={{ fontSize:"13px", color:"#888" }}>Manage what your business sells. These items appear on your public page.</p></div><div style={{ background:"#fffbe6", border:"1.5px solid #f0d000", borderRadius:"12px", padding:"16px", fontSize:"13px", color:"#7a5e00" }}>Save your business details first, then add your products and services.</div></div>;
-
-  return (
-    <div>
-      <div style={{ marginBottom:"20px" }}><h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Products / Services</h2><p style={{ fontSize:"13px", color:"#888" }}>{fashionMode ? "Add clothing, shoes, accessories, sizes, colours and stock details." : "Manage what your business sells. Add variants for sizes, quantities, flavours or packages."}</p></div>
-      {error && <div style={{ background:"#fff5f5", border:"1px solid #ffd0d0", color:"#cc3300", borderRadius:"12px", padding:"12px", fontSize:"13px", marginBottom:"14px" }}>{error}</div>}
-      {!loadingImages && <div style={{ marginBottom:"24px" }}><ImageLibrary userId={user.id} images={images} setImages={setImages} uploading={uploadingImage} setUploading={setUploadingImage} /></div>}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"16px", gap:"12px" }}><div><div style={{ fontSize:"16px", fontWeight:800, color:DARK }}>Catalogue items</div><div style={{ fontSize:"13px", color:"#aaa", marginTop:"2px" }}>{products.length} item{products.length!==1?"s":""}</div></div><button onClick={() => setAdding(true)} style={{ backgroundColor:DARK, color:LIME, border:"none", borderRadius:"10px", padding:"9px 16px", fontSize:"13px", fontWeight:800, cursor:"pointer", whiteSpace:"nowrap" }}>+ Add product</button></div>
-      {adding && <div style={{ background:"#fbfbfb", border:"1.5px solid #d4d7db", borderRadius:"14px", padding:"18px", marginBottom:"14px" }}><div style={{ fontSize:"14px", fontWeight:900, color:DARK, marginBottom:"14px" }}>New product or service</div><ProductForm form={newProduct} setForm={setNewProduct} onSave={handleAdd} onCancel={() => { setAdding(false); setNewProduct(EMPTY_PRODUCT); }} saveLabel="Save product" saving={saving} fashionMode={fashionMode} images={images} /></div>}
-      {loading ? <div style={{ fontSize:"13px", color:"#aaa", padding:"20px 0" }}>Loading...</div> : products.length === 0 ? <div style={{ background:"#fbfbfb", border:"1.5px dashed #ddd", borderRadius:"14px", padding:"32px", textAlign:"center" }}><div style={{ fontSize:"28px", marginBottom:"10px" }}>🛍️</div><div style={{ fontSize:"14px", fontWeight:800, color:DARK }}>No products yet. Add your first product or service.</div></div> : <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>{products.map((product) => {
-        const variants = normaliseVariants(product.variants || []); const fashion = product.fashion || {};
-        return <div key={product.id} style={{ background:"#fff", border:`1.5px solid ${editingId===product.id?LIME:"#eeeeea"}`, borderRadius:"14px", padding:"14px 18px", opacity:product.is_active?1:0.55 }}>{editingId===product.id ? <ProductForm form={editForm} setForm={setEditForm} onSave={() => handleSaveEdit(product.id)} onCancel={() => { setEditingId(null); setEditForm({}); }} saveLabel="Save" saving={saving} fashionMode={fashionMode} images={images} /> : <div style={{ display:"flex", alignItems:"center", gap:"12px", flexWrap:"wrap" }}>{productThumb(product)}<div style={{ flex:"1 1 180px", minWidth:0 }}><div style={{ fontSize:"14px", fontWeight:800, color:DARK }}>{product.name}</div>{product.description && <div style={{ fontSize:"12px", color:"#aaa", marginTop:"2px", lineHeight:1.45 }}>{product.description}</div>}{fashionMode && (fashion.sizes || fashion.colours || fashion.condition) && <div style={{ display:"flex", flexWrap:"wrap", gap:"5px", marginTop:"7px" }}>{fashion.sizes && <span style={{ fontSize:"11px", background:"#fff5f9", color:"#d93f7b", border:"1px solid #f8b8d2", borderRadius:"999px", padding:"4px 7px", fontWeight:800 }}>Sizes: {fashion.sizes}</span>}{fashion.colours && <span style={{ fontSize:"11px", background:"#fff", color:"#555", border:"1px solid #eeeeea", borderRadius:"999px", padding:"4px 7px", fontWeight:800 }}>Colours: {fashion.colours}</span>}{fashion.condition && <span style={{ fontSize:"11px", background:"#fbfbfb", color:"#555", border:"1px solid #eeeeea", borderRadius:"999px", padding:"4px 7px", fontWeight:800 }}>{fashion.condition}</span>}</div>}{variants.length > 0 && <div style={{ fontSize:"11px", color:"#d93f7b", marginTop:"6px", fontWeight:800 }}>{variants.length} variant{variants.length !== 1 ? "s" : ""}</div>}</div><div style={{ fontSize:"16px", fontWeight:950, color:DARK, minWidth:"60px", textAlign:"right" }}>R{Number(product.price || 0).toLocaleString()}</div><div style={{ display:"flex", flexWrap:"wrap", gap:"4px" }}><button onClick={() => startEdit(product)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:"#fbfbfb", color:"#555", cursor:"pointer", fontWeight:700 }}>Edit</button><button onClick={() => handleToggleActive(product)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:product.is_active?"#fff5f9":"#f5f5f5", color:product.is_active?"#d93f7b":"#aaa", cursor:"pointer", fontWeight:700, whiteSpace:"nowrap" }}>{product.is_active?"Active":"Hidden"}</button><button onClick={() => handleDelete(product.id)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #ffd0d0", background:"#fff5f5", color:"#cc3300", cursor:"pointer", fontWeight:700 }}>Delete</button></div></div>}</div>;
-      })}</div>}
-    </div>
-  );
+  const [products, setProducts] = useState([]); const [images, setImages] = useState([]); const [loadingImages, setLoadingImages] = useState(true); const [uploadingImage, setUploadingImage] = useState(false); const [loading, setLoading] = useState(true); const [adding, setAdding] = useState(false); const [saving, setSaving] = useState(false); const [editingId, setEditingId] = useState(null); const [error, setError] = useState(""); const [toast, setToast] = useState(""); const [newProduct, setNewProduct] = useState(EMPTY_PRODUCT); const [editForm, setEditForm] = useState({});
+  const stats = useMemo(() => products.reduce((acc, item) => { const cfg = itemTypeConfig(item.vula?.item_type); acc.total++; acc[cfg.behaviour]++; acc[item.vula?.item_type] = (acc[item.vula?.item_type] || 0) + 1; return acc; }, { total:0, counter:0, agreement:0 }), [products]);
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2400); };
+  useEffect(() => { if (!user?.id) return; async function loadImages() { const { data } = await supabase.storage.from("business-images").list(`product-images/${user.id}`, { limit:MAX_IMAGES, sortBy:{ column:"created_at", order:"asc" } }); if (data) setImages(data.filter((f) => f.name && f.name !== ".emptyFolderPlaceholder").map((f) => { const { data:url } = supabase.storage.from("business-images").getPublicUrl(`product-images/${user.id}/${f.name}`); return { url:url.publicUrl, path:`product-images/${user.id}/${f.name}` }; })); setLoadingImages(false); } loadImages(); }, [user?.id]);
+  useEffect(() => { if (!business?.id) { setLoading(false); return; } setLoading(true); supabase.from("products").select("*").eq("business_id", business.id).order("created_at").then(({ data, error: loadError }) => { if (loadError) setError(loadError.message || "Could not load items."); if (data) { const mapped = data.map(mapProduct); setProducts(mapped); setGlobalProducts && setGlobalProducts(mapped); } setLoading(false); }); }, [business?.id, setGlobalProducts]);
+  function updateProducts(list) { setProducts(list); setGlobalProducts && setGlobalProducts(list); }
+  function payloadFromForm(form) { const meta = patchForType(form.vula || DEFAULT_VULA_META, form.vula?.item_type || "standard_stock"); return { name:form.name.trim(), price:Number(form.price) || 0, description:(form.description || "").trim(), image:form.image || form.icon || "🛍️", variants:withVulaMetaVariants(cleanVariantsForSave(form.variants || []), meta) }; }
+  async function handleAdd() { if (!business?.id || !newProduct.name.trim() || !newProduct.price) return; setSaving(true); setError(""); const { data, error: insertError } = await supabase.from("products").insert([{ business_id:business.id, ...payloadFromForm(newProduct), is_active:true }]).select().single(); if (insertError) setError(insertError.message || "Could not save item."); if (data) { updateProducts([...products, mapProduct(data)]); setNewProduct(EMPTY_PRODUCT); setAdding(false); } setSaving(false); }
+  async function handleSaveEdit(id) { if (!editForm.name?.trim() || !editForm.price) return; setSaving(true); setError(""); const { data, error: updateError } = await supabase.from("products").update(payloadFromForm(editForm)).eq("id", id).select().single(); if (updateError) setError(updateError.message || "Could not update item."); if (data) { updateProducts(products.map((p) => p.id === id ? mapProduct(data) : p)); setEditingId(null); setEditForm({}); } setSaving(false); }
+  async function handleToggleActive(product) { const { data, error:e } = await supabase.from("products").update({ is_active:!product.is_active }).eq("id", product.id).select().single(); if (e) setError(e.message || "Could not update item."); if (data) updateProducts(products.map((p) => p.id === product.id ? mapProduct(data) : p)); }
+  async function handleDelete(id) { if (!window.confirm("Delete this item or service?")) return; const { error:e } = await supabase.from("products").delete().eq("id", id); if (e) return setError(e.message || "Could not delete item."); updateProducts(products.filter((p) => p.id !== id)); }
+  function startEdit(product) { const isUrl = product.image && product.image.startsWith("http"); setEditingId(product.id); setEditForm({ name:product.name || "", price:product.price ?? "", description:product.description || "", icon:isUrl ? "🛍️" : (product.image || product.icon || "🛍️"), image:isUrl ? product.image : null, variants:normaliseVariants(product.variants || []), vula:extractVulaMeta(product) }); }
+  async function updateMeta(product, nextMeta, message) { const { data, error:e } = await supabase.from("products").update({ variants:withVulaMetaVariants(product.variants || [], nextMeta) }).eq("id", product.id).select().single(); if (e) return setError(e.message || "Could not update stock."); updateProducts(products.map((p) => p.id === product.id ? mapProduct(data) : p)); if (message) showToast(message); }
+  async function markSold(product) { const meta = extractVulaMeta(product); const stock = currentStockValue(product); if (stock === null) return showToast("Turn on stock tracking first."); const qty = Number(window.prompt("How many were sold?", "1") || 0); if (!qty || qty < 1) return; const key = meta.item_type === "daily_stock" ? "today_stock_quantity" : "stock_quantity"; const next = Math.max(0, stock - qty); await updateMeta(product, { ...meta, [key]:next, today_stock_date:meta.item_type === "daily_stock" ? todayIsoDate() : meta.today_stock_date }, `${product.name}: ${next} left`); }
+  async function resetDaily(product) { const meta = extractVulaMeta(product); const qty = window.prompt("Set today’s stock", String(meta.today_stock_quantity || "")); if (qty === null) return; await updateMeta(product, { ...meta, today_stock_quantity:Number(qty) || 0, today_stock_date:todayIsoDate(), selling_today:true }, "Today’s stock updated"); }
+  async function copyReply(product) { try { await navigator.clipboard.writeText(buildReplySuggestion(product)); showToast("Reply copied"); } catch { showToast(buildReplySuggestion(product)); } }
+  if (!business?.id) return <div><h2 style={{ fontSize:"22px", fontWeight:800, color:DARK }}>Products / Services</h2><div style={{ background:"#fffbe6", border:"1.5px solid #f0d000", borderRadius:"12px", padding:"16px", fontSize:"13px", color:"#7a5e00" }}>Save your business details first, then add your products and services.</div></div>;
+  return <div><div style={{ marginBottom:"20px" }}><h2 style={{ fontSize:"22px", fontWeight:800, color:DARK, marginBottom:"2px" }}>Products / Services</h2><p style={{ fontSize:"13px", color:"#888" }}>Set up what you sell so VulaTrade can help with enquiries, stock, bookings and WhatsApp replies.</p></div>{error && <div style={{ background:"#fff5f5", border:"1px solid #ffd0d0", color:"#cc3300", borderRadius:"12px", padding:"12px", fontSize:"13px", marginBottom:"14px" }}>{error}</div>}{!loadingImages && <div style={{ marginBottom:"24px" }}><ImageLibrary userId={user.id} images={images} setImages={setImages} uploading={uploadingImage} setUploading={setUploadingImage} /></div>}<div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))", gap:"10px", marginBottom:"18px" }}>{[["Items", stats.total], ["Stock counters", stats.counter], ["Requests", stats.agreement], ["Daily stock", stats.daily_stock || 0]].map(([label, value]) => <div key={label} style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"14px", padding:"14px" }}><div style={{ fontSize:"20px", fontWeight:950, color:DARK }}>{value || 0}</div><div style={{ fontSize:"11px", color:"#888", fontWeight:850 }}>{label}</div></div>)}</div><div style={{ display:"flex", justifyContent:"space-between", gap:"12px", marginBottom:"16px" }}><div><div style={{ fontSize:"16px", fontWeight:800, color:DARK }}>Vula items</div><div style={{ fontSize:"13px", color:"#aaa" }}>{products.length} item{products.length!==1?"s":""}</div></div><button onClick={() => setAdding(true)} style={{ backgroundColor:DARK, color:LIME, border:"none", borderRadius:"10px", padding:"9px 16px", fontSize:"13px", fontWeight:800, cursor:"pointer" }}>+ Add item</button></div>{adding && <div style={{ background:"#fbfbfb", border:"1.5px solid #d4d7db", borderRadius:"14px", padding:"18px", marginBottom:"14px" }}><div style={{ fontSize:"14px", fontWeight:900, color:DARK, marginBottom:"14px" }}>New Vula item</div><ProductForm form={newProduct} setForm={setNewProduct} onSave={handleAdd} onCancel={() => { setAdding(false); setNewProduct(EMPTY_PRODUCT); }} saveLabel="Save item" saving={saving} images={images} /></div>}{loading ? <div style={{ color:"#aaa" }}>Loading...</div> : products.length === 0 ? <div style={{ background:"#fbfbfb", border:"1.5px dashed #ddd", borderRadius:"14px", padding:"32px", textAlign:"center" }}><div style={{ fontSize:"28px", marginBottom:"10px" }}>🛍️</div><div style={{ fontSize:"14px", fontWeight:800, color:DARK }}>No items yet. Add your first product, daily stock item, service or made-to-order offer.</div></div> : <div style={{ display:"flex", flexDirection:"column", gap:"10px" }}>{products.map((product) => { const meta = extractVulaMeta(product); const cfg = itemTypeConfig(meta.item_type); const stock = currentStockValue(product); return <div key={product.id} style={{ background:"#fff", border:`1.5px solid ${editingId===product.id?LIME:"#eeeeea"}`, borderRadius:"14px", padding:"14px 18px", opacity:product.is_active?1:.55 }}>{editingId===product.id ? <ProductForm form={editForm} setForm={setEditForm} onSave={() => handleSaveEdit(product.id)} onCancel={() => { setEditingId(null); setEditForm({}); }} saveLabel="Save" saving={saving} images={images} /> : <div style={{ display:"flex", alignItems:"center", gap:"12px", flexWrap:"wrap" }}>{productThumb(product)}<div style={{ flex:"1 1 220px", minWidth:0 }}><div style={{ display:"flex", gap:"6px", flexWrap:"wrap", marginBottom:"5px" }}><span style={{ fontSize:"11px", background:cfg.behaviour === "counter" ? "#fff5f9" : "#eef7ff", color:cfg.behaviour === "counter" ? "#d93f7b" : "#155e75", border:"1px solid #eeeeea", borderRadius:"999px", padding:"4px 8px", fontWeight:900 }}>{cfg.shortLabel}</span>{stock !== null && <span style={{ fontSize:"11px", background:stock <= 0 ? "#fff5f5" : "#fbfbfb", color:stock <= 0 ? "#cc3300" : "#555", border:"1px solid #eeeeea", borderRadius:"999px", padding:"4px 8px", fontWeight:900 }}>{stock <= 0 ? "Sold out" : `${stock} left`}</span>}</div><div style={{ fontSize:"14px", fontWeight:800, color:DARK }}>{product.name}</div>{product.description && <div style={{ fontSize:"12px", color:"#aaa", marginTop:"2px", lineHeight:1.45 }}>{product.description}</div>}{product.variants?.length > 0 && <div style={{ fontSize:"11px", color:"#d93f7b", marginTop:"6px", fontWeight:800 }}>{product.variants.length} option{product.variants.length !== 1 ? "s" : ""}</div>}</div><div style={{ fontSize:"16px", fontWeight:950, color:DARK, minWidth:"60px", textAlign:"right" }}>{money(product.price)}</div><div style={{ display:"flex", flexWrap:"wrap", gap:"4px" }}><button onClick={() => copyReply(product)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #f8b8d2", background:"#fff5f9", color:"#d93f7b", cursor:"pointer", fontWeight:800, display:"inline-flex", gap:"4px", alignItems:"center" }}><Copy size={12} /> Reply</button>{stock !== null && <button onClick={() => markSold(product)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:"#fbfbfb", color:"#555", cursor:"pointer", fontWeight:800 }}>Mark sold</button>}{meta.item_type === "daily_stock" && <button onClick={() => resetDaily(product)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:"#fbfbfb", color:"#555", cursor:"pointer", fontWeight:800 }}>Set today</button>}<button onClick={() => startEdit(product)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:"#fbfbfb", color:"#555", cursor:"pointer", fontWeight:700 }}>Edit</button><button onClick={() => handleToggleActive(product)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #e0e0e0", background:product.is_active?"#fff5f9":"#f5f5f5", color:product.is_active?"#d93f7b":"#aaa", cursor:"pointer", fontWeight:700 }}>{product.is_active?"Active":"Hidden"}</button><button onClick={() => handleDelete(product.id)} style={{ fontSize:"11px", padding:"5px 10px", borderRadius:"8px", border:"1px solid #ffd0d0", background:"#fff5f5", color:"#cc3300", cursor:"pointer", fontWeight:700 }}>Delete</button></div></div>}</div>; })}</div>}{toast && <div style={{ position:"fixed", bottom:28, left:"50%", transform:"translateX(-50%)", background:DARK, color:"#fff", padding:"12px 22px", borderRadius:999, fontSize:13, fontWeight:900, zIndex:2000 }}>{toast}</div>}</div>;
 }
