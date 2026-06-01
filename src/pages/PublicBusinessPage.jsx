@@ -4,8 +4,21 @@ import { businessDescriptionOrDefault } from "../businessDescriptions";
 import { supabase } from "../lib/supabase";
 import Logo from "../components/Logo";
 import { formatPhone, waLink } from "../utils";
+import {
+  buildItemWhatsAppMessage,
+  cleanVulaDescription,
+  currentStockValue,
+  extractVulaMeta,
+  formatAvailability,
+  isSoldOut,
+  itemActionLabel,
+  itemTypeConfig,
+  leadTimeWarning,
+  separateMetaVariants,
+} from "../vulaItems";
 
 const FALLBACK_ACCENT = "#ea4c89";
+const SERVICE_SETUP = { item_type: "service", duration_minutes: "45", buffer_minutes: "10" };
 
 const NOMSA_FALLBACK = {
   business: {
@@ -22,9 +35,9 @@ const NOMSA_FALLBACK = {
     instagram: "https://instagram.com/",
   },
   products: [
-    { id: "gel-overlay", name: "Gel overlay", price: 220, description: "Fresh colour, neat finish.", image: "💅", is_active: true, variants: [{ id:"short", name:"Short nails", price:220, description:"Neat short gel overlay" }, { id:"medium", name:"Medium nails", price:260, description:"Medium gel overlay" }] },
-    { id: "acrylic-set", name: "Acrylic set", price: 350, description: "Custom length and shape.", image: "✨", is_active: true },
-    { id: "soak-off", name: "Soak off", price: 80, description: "Gentle removal before your next set.", image: "🧴", is_active: true },
+    { id: "gel-overlay", name: "Gel overlay", price: 220, description: "Fresh colour, neat finish.", image: "💅", is_active: true, item_setup: SERVICE_SETUP, variants: [{ id:"short", name:"Short nails", price:220, description:"Neat short gel overlay" }, { id:"medium", name:"Medium nails", price:260, description:"Medium gel overlay" }] },
+    { id: "acrylic-set", name: "Acrylic set", price: 350, description: "Custom length and shape.", image: "✨", is_active: true, item_setup: SERVICE_SETUP },
+    { id: "soak-off", name: "Soak off", price: 80, description: "Gentle removal before your next set.", image: "🧴", is_active: true, item_setup: SERVICE_SETUP },
   ],
 };
 
@@ -61,15 +74,9 @@ function whatsappLink(number, businessName) {
   return waLink(number, text);
 }
 
-function productWhatsappMessage(businessName, product, variant, customerName, customerPhone) {
-  const itemName = variant?.name ? `${product.name} - ${variant.name}` : product.name;
-  const price = variant?.price ?? product.price;
-  return `Hi ${businessName}, I saw ${itemName} on your VulaTrade page.\nPrice: ${money(price)}\nMy name is ${customerName}.\nMy WhatsApp number is ${customerPhone}.\nI am interested. Please let me know if this is still available.`;
-}
-
 function normaliseVariants(variants = []) {
-  if (!Array.isArray(variants)) return [];
-  return variants
+  const clean = separateMetaVariants(Array.isArray(variants) ? variants : []).variants;
+  return clean
     .map((variant) => ({
       id: variant.id || `${variant.name || "variant"}-${variant.price || ""}`,
       name: variant.name || "",
@@ -90,6 +97,41 @@ function productDisplayPrice(product) {
   }
 
   return basePrice > 0 ? `R${basePrice.toLocaleString()}` : "Ask price";
+}
+
+function productDescription(product) {
+  return cleanVulaDescription(product?.description || "");
+}
+
+function productBadge(product) {
+  const meta = extractVulaMeta(product);
+  const type = itemTypeConfig(meta.item_type);
+  if (meta.item_type === "daily_stock") return "Fresh today";
+  if (meta.item_type === "standard_stock") return "In stock";
+  return type.shortLabel;
+}
+
+function productStatus(product) {
+  const meta = extractVulaMeta(product);
+  const stock = currentStockValue(product);
+  if (meta.item_type === "standard_stock") {
+    if (isSoldOut(product)) return "Sold out";
+    if (stock !== null && stock > 0) return stock <= 2 ? `Only ${stock} left` : `${stock} available`;
+    return "Ask if available";
+  }
+  if (meta.item_type === "daily_stock") {
+    if (meta.selling_today === false) return "Not selling today";
+    if (isSoldOut(product)) return "Sold out today";
+    if (stock !== null && stock > 0) return `${stock} available today`;
+    return "Available today";
+  }
+  if (meta.item_type === "service") {
+    return meta.duration_minutes ? `${meta.duration_minutes} min service` : "Available by booking";
+  }
+  if (meta.item_type === "made_to_order") {
+    return meta.lead_time_days ? `${meta.lead_time_days} days notice` : "Made to order";
+  }
+  return "Available";
 }
 
 function socialLinks(business) {
@@ -127,10 +169,18 @@ function ProductImage({ product, size = 66 }) {
 
 function ProductDetailModal({ product, business, accent, accentText, onClose }) {
   const variants = normaliseVariants(product?.variants || []);
+  const meta = extractVulaMeta(product || {});
+  const badge = productBadge(product || {});
+  const status = productStatus(product || {});
+  const actionLabel = itemActionLabel(product || {});
   const [selectedVariantId, setSelectedVariantId] = useState(variants[0]?.id || "");
   const [saving, setSaving] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [preferredDate, setPreferredDate] = useState("");
+  const [preferredTime, setPreferredTime] = useState("");
+  const [neededByDate, setNeededByDate] = useState("");
+  const [notes, setNotes] = useState("");
   const [formError, setFormError] = useState("");
   const selectedVariant = variants.find((variant) => variant.id === selectedVariantId) || null;
 
@@ -212,7 +262,18 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
 
     const price = selectedVariant?.price ?? product.price ?? null;
     const productName = selectedVariant?.name ? `${product.name} - ${selectedVariant.name}` : product.name;
-    const message = productWhatsappMessage(business.name, product, selectedVariant, name, phone);
+    const warning = leadTimeWarning(product, neededByDate);
+    const message = buildItemWhatsAppMessage({
+      businessName: business.name,
+      product,
+      variant: selectedVariant,
+      customerName: name,
+      customerPhone: phone,
+      neededByDate,
+      preferredDate,
+      preferredTime,
+      notes: warning ? `${notes}${notes ? "\n" : ""}${warning}` : notes,
+    });
 
     setSaving(true);
     setFormError("");
@@ -230,7 +291,7 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
           product_price: Number(price || 0) || null,
           message,
           source: "public_page",
-          status: "interested",
+          status: meta.item_type === "service" ? "booking_requested" : meta.item_type === "made_to_order" ? "order_requested" : "interested",
         });
         if (error) console.warn("Enquiry capture failed", error.message);
       }
@@ -250,11 +311,16 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
         <div style={{ display:"flex", gap:"16px", alignItems:"flex-start", marginBottom:"18px" }}>
           <ProductImage product={product} size={96} />
           <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ display:"flex", gap:"6px", flexWrap:"wrap", marginBottom:"8px" }}>
+              <span style={{ display:"inline-flex", background:`${accent}18`, border:`1px solid ${accent}40`, color:DARK, borderRadius:"999px", padding:"6px 9px", fontSize:"11px", fontWeight:950 }}>{badge}</span>
+              <span style={{ display:"inline-flex", background:"#fbfbfb", border:"1px solid #eeeeea", color:"#666", borderRadius:"999px", padding:"6px 9px", fontSize:"11px", fontWeight:850 }}>{status}</span>
+            </div>
             <h3 style={{ margin:"0 0 8px", fontSize:"26px", lineHeight:1.05, fontWeight:950, color:DARK }}>{product.name}</h3>
-            {product.description && <p style={{ margin:"0 0 12px", fontSize:"14px", lineHeight:1.55, color:"#666" }}>{product.description}</p>}
+            {productDescription(product) && <p style={{ margin:"0 0 12px", fontSize:"14px", lineHeight:1.55, color:"#666" }}>{productDescription(product)}</p>}
             <div style={{ display:"inline-flex", background:`${accent}18`, border:`1px solid ${accent}40`, color:DARK, borderRadius:"999px", padding:"8px 11px", fontSize:"14px", fontWeight:950 }}>{productDisplayPrice(product)}</div>
           </div>
         </div>
+        {meta.item_type === "service" && <div style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"16px", padding:"12px", marginBottom:"14px", fontSize:"12px", color:"#666", lineHeight:1.5 }}><strong>Usual availability:</strong> {formatAvailability(meta)}</div>}
         {variants.length > 0 && (
           <div style={{ marginBottom:"16px" }}>
             <div style={{ fontSize:"12px", fontWeight:950, color:accent, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:"9px" }}>Choose an option</div>
@@ -276,19 +342,24 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
         )}
 
         <div style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"18px", padding:"14px", marginBottom:"14px" }}>
-          <div style={{ fontSize:"15px", fontWeight:950, color:DARK, marginBottom:"4px" }}>Almost done</div>
+          <div style={{ fontSize:"15px", fontWeight:950, color:DARK, marginBottom:"4px" }}>{actionLabel}</div>
           <p style={{ margin:"0 0 12px", fontSize:"13px", color:"#777", lineHeight:1.55 }}>Add your details so {business.name} can reply to the right person. We will then open WhatsApp.</p>
           <label style={{ display:"grid", gap:"5px", fontSize:"12px", color:"#888", fontWeight:850, marginBottom:"10px" }}>Your name
             <input value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="e.g. Sipho" style={{ border:"1px solid #eeeeea", borderRadius:"12px", padding:"11px 12px", fontSize:"14px" }} />
           </label>
-          <label style={{ display:"grid", gap:"5px", fontSize:"12px", color:"#888", fontWeight:850 }}>Your WhatsApp number
+          <label style={{ display:"grid", gap:"5px", fontSize:"12px", color:"#888", fontWeight:850, marginBottom:"10px" }}>Your WhatsApp number
             <input value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} placeholder="e.g. 071 123 4567" style={{ border:"1px solid #eeeeea", borderRadius:"12px", padding:"11px 12px", fontSize:"14px" }} />
+          </label>
+          {meta.item_type === "service" && <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px", marginBottom:"10px" }}><label style={{ display:"grid", gap:"5px", fontSize:"12px", color:"#888", fontWeight:850 }}>Preferred date<input type="date" value={preferredDate} onChange={(event) => setPreferredDate(event.target.value)} style={{ border:"1px solid #eeeeea", borderRadius:"12px", padding:"10px 12px", fontSize:"14px" }} /></label><label style={{ display:"grid", gap:"5px", fontSize:"12px", color:"#888", fontWeight:850 }}>Preferred time<input type="time" value={preferredTime} onChange={(event) => setPreferredTime(event.target.value)} style={{ border:"1px solid #eeeeea", borderRadius:"12px", padding:"10px 12px", fontSize:"14px" }} /></label></div>}
+          {meta.item_type === "made_to_order" && <label style={{ display:"grid", gap:"5px", fontSize:"12px", color:"#888", fontWeight:850, marginBottom:"10px" }}>Needed by date<input type="date" value={neededByDate} onChange={(event) => setNeededByDate(event.target.value)} style={{ border:"1px solid #eeeeea", borderRadius:"12px", padding:"10px 12px", fontSize:"14px" }} />{leadTimeWarning(product, neededByDate) && <span style={{ color:"#9f1239", fontSize:"11px", fontWeight:850 }}>{leadTimeWarning(product, neededByDate)}</span>}</label>}
+          <label style={{ display:"grid", gap:"5px", fontSize:"12px", color:"#888", fontWeight:850 }}>Message / notes
+            <input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional" style={{ border:"1px solid #eeeeea", borderRadius:"12px", padding:"11px 12px", fontSize:"14px" }} />
           </label>
           {formError && <div style={{ color:"#9f1239", background:"#fff5f7", border:"1px solid #ffd7e4", borderRadius:"12px", padding:"9px 10px", marginTop:"10px", fontSize:"12px", fontWeight:800 }}>{formError}</div>}
         </div>
 
         {business.whatsapp ? (
-          <button type="button" onClick={handleWhatsAppEnquiry} disabled={saving} style={{ width:"100%", display:"block", textAlign:"center", background:accent, color:accentText, borderRadius:"16px", padding:"15px 18px", fontSize:"15px", fontWeight:950, border:"none", cursor:"pointer", boxShadow:`0 12px 30px ${accent}36` }}>{saving ? "Saving enquiry..." : "Continue to WhatsApp"}</button>
+          <button type="button" onClick={handleWhatsAppEnquiry} disabled={saving || isSoldOut(product)} style={{ width:"100%", display:"block", textAlign:"center", background:isSoldOut(product) ? "#d8d8d4" : accent, color:isSoldOut(product) ? "#777" : accentText, borderRadius:"16px", padding:"15px 18px", fontSize:"15px", fontWeight:950, border:"none", cursor:isSoldOut(product) ? "not-allowed" : "pointer", boxShadow:isSoldOut(product) ? "none" : `0 12px 30px ${accent}36` }}>{saving ? "Saving enquiry..." : isSoldOut(product) ? "Sold out" : `Continue to WhatsApp`}</button>
         ) : (
           <div style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"16px", padding:"14px", fontSize:"13px", color:"#888", textAlign:"center" }}>WhatsApp number not available.</div>
         )}
@@ -407,7 +478,7 @@ export default function PublicBusinessPage({ slug }) {
 
         {reviews.length > 0 && <section style={{ padding: "18px 0 0" }}><div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "26px", padding: "20px", boxShadow: "0 14px 42px rgba(15,23,42,0.06)" }}><div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:"12px", marginBottom:"14px" }}><div><div style={{ color: pageTheme.accent, fontSize: "11px", fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>Customer reviews</div><h2 style={{ fontSize: "22px", fontWeight: 950, margin: 0, letterSpacing: "0" }}>What customers say</h2></div><span style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"999px", padding:"7px 10px", fontSize:"12px", color:"#777", fontWeight:800, whiteSpace:"nowrap" }}>{reviews.length} review{reviews.length !== 1 ? "s" : ""}</span></div><ReviewCarousel reviews={reviews} accent={pageTheme.accent} /></div></section>}
 
-        <section style={{ padding: "26px 0 0" }}><div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "26px", padding: "20px", boxShadow: "0 14px 42px rgba(15,23,42,0.06)" }}><div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "12px", marginBottom: "18px" }}><div><div style={{ color: pageTheme.accent, fontSize: "11px", fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>What we offer</div><h2 style={{ fontSize: "22px", fontWeight: 950, margin: 0, letterSpacing: "0" }}>Services & prices</h2></div><span style={{ background: "#fbfbfb", border: "1px solid #eeeeea", borderRadius: "999px", padding: "7px 10px", fontSize: "12px", color: "#777", fontWeight: 800, whiteSpace: "nowrap" }}>{activeProducts.length} item{activeProducts.length !== 1 ? "s" : ""}</span></div>{activeProducts.length === 0 ? <div style={{ background: "#fbfbfb", border: "1px dashed #d8d8d4", borderRadius: "18px", padding: "28px", textAlign: "center", color: "#888", fontSize: "14px" }}>Services will appear here soon.</div> : <div style={{ display: "grid", gap: "12px" }}>{activeProducts.map((product) => { const variants = normaliseVariants(product.variants || []); return <button key={product.id || product.name} type="button" onClick={() => setSelectedProduct(product)} className="product-card-clickable" style={{ width:"100%", textAlign:"left", display: "flex", alignItems: "center", gap: "14px", border: "1px solid #eeeeea", borderRadius: "20px", padding: "14px", background: "linear-gradient(180deg, #ffffff 0%, #fbfbfa 100%)", boxShadow: "0 8px 22px rgba(15,23,42,0.04)", cursor:"pointer", transition:"all 180ms ease" }}><ProductImage product={product} /><div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: "16px", fontWeight: 900, color: DARK, marginBottom: product.description ? "4px" : 0 }}>{product.name}</div>{product.description && <div style={{ fontSize: "13px", color: "#777", lineHeight: 1.5 }}>{product.description}</div>}{variants.length > 0 && <div style={{ marginTop:"6px", fontSize:"11px", color:pageTheme.accent, fontWeight:900 }}>{variants.length} option{variants.length !== 1 ? "s" : ""} available</div>}</div><div style={{ background: `${pageTheme.accent}18`, border: `1px solid ${pageTheme.accent}40`, color: DARK, borderRadius: "999px", padding: "8px 10px", fontSize: "14px", fontWeight: 950, whiteSpace: "nowrap" }}>{productDisplayPrice(product)}</div></button>; })}</div>}</div></section>
+        <section style={{ padding: "26px 0 0" }}><div style={{ background: "#fff", border: "1px solid #eeeeea", borderRadius: "26px", padding: "20px", boxShadow: "0 14px 42px rgba(15,23,42,0.06)" }}><div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "12px", marginBottom: "18px" }}><div><div style={{ color: pageTheme.accent, fontSize: "11px", fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>What we offer</div><h2 style={{ fontSize: "22px", fontWeight: 950, margin: 0, letterSpacing: "0" }}>Offers & prices</h2></div><span style={{ background: "#fbfbfb", border: "1px solid #eeeeea", borderRadius: "999px", padding: "7px 10px", fontSize: "12px", color: "#777", fontWeight: 800, whiteSpace: "nowrap" }}>{activeProducts.length} offer{activeProducts.length !== 1 ? "s" : ""}</span></div>{activeProducts.length === 0 ? <div style={{ background: "#fbfbfb", border: "1px dashed #d8d8d4", borderRadius: "18px", padding: "28px", textAlign: "center", color: "#888", fontSize: "14px" }}>Offers will appear here soon.</div> : <div style={{ display: "grid", gap: "12px" }}>{activeProducts.map((product) => { const variants = normaliseVariants(product.variants || []); const badge = productBadge(product); const status = productStatus(product); return <button key={product.id || product.name} type="button" onClick={() => setSelectedProduct(product)} className="product-card-clickable" style={{ width:"100%", textAlign:"left", display: "flex", alignItems: "center", gap: "14px", border: "1px solid #eeeeea", borderRadius: "20px", padding: "14px", background: "linear-gradient(180deg, #ffffff 0%, #fbfbfa 100%)", boxShadow: "0 8px 22px rgba(15,23,42,0.04)", cursor:"pointer", transition:"all 180ms ease" }}><ProductImage product={product} /><div style={{ flex: 1, minWidth: 0 }}><div style={{ display:"flex", gap:"6px", flexWrap:"wrap", marginBottom:"6px" }}><span style={{ fontSize:"11px", background:`${pageTheme.accent}18`, border:`1px solid ${pageTheme.accent}40`, color:DARK, borderRadius:"999px", padding:"4px 8px", fontWeight:900 }}>{badge}</span><span style={{ fontSize:"11px", background:"#fbfbfb", border:"1px solid #eeeeea", color:"#666", borderRadius:"999px", padding:"4px 8px", fontWeight:800 }}>{status}</span></div><div style={{ fontSize: "16px", fontWeight: 900, color: DARK, marginBottom: productDescription(product) ? "4px" : 0 }}>{product.name}</div>{productDescription(product) && <div style={{ fontSize: "13px", color: "#777", lineHeight: 1.5 }}>{productDescription(product)}</div>}{variants.length > 0 && <div style={{ marginTop:"6px", fontSize:"11px", color:pageTheme.accent, fontWeight:900 }}>{variants.length} option{variants.length !== 1 ? "s" : ""} available</div>}</div><div style={{ display:"grid", gap:"7px", justifyItems:"end" }}><div style={{ background: `${pageTheme.accent}18`, border: `1px solid ${pageTheme.accent}40`, color: DARK, borderRadius: "999px", padding: "8px 10px", fontSize: "14px", fontWeight: 950, whiteSpace: "nowrap" }}>{productDisplayPrice(product)}</div><span style={{ fontSize:"11px", color:pageTheme.accent, fontWeight:900 }}>{itemActionLabel(product)}</span></div></button>; })}</div>}</div></section>
         <footer style={{ padding: "22px 0 8px", textAlign: "center" }}><div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "#fff", border: "1px solid #eeeeea", borderRadius: "999px", padding: "8px 14px", boxShadow: "0 8px 24px rgba(15,23,42,0.05)", fontSize: "12px", color: "#888", fontWeight: 800 }}><span>Powered by</span><Logo size="small" /></div></footer>
       </div>
       {selectedProduct && <ProductDetailModal product={selectedProduct} business={business} accent={pageTheme.accent} accentText={accentText} onClose={() => setSelectedProduct(null)} />}
