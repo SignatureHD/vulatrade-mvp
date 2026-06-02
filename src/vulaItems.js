@@ -10,6 +10,8 @@ export const VULA_META_MARKER = "__vula_meta";
 export const VULA_DESC_META_START = "\n<!--VULA_ITEM_META:";
 export const VULA_DESC_META_END = ":VULA_ITEM_META-->";
 
+const VULA_DESC_META_PATTERN = /\s*<!--\s*VULA_ITEM_META\s*:\s*([\s\S]*?)\s*:\s*VULA_ITEM_META\s*-->\s*/i;
+
 export const DEFAULT_SERVICE_AVAILABILITY = [
   { day: "Monday", enabled: true, start: "09:00", end: "17:00" },
   { day: "Tuesday", enabled: true, start: "09:00", end: "17:00" },
@@ -40,15 +42,11 @@ export function withVulaMetaVariants(variants = [], meta = {}) { return [...sepa
 
 export function splitVulaDescription(description = "") {
   const text = String(description || "");
-  const startIndex = text.indexOf(VULA_DESC_META_START);
-  if (startIndex < 0) return { cleanDescription: text, meta: {} };
-  const endIndex = text.indexOf(VULA_DESC_META_END, startIndex);
-  if (endIndex < 0) return { cleanDescription: text, meta: {} };
-  const encoded = text.slice(startIndex + VULA_DESC_META_START.length, endIndex);
-  const before = text.slice(0, startIndex).trimEnd();
-  const after = text.slice(endIndex + VULA_DESC_META_END.length).trimStart();
-  try { return { cleanDescription: `${before}${after ? `\n${after}` : ""}`.trim(), meta: JSON.parse(decodeURIComponent(encoded)) || {} }; }
-  catch { return { cleanDescription: `${before}${after ? `\n${after}` : ""}`.trim(), meta: {} }; }
+  const match = text.match(VULA_DESC_META_PATTERN);
+  if (!match) return { cleanDescription: text, meta: {} };
+  const cleanDescription = text.replace(VULA_DESC_META_PATTERN, "").trim();
+  try { return { cleanDescription, meta: JSON.parse(decodeURIComponent(match[1].trim())) || {} }; }
+  catch { return { cleanDescription, meta: {} }; }
 }
 export function cleanVulaDescription(description = "") { return splitVulaDescription(description).cleanDescription; }
 export function descriptionWithVulaMeta(description = "", meta = {}) { return `${cleanVulaDescription(description).trim()}${VULA_DESC_META_START}${encodeURIComponent(JSON.stringify(meta))}${VULA_DESC_META_END}`; }
