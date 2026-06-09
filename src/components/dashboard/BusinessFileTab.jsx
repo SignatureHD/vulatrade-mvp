@@ -4,12 +4,130 @@ import { DARK } from "../../constants";
 import { supabase } from "../../lib/supabase";
 
 const BRAND = "#ea4c89";
+const GOOGLE_SCOPES = "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+const WORKSPACE_FOLDERS = ["Expenses", "Receipts", "Sales", "Stock", "Customers", "Reports"];
+const TRACKER_SHEETS = [
+  {
+    title: "Expense Tracker",
+    headers: ["Date", "Supplier / Bought From", "Expense Name", "Category", "Linked Product / Service", "Amount", "Payment Method", "Receipt Link", "Notes", "Added From", "VulaTrade Expense ID"],
+  },
+  {
+    title: "Stock Tracker",
+    headers: ["Product / Stock Item", "Category", "Qty Bought", "Qty Sold", "Balance", "Cost Price", "Selling Price", "Supplier", "Last Updated", "Added From", "VulaTrade Product ID"],
+  },
+  {
+    title: "Sales Tracker",
+    headers: ["Date", "Customer", "Product / Service", "Amount", "Payment Status", "Payment Method", "Reference", "Notes", "Added From", "VulaTrade Sale ID"],
+  },
+  {
+    title: "Customer Tracker",
+    headers: ["Customer Name", "Cell Number", "WhatsApp Consent", "Last Purchase", "Total Spend", "Notes", "Added From", "VulaTrade Customer ID"],
+  },
+];
 
 function averageRating(reviews) {
   const approved = reviews.filter((review) => review.approved);
   if (approved.length === 0) return "0.0";
   const total = approved.reduce((sum, review) => sum + Number(review.rating || 0), 0);
   return (total / approved.length).toFixed(1);
+}
+
+function cleanName(value, fallback = "Business") {
+  return String(value || fallback).replace(/[\\/:*?"<>|]/g, "-").trim() || fallback;
+}
+
+function googleApiErrorMessage(error) {
+  if (!error) return "Google setup failed. Please try again.";
+  if (typeof error === "string") return error;
+  return error.message || error.error_description || error.error || "Google setup failed. Please try again.";
+}
+
+function loadGoogleIdentityScript() {
+  return new Promise((resolve, reject) => {
+    if (window.google?.accounts?.oauth2) { resolve(); return; }
+    const existing = document.querySelector("script[data-google-identity]");
+    if (existing) {
+      existing.addEventListener("load", resolve, { once:true });
+      existing.addEventListener("error", () => reject(new Error("Google sign-in script could not load.")), { once:true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.dataset.googleIdentity = "true";
+    script.onload = resolve;
+    script.onerror = () => reject(new Error("Google sign-in script could not load."));
+    document.head.appendChild(script);
+  });
+}
+
+function requestGoogleAccessToken() {
+  return new Promise((resolve, reject) => {
+    if (!GOOGLE_CLIENT_ID) {
+      reject(new Error("Missing VITE_GOOGLE_CLIENT_ID. Add it to .env.local and restart npm run dev."));
+      return;
+    }
+    const tokenClient = window.google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: GOOGLE_SCOPES,
+      callback: (response) => {
+        if (response?.error) reject(new Error(response.error));
+        else resolve(response.access_token);
+      },
+    });
+    tokenClient.requestAccessToken({ prompt:"consent" });
+  });
+}
+
+async function googleFetch(accessToken, url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data?.error?.message || data?.message || `Google API error: ${response.status}`);
+  return data;
+}
+
+async function createDriveFolder(accessToken, name, parentId) {
+  const body = {
+    name,
+    mimeType: "application/vnd.google-apps.folder",
+    ...(parentId ? { parents:[parentId] } : {}),
+  };
+  return googleFetch(accessToken, "https://www.googleapis.com/drive/v3/files", { method:"POST", body:JSON.stringify(body) });
+}
+
+async function createWorkspaceSpreadsheet(accessToken, businessName) {
+  const spreadsheet = await googleFetch(accessToken, "https://sheets.googleapis.com/v4/spreadsheets", {
+    method:"POST",
+    body:JSON.stringify({
+      properties:{ title:`VulaTrade Business Workspace - ${businessName}` },
+      sheets:TRACKER_SHEETS.map((sheet) => ({ properties:{ title:sheet.title } })),
+    }),
+  });
+
+  await Promise.all(TRACKER_SHEETS.map((sheet) => googleFetch(
+    accessToken,
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheet.spreadsheetId}/values/${encodeURIComponent(`${sheet.title}!A1:K1`)}?valueInputOption=RAW`,
+    { method:"PUT", body:JSON.stringify({ values:[sheet.headers] }) }
+  )));
+
+  return spreadsheet;
+}
+
+async function moveFileToFolder(accessToken, fileId, folderId) {
+  const metadata = await googleFetch(accessToken, `https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents`);
+  const previousParents = (metadata.parents || []).join(",");
+  const url = `https://www.googleapis.com/drive/v3/files/${fileId}?addParents=${folderId}${previousParents ? `&removeParents=${previousParents}` : ""}&fields=id,parents`;
+  return googleFetch(accessToken, url, { method:"PATCH", body:JSON.stringify({}) });
 }
 
 export function BusinessFileTab({ business, setTab }) {
@@ -26,6 +144,14 @@ export function BusinessFileTab({ business, setTab }) {
   });
   const [loading, setLoading] = useState(true);
   const [googleFileStatus, setGoogleFileStatus] = useState("");
+  const [googleWorkspace, setGoogleWorkspace] = useState(null);
+  const [googleSetupBusy, setGoogleSetupBusy] = useState(false);
+
+  useEffect(() => {
+    if (!business?.id) { setGoogleWorkspace(null); return; }
+    const saved = window.localStorage.getItem(`vula-google-workspace-${business.id}`);
+    setGoogleWorkspace(saved ? JSON.parse(saved) : null);
+  }, [business?.id]);
 
   useEffect(() => {
     if (!business?.id) { setLoading(false); return; }
@@ -55,6 +181,47 @@ export function BusinessFileTab({ business, setTab }) {
       setLoading(false);
     });
   }, [business?.id]);
+
+  async function handleCreateGoogleWorkspace() {
+    if (!business?.id) { setGoogleFileStatus("Create your business profile before setting up a workspace."); return; }
+    setGoogleSetupBusy(true);
+    setGoogleFileStatus("Connecting to Google...");
+    try {
+      await loadGoogleIdentityScript();
+      const accessToken = await requestGoogleAccessToken();
+      const businessName = cleanName(business?.name, "VulaTrade Business");
+      setGoogleFileStatus("Creating your main Google Drive folder...");
+      const rootFolder = await createDriveFolder(accessToken, `VulaTrade Business Workspace - ${businessName}`);
+
+      setGoogleFileStatus("Creating business folders...");
+      const folderEntries = await Promise.all(WORKSPACE_FOLDERS.map(async (folderName) => {
+        const folder = await createDriveFolder(accessToken, folderName, rootFolder.id);
+        return [folderName, folder.id];
+      }));
+      const folders = Object.fromEntries(folderEntries);
+
+      setGoogleFileStatus("Creating tracking spreadsheet...");
+      const spreadsheet = await createWorkspaceSpreadsheet(accessToken, businessName);
+      await moveFileToFolder(accessToken, spreadsheet.spreadsheetId, rootFolder.id);
+
+      const workspace = {
+        rootFolderId:rootFolder.id,
+        rootFolderUrl:`https://drive.google.com/drive/folders/${rootFolder.id}`,
+        spreadsheetId:spreadsheet.spreadsheetId,
+        spreadsheetUrl:spreadsheet.spreadsheetUrl,
+        folders,
+        createdAt:new Date().toISOString(),
+      };
+      window.localStorage.setItem(`vula-google-workspace-${business.id}`, JSON.stringify(workspace));
+      setGoogleWorkspace(workspace);
+      setGoogleFileStatus("Business Workspace created. Your folders and starter tracking sheets are now in Google Drive.");
+    } catch (error) {
+      console.error("Google workspace setup failed", error);
+      setGoogleFileStatus(googleApiErrorMessage(error));
+    } finally {
+      setGoogleSetupBusy(false);
+    }
+  }
 
   const checklist = [
     { label:"Business profile created", done:Boolean(business?.name) },
@@ -135,18 +302,25 @@ export function BusinessFileTab({ business, setTab }) {
           Connect Google Drive and automatically create organised folders and tracking sheets for your business.
         </div>
         <div style={{ background:"#fff5f9", border:"1px solid #f8b8d2", borderRadius:"14px", padding:"12px", fontSize:"12px", color:"#666", fontWeight:700, marginBottom:"14px" }}>
-          Test feature — not connected to Google yet.
+          Test feature — creates real Google Drive folders and one tracker spreadsheet. Sync to expenses and stock comes next.
         </div>
         <button
           type="button"
-          onClick={() => setGoogleFileStatus("Test ready: this will create Expenses, Receipts, Sales, Stock, Customers and Reports folders, plus starter tracking sheets.")}
-          style={{ background:BRAND, color:"#fff", border:"none", borderRadius:"12px", padding:"11px 18px", fontSize:"13px", fontWeight:800, cursor:"pointer" }}
+          disabled={googleSetupBusy}
+          onClick={handleCreateGoogleWorkspace}
+          style={{ background:BRAND, color:"#fff", border:"none", borderRadius:"12px", padding:"11px 18px", fontSize:"13px", fontWeight:800, cursor:googleSetupBusy ? "not-allowed" : "pointer", opacity:googleSetupBusy ? 0.72 : 1 }}
         >
-          Set Up My Business Workspace
+          {googleSetupBusy ? "Setting Up..." : googleWorkspace ? "Create Another Workspace" : "Set Up My Business Workspace"}
         </button>
         {googleFileStatus && (
           <div style={{ marginTop:"12px", background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"14px", padding:"12px", fontSize:"13px", color:"#555", lineHeight:1.5 }}>
             {googleFileStatus}
+          </div>
+        )}
+        {googleWorkspace && (
+          <div style={{ display:"flex", gap:"10px", flexWrap:"wrap", marginTop:"12px" }}>
+            <a href={googleWorkspace.rootFolderUrl} target="_blank" rel="noreferrer" style={{ color:BRAND, fontSize:"13px", fontWeight:900, textDecoration:"none" }}>Open Drive folder</a>
+            <a href={googleWorkspace.spreadsheetUrl} target="_blank" rel="noreferrer" style={{ color:BRAND, fontSize:"13px", fontWeight:900, textDecoration:"none" }}>Open tracker sheet</a>
           </div>
         )}
       </div>
