@@ -50,7 +50,7 @@ async function getGoogleAccessToken() {
       },
     });
 
-    tokenClient.requestAccessToken({ prompt: "consent" });
+    tokenClient.requestAccessToken({ prompt: "" });
   });
 }
 
@@ -250,4 +250,35 @@ export async function createBusinessWorkspace(businessName = "My Business") {
     spreadsheet,
     createdAt: new Date().toISOString(),
   };
+}
+
+export async function appendExpenseToGoogleSheet(spreadsheetId, expense) {
+  if (!spreadsheetId) {
+    throw new Error("Missing Google spreadsheet ID.");
+  }
+
+  const token = await getGoogleAccessToken();
+
+  const values = [[
+    expense.expense_date || expense.date || "",
+    expense.supplier_name || "",
+    expense.name || "",
+    expense.category || "",
+    expense.linked_product_name || "",
+    expense.amount || "",
+    expense.payment_method || "",
+    expense.receipt_url || "",
+    expense.notes || "",
+    "VulaTrade",
+    expense.id || "",
+  ]];
+
+  return googleFetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Expense%20Tracker!A:K:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    token,
+    {
+      method: "POST",
+      body: JSON.stringify({ values }),
+    }
+  );
 }

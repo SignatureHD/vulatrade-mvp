@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, FileCheck, Package, Store, WalletCards } from "lucide-react";
 import { DARK, inputStyle, labelStyle } from "../../constants";
 import { supabase } from "../../lib/supabase";
+import { appendExpenseToGoogleSheet } from "../../lib/googleWorkspace";
 
 const BRAND = "#ea4c89";
 
@@ -234,7 +235,35 @@ export function ExpensesTab({ business }) {
     const legacyPayload = { ...basePayload, notes:stageOneNotes || null };
     const { data, error } = await insertExpense(payload, legacyPayload);
     if (error) { console.error("Save expense:", error); setExpenseError("Expense could not be saved. Please check the details and try again."); setSavingExpense(false); return; }
-    setExpenses((prev) => [data, ...prev]); setModalCategory(null); setToast("Expense saved."); setTimeout(() => setToast(""), 2800); setSavingExpense(false);
+
+    let syncedToGoogle = false;
+
+    try {
+      const { data: workspace, error: workspaceError } = await supabase
+        .from("business_workspaces")
+        .select("google_spreadsheet_id")
+        .eq("business_id", business.id)
+        .maybeSingle();
+
+      if (!workspaceError && workspace?.google_spreadsheet_id) {
+        const linkedProduct = products.find((product) => product.id === data.linked_product_id);
+
+        await appendExpenseToGoogleSheet(workspace.google_spreadsheet_id, {
+          ...data,
+          linked_product_name: linkedProduct?.name || "",
+        });
+
+        syncedToGoogle = true;
+      }
+    } catch (syncError) {
+      console.error("Google expense sync:", syncError);
+    }
+
+    setExpenses((prev) => [data, ...prev]);
+    setModalCategory(null);
+    setToast(syncedToGoogle ? "Expense saved and synced to Google Sheets." : "Expense saved.");
+    setTimeout(() => setToast(""), 2800);
+    setSavingExpense(false);
   }
 
   return (

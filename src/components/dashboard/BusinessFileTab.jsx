@@ -148,9 +148,47 @@ export function BusinessFileTab({ business, setTab }) {
   const [googleSetupBusy, setGoogleSetupBusy] = useState(false);
 
   useEffect(() => {
-    if (!business?.id) { setGoogleWorkspace(null); return; }
-    const saved = window.localStorage.getItem(`vula-google-workspace-${business.id}`);
-    setGoogleWorkspace(saved ? JSON.parse(saved) : null);
+    async function loadSavedWorkspace() {
+      if (!business?.id) {
+        setGoogleWorkspace(null);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("business_workspaces")
+        .select("*")
+        .eq("business_id", business.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Load business workspace:", error);
+        setGoogleWorkspace(null);
+        return;
+      }
+
+      if (data?.google_root_folder_url && data?.google_spreadsheet_url) {
+        setGoogleWorkspace({
+          rootFolderId: data.google_root_folder_id,
+          rootFolderUrl: data.google_root_folder_url,
+          spreadsheetId: data.google_spreadsheet_id,
+          spreadsheetUrl: data.google_spreadsheet_url,
+          folders: {
+            Expenses: data.expenses_folder_id,
+            Receipts: data.receipts_folder_id,
+            Sales: data.sales_folder_id,
+            Stock: data.stock_folder_id,
+            Customers: data.customers_folder_id,
+            Reports: data.reports_folder_id,
+          },
+          createdAt: data.created_at,
+        });
+        setGoogleFileStatus("Business Workspace already connected.");
+      } else {
+        setGoogleWorkspace(null);
+      }
+    }
+
+    loadSavedWorkspace();
   }, [business?.id]);
 
   useEffect(() => {
@@ -302,15 +340,15 @@ export function BusinessFileTab({ business, setTab }) {
           Connect Google Drive and automatically create organised folders and tracking sheets for your business.
         </div>
         <div style={{ background:"#fff5f9", border:"1px solid #f8b8d2", borderRadius:"14px", padding:"12px", fontSize:"12px", color:"#666", fontWeight:700, marginBottom:"14px" }}>
-          Test feature — creates real Google Drive folders and one tracker spreadsheet. Sync to expenses and stock comes next.
+          This connects to your saved Google Business Workspace and keeps your business records organised.
         </div>
         <button
           type="button"
-          disabled={googleSetupBusy}
+          disabled={googleSetupBusy || Boolean(googleWorkspace)}
           onClick={handleCreateGoogleWorkspace}
-          style={{ background:BRAND, color:"#fff", border:"none", borderRadius:"12px", padding:"11px 18px", fontSize:"13px", fontWeight:800, cursor:googleSetupBusy ? "not-allowed" : "pointer", opacity:googleSetupBusy ? 0.72 : 1 }}
+          style={{ background:BRAND, color:"#fff", border:"none", borderRadius:"12px", padding:"11px 18px", fontSize:"13px", fontWeight:800, cursor:(googleSetupBusy || googleWorkspace) ? "not-allowed" : "pointer", opacity:(googleSetupBusy || googleWorkspace) ? 0.72 : 1 }}
         >
-          {googleSetupBusy ? "Setting Up..." : googleWorkspace ? "Create Another Workspace" : "Set Up My Business Workspace"}
+          {googleSetupBusy ? "Setting Up..." : googleWorkspace ? "Business Workspace Connected" : "Set Up My Business Workspace"}
         </button>
         {googleFileStatus && (
           <div style={{ marginTop:"12px", background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"14px", padding:"12px", fontSize:"13px", color:"#555", lineHeight:1.5 }}>
