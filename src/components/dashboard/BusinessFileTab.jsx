@@ -130,9 +130,9 @@ export function BusinessFileTab({ business, setTab }) {
       </div>
 
       <div style={{ background:"#fff", border:"1px solid #eeeeea", borderRadius:"20px", padding:"20px", marginBottom:"20px" }}>
-        <div style={{ fontSize:"15px", fontWeight:900, color:DARK, marginBottom:"6px" }}>Google Business File Setup</div>
+        <div style={{ fontSize:"15px", fontWeight:900, color:DARK, marginBottom:"6px" }}>Business Workspace Setup</div>
         <div style={{ fontSize:"13px", color:"#666", lineHeight:1.55, marginBottom:"14px" }}>
-          Create organised Google Drive folders and Google Sheets for expenses, sales, stock and customers.
+          Connect Google Drive and automatically create organised folders and tracking sheets for your business.
         </div>
         <div style={{ background:"#fff5f9", border:"1px solid #f8b8d2", borderRadius:"14px", padding:"12px", fontSize:"12px", color:"#666", fontWeight:700, marginBottom:"14px" }}>
           Test feature — not connected to Google yet.
@@ -142,7 +142,7 @@ export function BusinessFileTab({ business, setTab }) {
           onClick={() => setGoogleFileStatus("Test ready: this will create Expenses, Receipts, Sales, Stock, Customers and Reports folders, plus starter tracking sheets.")}
           style={{ background:BRAND, color:"#fff", border:"none", borderRadius:"12px", padding:"11px 18px", fontSize:"13px", fontWeight:800, cursor:"pointer" }}
         >
-          Create My Business File
+          Set Up My Business Workspace
         </button>
         {googleFileStatus && (
           <div style={{ marginTop:"12px", background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:"14px", padding:"12px", fontSize:"13px", color:"#555", lineHeight:1.5 }}>
