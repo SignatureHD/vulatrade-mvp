@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Copy, PlusCircle, Trash2 } from "lucide-react";
 import { DARK, LIME, MAX_IMAGES, inputStyle, labelStyle } from "../../constants";
 import { supabase } from "../../lib/supabase";
+import { appendStockToGoogleSheet } from "../../lib/googleWorkspace";
 import { ImageLibrary, ProductImagePicker } from "../ImageLibrary";
 import { DEFAULT_VULA_META, VULA_ITEM_TYPE_OPTIONS, buildReplySuggestion, cleanVulaDescription, currentStockValue, descriptionWithVulaMeta, extractVulaMeta, itemBehaviourForType, itemTypeConfig, separateMetaVariants, todayIsoDate, withVulaMetaVariants } from "../../vulaItems";
 
@@ -34,8 +35,29 @@ export function ProductsTab({ user, business, setGlobalProducts }) { const [prod
 useEffect(() => { if (!user?.id) return; async function loadImages() { const { data } = await supabase.storage.from("business-images").list(`product-images/${user.id}`, { limit:MAX_IMAGES, sortBy:{ column:"created_at", order:"asc" } }); if (data) setImages(data.filter((f) => f.name && f.name !== ".emptyFolderPlaceholder").map((f) => { const { data:url } = supabase.storage.from("business-images").getPublicUrl(`product-images/${user.id}/${f.name}`); return { url:url.publicUrl, path:`product-images/${user.id}/${f.name}` }; })); setLoadingImages(false); } loadImages(); }, [user?.id]);
 useEffect(() => { if (!business?.id) { setLoading(false); return; } setLoading(true); supabase.from("products").select("*").eq("business_id", business.id).order("created_at").then(({ data, error: loadError }) => { if (loadError) setError(loadError.message || "Could not load items."); if (data) { const mapped = data.map(mapProduct); setProducts(mapped); setGlobalProducts && setGlobalProducts(mapped); } setLoading(false); }); }, [business?.id, setGlobalProducts]);
 function updateProducts(list) { setProducts(list); setGlobalProducts && setGlobalProducts(list); }
+
+async function syncStockToGoogle(product) {
+  try {
+    if (!business?.id || !product?.id) return false;
+
+    const { data: workspace, error: workspaceError } = await supabase
+      .from("business_workspaces")
+      .select("google_spreadsheet_id")
+      .eq("business_id", business.id)
+      .maybeSingle();
+
+    if (workspaceError || !workspace?.google_spreadsheet_id) return false;
+
+    await appendStockToGoogleSheet(workspace.google_spreadsheet_id, product);
+    return true;
+  } catch (syncError) {
+    console.error("Google stock sync:", syncError);
+    return false;
+  }
+}
+
 function payloadFromForm(form) { const meta = patchForType(form.vula || DEFAULT_VULA_META, form.vula?.item_type || "standard_stock"); const itemType = meta.item_type; const cleanVariants = cleanVariantsForSave(form.variants || []); return { name:form.name.trim(), price:Number(form.price) || 0, description:descriptionWithVulaMeta(form.description || "", meta), image:form.image || form.icon || "🛍️", variants:withVulaMetaVariants(cleanVariants, meta), item_type:itemType, item_behaviour:itemBehaviourForType(itemType), item_setup:meta }; }
-async function handleAdd() { if (!business?.id || !newProduct.name.trim() || !newProduct.price) return; setSaving(true); setError(""); const { data, error: insertError } = await insertProduct({ business_id:business.id, ...payloadFromForm(newProduct), is_active:true }); if (insertError) setError(insertError.message || "Could not save item."); if (data) { updateProducts([...products, mapProduct(data)]); setNewProduct(EMPTY_PRODUCT); setAdding(false); } setSaving(false); }
+async function handleAdd() { if (!business?.id || !newProduct.name.trim() || !newProduct.price) return; setSaving(true); setError(""); const { data, error: insertError } = await insertProduct({ business_id:business.id, ...payloadFromForm(newProduct), is_active:true }); if (insertError) setError(insertError.message || "Could not save item."); if (data) { const mapped = mapProduct(data); const synced = await syncStockToGoogle(mapped); updateProducts([...products, mapped]); setNewProduct(EMPTY_PRODUCT); setAdding(false); showToast(synced ? "Item saved and synced to Google Sheets." : "Item saved."); } setSaving(false); }
 async function handleSaveEdit(id) { if (!editForm.name?.trim() || !editForm.price) return; setSaving(true); setError(""); const { data, error: updateError } = await updateProduct(id, payloadFromForm(editForm)); if (updateError) setError(updateError.message || "Could not update item."); if (data) { updateProducts(products.map((p) => p.id === id ? mapProduct(data) : p)); setEditingId(null); setEditForm({}); } setSaving(false); }
 async function handleToggleActive(product) { const { data, error:e } = await supabase.from("products").update({ is_active:!product.is_active }).eq("id", product.id).select().single(); if (e) setError(e.message || "Could not update item."); if (data) updateProducts(products.map((p) => p.id === product.id ? mapProduct(data) : p)); }
 async function handleDelete(id) { if (!window.confirm("Delete this item or service?")) return; const { error:e } = await supabase.from("products").delete().eq("id", id); if (e) return setError(e.message || "Could not delete item."); updateProducts(products.filter((p) => p.id !== id)); }

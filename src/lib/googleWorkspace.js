@@ -282,3 +282,44 @@ export async function appendExpenseToGoogleSheet(spreadsheetId, expense) {
     }
   );
 }
+
+export async function appendStockToGoogleSheet(spreadsheetId, product) {
+  if (!spreadsheetId) {
+    throw new Error("Missing Google spreadsheet ID.");
+  }
+
+  const token = await getGoogleAccessToken();
+
+  const meta = product.item_setup || product.vula || {};
+  const itemType = product.item_type || meta.item_type || "";
+
+  const qtyBought =
+    itemType === "daily_stock"
+      ? meta.today_stock_quantity || ""
+      : meta.stock_quantity || "";
+
+  const balance = qtyBought;
+
+  const values = [[
+    product.name || "",
+    itemType || product.category || "",
+    qtyBought,
+    "",
+    balance,
+    "",
+    product.price || "",
+    "",
+    new Date().toISOString().slice(0, 10),
+    "VulaTrade",
+    product.id || "",
+  ]];
+
+  return googleFetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Stock%20Tracker!A:K:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    token,
+    {
+      method: "POST",
+      body: JSON.stringify({ values }),
+    }
+  );
+}
