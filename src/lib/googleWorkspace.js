@@ -29,7 +29,7 @@ function loadGoogleIdentityScript() {
   });
 }
 
-async function getGoogleAccessToken() {
+export async function getGoogleAccessToken() {
   if (!GOOGLE_CLIENT_ID) {
     throw new Error("Missing VITE_GOOGLE_CLIENT_ID in .env.local");
   }
@@ -293,18 +293,25 @@ export async function appendStockToGoogleSheet(spreadsheetId, product) {
   const meta = product.item_setup || product.vula || {};
   const itemType = product.item_type || meta.item_type || "";
 
-  const qtyBought =
-    itemType === "daily_stock"
-      ? meta.today_stock_quantity || ""
-      : meta.stock_quantity || "";
+  const movement = product.stock_movement || null;
 
-  const balance = qtyBought;
+  const qtyBought =
+    movement
+      ? movement.qty_bought || ""
+      : itemType === "daily_stock"
+        ? meta.today_stock_quantity || ""
+        : meta.stock_quantity || "";
+
+  const qtySold = movement?.qty_sold || "";
+
+  const balance =
+    movement?.balance ?? qtyBought;
 
   const values = [[
     product.name || "",
     itemType || product.category || "",
     qtyBought,
-    "",
+    qtySold,
     balance,
     "",
     product.price || "",
