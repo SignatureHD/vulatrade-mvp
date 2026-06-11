@@ -4,7 +4,6 @@ import { DARK, inputStyle, labelStyle, PAYMENT_METHODS, PAYMENT_STATUSES } from 
 import { CUSTOMER_JOURNEY, DEFAULT_CUSTOMER_TAGS, journeyConfig, journeyForCustomer, statusPatchForJourney, tagsForCustomer } from "../../customerJourney";
 import { formatPhone, timeAgo, waLink } from "../../utils";
 import { supabase } from "../../lib/supabase";
-import { appendSaleToGoogleSheet } from "../../lib/googleWorkspace";
 import { StatusBadge } from "../ui";
 
 const BRAND = "#ea4c89";
@@ -18,8 +17,8 @@ function normaliseVariants(variants = []) {
 function saleOptions(products = []) {
   return products.flatMap((product) => {
     const variants = normaliseVariants(product.variants || []);
-    if (variants.length === 0) return [{ key: `product:${product.id}`, label: `${product.name || "Unnamed item"}${Number(product.price || 0) > 0 ? ` - R${Number(product.price || 0).toLocaleString()}` : ""}`, amount: Number(product.price || 0), reference: product.name || "" }];
-    return variants.map((variant) => ({ key: `variant:${product.id}:${variant.id}`, label: `${product.name || "Unnamed item"} - ${variant.name}${Number(variant.price || 0) > 0 ? ` - R${Number(variant.price || 0).toLocaleString()}` : ""}`, amount: Number(variant.price || 0), reference: `${product.name || "Unnamed item"} - ${variant.name}` }));
+    if (variants.length === 0) return [{ key: `product:${product.id}`, product_id: product.id, item_type: product.item_type || product.item_setup?.item_type || "", item_setup: product.item_setup || product.vula || {}, product, label: `${product.name || "Unnamed item"}${Number(product.price || 0) > 0 ? ` - R${Number(product.price || 0).toLocaleString()}` : ""}`, amount: Number(product.price || 0), reference: product.name || "" }];
+    return variants.map((variant) => ({ key: `variant:${product.id}:${variant.id}`, product_id: product.id, variant_id: variant.id, item_type: product.item_type || product.item_setup?.item_type || "", item_setup: product.item_setup || product.vula || {}, product, label: `${product.name || "Unnamed item"} - ${variant.name}${Number(variant.price || 0) > 0 ? ` - R${Number(variant.price || 0).toLocaleString()}` : ""}`, amount: Number(variant.price || 0), reference: `${product.name || "Unnamed item"} - ${variant.name}` }));
   });
 }
 
@@ -64,48 +63,33 @@ function LogSaleModal({ business, customer, products = [], onClose, onLogged }) 
   const [saving, setSaving] = useState(false);
   function chooseOption(optionKey) { const option = options.find((item) => item.key === optionKey); setSaleOption(optionKey); if (option?.amount > 0) setAmount(String(option.amount)); if (option?.reference) setReference(option.reference); }
 
-  async function syncCustomerSaleToGoogle(payment, selectedOption, finalReference) {
-    try {
-      if (!business?.id || !payment?.id) return false;
-
-      const { data: workspace, error: workspaceError } = await supabase
-        .from("business_workspaces")
-        .select("google_spreadsheet_id")
-        .eq("business_id", business.id)
-        .maybeSingle();
-
-      if (workspaceError || !workspace?.google_spreadsheet_id) return false;
-
-      await appendSaleToGoogleSheet(workspace.google_spreadsheet_id, {
-        ...payment,
-        customer_name: customer?.name || "",
-        product_or_service: selectedOption?.reference || finalReference || "",
-      });
-
-      return true;
-    } catch (syncError) {
-      console.error("Google customer sale sync:", syncError);
-      return false;
-    }
-  }
-
   async function handleLog() {
     const val = parseFloat(amount);
     if (!business?.id || !customer?.id || !val) return;
     setSaving(true);
     const selectedOption = options.find((item) => item.key === saleOption);
     const finalReference = reference.trim() || selectedOption?.reference || null;
+
+    if (selectedOption?.product_id && ["standard_stock", "daily_stock"].includes(selectedOption.item_type || "")) {
+      const meta = selectedOption.item_setup || {};
+      const stockKey = selectedOption.item_type === "daily_stock" ? "today_stock_quantity" : "stock_quantity";
+      const availableStock = Number(meta[stockKey] || 0);
+
+      if (availableStock <= 0) {
+        alert("This item is sold out. Add stock first or choose another item.");
+        setSaving(false);
+        return;
+      }
+    }
+
     const { data: payment, error: paymentError } = await supabase.from("payments").insert([{ business_id: business.id, customer_id: customer.id, amount: val, status, method, reference: finalReference }]).select().single();
     if (paymentError) { console.error("Payment insert error:", paymentError); alert("Payment could not be saved. Please try again."); setSaving(false); return; }
-    const synced = await syncCustomerSaleToGoogle(payment, selectedOption, finalReference);
-    if (synced) {
-      console.log("Customer sale synced to Google Sheets.");
-    }
     const paidAmount = status === "Unpaid" ? 0 : val;
     const newStage = status === "Unpaid" ? "payment_pending" : "paid";
     const { data: updatedCustomer } = await supabase.from("customers").update({ total_spent: Number(customer.total_spent || 0) + paidAmount, visit_count: Number(customer.visit_count || 0) + (status === "Unpaid" ? 0 : 1), last_contacted: new Date().toISOString(), stage: newStage, status: newStage, tags: tagsForCustomer(customer) }).eq("id", customer.id).select().single();
     if (updatedCustomer) onLogged(updatedCustomer, payment);
-    setSaving(false); onClose();
+    setSaving(false);
+    onClose();
   }
   return <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
     <div style={{ background: "#fff", borderRadius: 24, padding: 32, width: "100%", maxWidth: 430, boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}>
@@ -176,7 +160,7 @@ export function CustomersTab({ business, onMessageCustomer }) {
     if (!business?.id) { setLoading(false); return; }
     Promise.all([
       supabase.from("customers").select("*").eq("business_id", business.id).order("created_at", { ascending: false }),
-      supabase.from("products").select("id,name,image,price,variants").eq("business_id", business.id).eq("is_active", true),
+      supabase.from("products").select("id,name,image,price,variants,item_type,item_setup").eq("business_id", business.id).eq("is_active", true),
       supabase.from("bookings").select("customer_id,booking_date,status").eq("business_id", business.id),
       supabase.from("payments").select("customer_id,created_at,status,amount").eq("business_id", business.id),
     ]).then(([{ data: custs, error: e1 }, { data: prods }, { data: bookings }, { data: payments }]) => {

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { DARK, LIME, PAYMENT_METHODS, PAYMENT_STATUSES, inputStyle, labelStyle } from "../../constants";
 import { supabase } from "../../lib/supabase";
-import { appendSaleToGoogleSheet } from "../../lib/googleWorkspace";
+import { appendSaleToGoogleSheet, appendStockToGoogleSheet } from "../../lib/googleWorkspace";
 
 const BRAND = "#ea4c89";
 
@@ -29,6 +29,10 @@ function saleOptions(products = []) {
     if (variants.length === 0) {
       return [{
         key: `product:${product.id}`,
+        product_id: product.id,
+        item_type: product.item_type || product.item_setup?.item_type || "",
+        item_setup: product.item_setup || product.vula || {},
+        product,
         label: productLabel(product),
         amount: Number(product.price || 0),
         reference: product.name || "",
@@ -37,6 +41,11 @@ function saleOptions(products = []) {
 
     return variants.map((variant) => ({
       key: `variant:${product.id}:${variant.id}`,
+      product_id: product.id,
+      variant_id: variant.id,
+      item_type: product.item_type || product.item_setup?.item_type || "",
+      item_setup: product.item_setup || product.vula || {},
+      product,
       label: `${product.name || "Unnamed item"} - ${variant.name}${Number(variant.price || 0) > 0 ? ` - R${Number(variant.price || 0).toLocaleString()}` : ""}`,
       amount: Number(variant.price || 0),
       reference: `${product.name || "Unnamed item"} - ${variant.name}`,
@@ -100,6 +109,60 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
     }));
   }
 
+  async function syncStockMovementForSale(selectedOption) {
+    try {
+      if (!business?.id || !selectedOption?.product_id) return false;
+
+      const itemType = selectedOption.item_type || "";
+      if (!["standard_stock", "daily_stock"].includes(itemType)) return false;
+
+      const meta = selectedOption.item_setup || {};
+      const key = itemType === "daily_stock" ? "today_stock_quantity" : "stock_quantity";
+      const currentStock = Number(meta[key] || 0);
+      const nextStock = Math.max(0, currentStock - 1);
+      const nextMeta = { ...meta, [key]: nextStock };
+
+      if (itemType === "daily_stock") {
+        nextMeta.today_stock_date = new Date().toISOString().slice(0, 10);
+      }
+
+      const { data: updatedProduct, error: updateError } = await supabase
+        .from("products")
+        .update({
+          item_setup: nextMeta,
+          item_type: itemType,
+        })
+        .eq("id", selectedOption.product_id)
+        .select()
+        .single();
+
+      if (updateError || !updatedProduct) {
+        console.error("Sale stock deduction error:", updateError);
+        return false;
+      }
+
+      const { data: workspace, error: workspaceError } = await supabase
+        .from("business_workspaces")
+        .select("google_spreadsheet_id")
+        .eq("business_id", business.id)
+        .maybeSingle();
+
+      if (workspaceError || !workspace?.google_spreadsheet_id) return true;
+
+      await appendStockToGoogleSheet(workspace.google_spreadsheet_id, {
+        ...updatedProduct,
+        item_type: itemType,
+        item_setup: nextMeta,
+        stock_movement: { qty_bought: "", qty_sold: 1, balance: nextStock },
+      });
+
+      return true;
+    } catch (stockSyncError) {
+      console.error("Sale stock movement sync:", stockSyncError);
+      return false;
+    }
+  }
+
   async function syncSaleToGoogle(payment, customer, selectedOption, reference) {
     try {
       if (!business?.id || !payment?.id) return false;
@@ -133,6 +196,18 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
     const selectedOption = options.find((item) => item.key === form.sale_option);
     const reference = form.reference.trim() || selectedOption?.reference || null;
 
+    if (selectedOption?.product_id && ["standard_stock", "daily_stock"].includes(selectedOption.item_type || "")) {
+      const meta = selectedOption.item_setup || {};
+      const stockKey = selectedOption.item_type === "daily_stock" ? "today_stock_quantity" : "stock_quantity";
+      const availableStock = Number(meta[stockKey] || 0);
+
+      if (availableStock <= 0) {
+        alert("This item is sold out. Add stock first or choose another item.");
+        setSaving(false);
+        return;
+      }
+    }
+
     const { data: payment, error: paymentError } = await supabase.from("payments")
       .insert([{
         business_id: business.id,
@@ -153,6 +228,11 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
     }
 
     const customer = customers.find((item) => item.id === form.customer_id);
+    const shouldDeductStock = form.status === "Paid" || form.status === "Deposit paid";
+    const stockSynced = shouldDeductStock ? await syncStockMovementForSale(selectedOption) : false;
+    if (stockSynced) {
+      console.log("Sale stock movement synced to Google Sheets.");
+    }
     const synced = await syncSaleToGoogle(payment, customer, selectedOption, reference);
     if (synced) {
       console.log("Sale synced to Google Sheets.");
