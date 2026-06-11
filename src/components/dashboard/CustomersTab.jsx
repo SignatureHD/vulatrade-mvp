@@ -4,6 +4,7 @@ import { DARK, inputStyle, labelStyle, PAYMENT_METHODS, PAYMENT_STATUSES } from 
 import { CUSTOMER_JOURNEY, DEFAULT_CUSTOMER_TAGS, journeyConfig, journeyForCustomer, statusPatchForJourney, tagsForCustomer } from "../../customerJourney";
 import { formatPhone, timeAgo, waLink } from "../../utils";
 import { supabase } from "../../lib/supabase";
+import { appendSaleToGoogleSheet } from "../../lib/googleWorkspace";
 import { StatusBadge } from "../ui";
 
 const BRAND = "#ea4c89";
@@ -62,6 +63,32 @@ function LogSaleModal({ business, customer, products = [], onClose, onLogged }) 
   const [reference, setReference] = useState("");
   const [saving, setSaving] = useState(false);
   function chooseOption(optionKey) { const option = options.find((item) => item.key === optionKey); setSaleOption(optionKey); if (option?.amount > 0) setAmount(String(option.amount)); if (option?.reference) setReference(option.reference); }
+
+  async function syncCustomerSaleToGoogle(payment, selectedOption, finalReference) {
+    try {
+      if (!business?.id || !payment?.id) return false;
+
+      const { data: workspace, error: workspaceError } = await supabase
+        .from("business_workspaces")
+        .select("google_spreadsheet_id")
+        .eq("business_id", business.id)
+        .maybeSingle();
+
+      if (workspaceError || !workspace?.google_spreadsheet_id) return false;
+
+      await appendSaleToGoogleSheet(workspace.google_spreadsheet_id, {
+        ...payment,
+        customer_name: customer?.name || "",
+        product_or_service: selectedOption?.reference || finalReference || "",
+      });
+
+      return true;
+    } catch (syncError) {
+      console.error("Google customer sale sync:", syncError);
+      return false;
+    }
+  }
+
   async function handleLog() {
     const val = parseFloat(amount);
     if (!business?.id || !customer?.id || !val) return;
@@ -70,6 +97,10 @@ function LogSaleModal({ business, customer, products = [], onClose, onLogged }) 
     const finalReference = reference.trim() || selectedOption?.reference || null;
     const { data: payment, error: paymentError } = await supabase.from("payments").insert([{ business_id: business.id, customer_id: customer.id, amount: val, status, method, reference: finalReference }]).select().single();
     if (paymentError) { console.error("Payment insert error:", paymentError); alert("Payment could not be saved. Please try again."); setSaving(false); return; }
+    const synced = await syncCustomerSaleToGoogle(payment, selectedOption, finalReference);
+    if (synced) {
+      console.log("Customer sale synced to Google Sheets.");
+    }
     const paidAmount = status === "Unpaid" ? 0 : val;
     const newStage = status === "Unpaid" ? "payment_pending" : "paid";
     const { data: updatedCustomer } = await supabase.from("customers").update({ total_spent: Number(customer.total_spent || 0) + paidAmount, visit_count: Number(customer.visit_count || 0) + (status === "Unpaid" ? 0 : 1), last_contacted: new Date().toISOString(), stage: newStage, status: newStage, tags: tagsForCustomer(customer) }).eq("id", customer.id).select().single();
