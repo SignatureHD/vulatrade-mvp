@@ -330,3 +330,33 @@ export async function appendStockToGoogleSheet(spreadsheetId, product) {
     }
   );
 }
+
+export async function appendSaleToGoogleSheet(spreadsheetId, sale) {
+  if (!spreadsheetId) {
+    throw new Error("Missing Google spreadsheet ID.");
+  }
+
+  const token = await getGoogleAccessToken();
+
+  const values = [[
+    (sale.created_at || new Date().toISOString()).slice(0, 10),
+    sale.customer_name || "",
+    sale.product_or_service || sale.reference || "",
+    sale.amount || "",
+    sale.status || "",
+    sale.method || "",
+    sale.reference || "",
+    sale.notes || "",
+    "VulaTrade",
+    sale.id || "",
+  ]];
+
+  return googleFetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sales%20Tracker!A:J:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    token,
+    {
+      method: "POST",
+      body: JSON.stringify({ values }),
+    }
+  );
+}

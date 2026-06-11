@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { DARK, LIME, PAYMENT_METHODS, PAYMENT_STATUSES, inputStyle, labelStyle } from "../../constants";
 import { supabase } from "../../lib/supabase";
+import { appendSaleToGoogleSheet } from "../../lib/googleWorkspace";
 
 const BRAND = "#ea4c89";
 
@@ -99,6 +100,31 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
     }));
   }
 
+  async function syncSaleToGoogle(payment, customer, selectedOption, reference) {
+    try {
+      if (!business?.id || !payment?.id) return false;
+
+      const { data: workspace, error: workspaceError } = await supabase
+        .from("business_workspaces")
+        .select("google_spreadsheet_id")
+        .eq("business_id", business.id)
+        .maybeSingle();
+
+      if (workspaceError || !workspace?.google_spreadsheet_id) return false;
+
+      await appendSaleToGoogleSheet(workspace.google_spreadsheet_id, {
+        ...payment,
+        customer_name: customer?.name || "",
+        product_or_service: selectedOption?.reference || reference || "",
+      });
+
+      return true;
+    } catch (syncError) {
+      console.error("Google sale sync:", syncError);
+      return false;
+    }
+  }
+
   async function handleSave() {
     const amount = parseFloat(form.amount);
     if (!business?.id || !form.customer_id || !amount) return;
@@ -127,6 +153,11 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
     }
 
     const customer = customers.find((item) => item.id === form.customer_id);
+    const synced = await syncSaleToGoogle(payment, customer, selectedOption, reference);
+    if (synced) {
+      console.log("Sale synced to Google Sheets.");
+    }
+
     if (customer) {
       const paidAmount = form.status === "Unpaid" ? 0 : amount;
       const { data: updatedCustomer } = await supabase.from("customers").update({
