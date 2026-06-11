@@ -180,12 +180,14 @@ async function createSpreadsheet(token, name, parentId) {
         ]],
       },
       {
-        range: "Sales Tracker!A1:J1",
+        range: "Sales Tracker!A1:L1",
         values: [[
           "Date",
           "Customer",
           "Product / Service",
-          "Amount",
+          "Quantity",
+          "Unit Price",
+          "Total Amount",
           "Payment Status",
           "Payment Method",
           "Reference",
@@ -338,11 +340,17 @@ export async function appendSaleToGoogleSheet(spreadsheetId, sale) {
 
   const token = await getGoogleAccessToken();
 
+  const quantity = Number(sale.quantity || 1);
+  const totalAmount = Number(sale.amount || 0);
+  const unitPrice = sale.unit_price ?? (quantity > 0 ? totalAmount / quantity : totalAmount);
+
   const values = [[
     (sale.created_at || new Date().toISOString()).slice(0, 10),
     sale.customer_name || "",
     sale.product_or_service || sale.reference || "",
-    sale.amount || "",
+    quantity,
+    unitPrice,
+    totalAmount,
     sale.status || "",
     sale.method || "",
     sale.reference || "",
@@ -352,10 +360,42 @@ export async function appendSaleToGoogleSheet(spreadsheetId, sale) {
   ]];
 
   return googleFetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sales%20Tracker!A:J:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sales%20Tracker!A:L:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
     token,
     {
       method: "POST",
+      body: JSON.stringify({ values }),
+    }
+  );
+}
+
+export async function updateSalesTrackerHeaders(spreadsheetId) {
+  if (!spreadsheetId) {
+    throw new Error("Missing Google spreadsheet ID.");
+  }
+
+  const token = await getGoogleAccessToken();
+
+  const values = [[
+    "Date",
+    "Customer",
+    "Product / Service",
+    "Quantity",
+    "Unit Price",
+    "Total Amount",
+    "Payment Status",
+    "Payment Method",
+    "Reference",
+    "Notes",
+    "Added From",
+    "VulaTrade Sale ID",
+  ]];
+
+  return googleFetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sales%20Tracker!A1:L1?valueInputOption=USER_ENTERED`,
+    token,
+    {
+      method: "PUT",
       body: JSON.stringify({ values }),
     }
   );

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { DARK, LIME, PAYMENT_METHODS, PAYMENT_STATUSES, inputStyle, labelStyle } from "../../constants";
 import { supabase } from "../../lib/supabase";
-import { appendSaleToGoogleSheet, appendStockToGoogleSheet } from "../../lib/googleWorkspace";
+import { appendSaleToGoogleSheet, appendStockToGoogleSheet, updateSalesTrackerHeaders } from "../../lib/googleWorkspace";
 
 const BRAND = "#ea4c89";
 
@@ -83,6 +83,7 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
   const [form, setForm] = useState({
     customer_id: "",
     sale_option: "",
+    quantity: "1",
     amount: "",
     status: "Paid",
     method: "Cash",
@@ -101,11 +102,30 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
       return;
     }
 
+    setForm((prev) => {
+      const quantity = Math.max(1, Number(prev.quantity || 1));
+      const unitPrice = Number(option.amount || 0);
+      const totalAmount = unitPrice > 0 ? unitPrice * quantity : Number(prev.amount || 0);
+
+      return {
+        ...prev,
+        sale_option: option.key,
+        quantity: String(quantity),
+        amount: totalAmount > 0 ? String(totalAmount) : prev.amount,
+        reference: option.reference || prev.reference,
+      };
+    });
+  }
+
+  function changeQuantity(value) {
+    const quantity = Math.max(1, Number(value || 1));
+    const selectedOption = options.find((item) => item.key === form.sale_option);
+    const unitPrice = Number(selectedOption?.amount || 0);
+
     setForm((prev) => ({
       ...prev,
-      sale_option: option.key,
-      amount: option.amount > 0 ? String(option.amount) : prev.amount,
-      reference: option.reference || prev.reference,
+      quantity: String(quantity),
+      amount: unitPrice > 0 ? String(unitPrice * quantity) : prev.amount,
     }));
   }
 
@@ -116,10 +136,11 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
       const itemType = selectedOption.item_type || "";
       if (!["standard_stock", "daily_stock"].includes(itemType)) return false;
 
+      const quantity = Math.max(1, Number(form.quantity || 1));
       const meta = selectedOption.item_setup || {};
       const key = itemType === "daily_stock" ? "today_stock_quantity" : "stock_quantity";
       const currentStock = Number(meta[key] || 0);
-      const nextStock = Math.max(0, currentStock - 1);
+      const nextStock = Math.max(0, currentStock - quantity);
       const nextMeta = { ...meta, [key]: nextStock };
 
       if (itemType === "daily_stock") {
@@ -153,7 +174,7 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
         ...updatedProduct,
         item_type: itemType,
         item_setup: nextMeta,
-        stock_movement: { qty_bought: "", qty_sold: 1, balance: nextStock },
+        stock_movement: { qty_bought: "", qty_sold: quantity, balance: nextStock },
       });
 
       return true;
@@ -174,6 +195,8 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
         .maybeSingle();
 
       if (workspaceError || !workspace?.google_spreadsheet_id) return false;
+
+      await updateSalesTrackerHeaders(workspace.google_spreadsheet_id);
 
       await appendSaleToGoogleSheet(workspace.google_spreadsheet_id, {
         ...payment,
@@ -196,6 +219,8 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
     const selectedOption = options.find((item) => item.key === form.sale_option);
     const reference = form.reference.trim() || selectedOption?.reference || null;
 
+    const quantity = Math.max(1, Number(form.quantity || 1));
+
     if (selectedOption?.product_id && ["standard_stock", "daily_stock"].includes(selectedOption.item_type || "")) {
       const meta = selectedOption.item_setup || {};
       const stockKey = selectedOption.item_type === "daily_stock" ? "today_stock_quantity" : "stock_quantity";
@@ -203,6 +228,12 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
 
       if (availableStock <= 0) {
         alert("This item is sold out. Add stock first or choose another item.");
+        setSaving(false);
+        return;
+      }
+
+      if (quantity > availableStock) {
+        alert(`Only ${availableStock} available. Reduce the quantity or add stock first.`);
         setSaving(false);
         return;
       }
@@ -233,7 +264,16 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
     if (stockSynced) {
       console.log("Sale stock movement synced to Google Sheets.");
     }
-    const synced = await syncSaleToGoogle(payment, customer, selectedOption, reference);
+    const synced = await syncSaleToGoogle(
+      {
+        ...payment,
+        quantity,
+        unit_price: quantity > 0 ? amount / quantity : amount,
+      },
+      customer,
+      selectedOption,
+      reference
+    );
     if (synced) {
       console.log("Sale synced to Google Sheets.");
     }
@@ -249,13 +289,13 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
 
       if (updatedCustomer) {
         onSaved(payment, updatedCustomer);
-        setForm({ customer_id:"", sale_option:"", amount:"", status:"Paid", method:"Cash", reference:"" });
+        setForm({ customer_id:"", sale_option:"", quantity:"1", amount:"", status:"Paid", method:"Cash", reference:"" });
         setSaving(false);
         return;
       }
     }
 
-    setForm({ customer_id:"", sale_option:"", amount:"", status:"Paid", method:"Cash", reference:"" });
+    setForm({ customer_id:"", sale_option:"", quantity:"1", amount:"", status:"Paid", method:"Cash", reference:"" });
     setSaving(false);
     onSaved(payment);
   }
@@ -285,6 +325,19 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
             {options.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
           </select>
           {products.length === 0 && <div style={{ fontSize:"11px", color:"#aaa", marginTop:"6px", lineHeight:1.4 }}>Add products or services first to use this selector.</div>}
+        </div>
+
+        <div>
+          <label style={labelStyle}>Quantity</label>
+          <input
+            style={inputStyle}
+            type="number"
+            min="1"
+            step="1"
+            placeholder="1"
+            value={form.quantity}
+            onChange={(event) => changeQuantity(event.target.value)}
+          />
         </div>
 
         <div>
