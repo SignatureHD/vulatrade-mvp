@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, FileCheck, Package, Store, WalletCards } from "lucide-react";
 import { DARK, inputStyle, labelStyle } from "../../constants";
 import { supabase } from "../../lib/supabase";
-import { appendExpenseToGoogleSheet } from "../../lib/googleWorkspace";
+import {
+appendExpenseToGoogleSheet,
+  getBusinessGoogleSpreadsheetId,
+} from "../../lib/googleWorkspace";
 
 const BRAND = "#ea4c89";
 
@@ -239,16 +242,12 @@ export function ExpensesTab({ business }) {
     let syncedToGoogle = false;
 
     try {
-      const { data: workspace, error: workspaceError } = await supabase
-        .from("business_workspaces")
-        .select("google_spreadsheet_id")
-        .eq("business_id", business.id)
-        .maybeSingle();
+      const spreadsheetId = await getBusinessGoogleSpreadsheetId(supabase, business.id);
 
-      if (!workspaceError && workspace?.google_spreadsheet_id) {
+      if (spreadsheetId) {
         const linkedProduct = products.find((product) => product.id === data.linked_product_id);
 
-        await appendExpenseToGoogleSheet(workspace.google_spreadsheet_id, {
+        await appendExpenseToGoogleSheet(spreadsheetId, {
           ...data,
           linked_product_name: linkedProduct?.name || "",
         });

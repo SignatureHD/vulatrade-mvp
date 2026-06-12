@@ -425,6 +425,40 @@ export async function createBusinessWorkspace(businessName = "My Business") {
   };
 }
 
+
+export async function getBusinessGoogleSpreadsheetId(supabaseClient, businessId) {
+  if (!businessId) return null;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from("business_workspaces")
+      .select("google_spreadsheet_id")
+      .eq("business_id", businessId)
+      .maybeSingle();
+
+    if (!error && data?.google_spreadsheet_id) {
+      return data.google_spreadsheet_id;
+    }
+
+    if (error) {
+      console.warn("Google workspace lookup failed, trying local fallback:", error.message);
+    }
+  } catch (error) {
+    console.warn("Google workspace lookup failed, trying local fallback:", error);
+  }
+
+  try {
+    const localWorkspace = window.localStorage.getItem(`vula-google-workspace-${businessId}`);
+    if (!localWorkspace) return null;
+
+    const parsedWorkspace = JSON.parse(localWorkspace);
+    return parsedWorkspace?.spreadsheetId || parsedWorkspace?.google_spreadsheet_id || null;
+  } catch (error) {
+    console.warn("Google workspace local fallback failed:", error);
+    return null;
+  }
+}
+
 export async function appendExpenseToGoogleSheet(spreadsheetId, expense) {
   if (!spreadsheetId) {
     throw new Error("Missing Google spreadsheet ID.");

@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { DARK, LIME, PAYMENT_METHODS, PAYMENT_STATUSES, inputStyle, labelStyle } from "../../constants";
 import { supabase } from "../../lib/supabase";
-import { appendSaleToGoogleSheet, appendStockToGoogleSheet, updateSalesTrackerHeaders } from "../../lib/googleWorkspace";
+import {
+appendSaleToGoogleSheet, appendStockToGoogleSheet, updateSalesTrackerHeaders,
+  getBusinessGoogleSpreadsheetId,
+} from "../../lib/googleWorkspace";
 
 const BRAND = "#ea4c89";
 
@@ -173,15 +176,11 @@ function PaymentForm({ business, customers, products = [], onSaved, initialCusto
         return false;
       }
 
-      const { data: workspace, error: workspaceError } = await supabase
-        .from("business_workspaces")
-        .select("google_spreadsheet_id")
-        .eq("business_id", business.id)
-        .maybeSingle();
+      const spreadsheetId = await getBusinessGoogleSpreadsheetId(supabase, business.id);
 
-      if (workspaceError || !workspace?.google_spreadsheet_id) return true;
+      if (!spreadsheetId) return true;
 
-      await appendStockToGoogleSheet(workspace.google_spreadsheet_id, {
+      await appendStockToGoogleSheet(spreadsheetId, {
         ...updatedProduct,
         item_type: itemType,
         item_setup: nextMeta,
@@ -199,17 +198,13 @@ function PaymentForm({ business, customers, products = [], onSaved, initialCusto
     try {
       if (!business?.id || !payment?.id) return false;
 
-      const { data: workspace, error: workspaceError } = await supabase
-        .from("business_workspaces")
-        .select("google_spreadsheet_id")
-        .eq("business_id", business.id)
-        .maybeSingle();
+      const spreadsheetId = await getBusinessGoogleSpreadsheetId(supabase, business.id);
 
-      if (workspaceError || !workspace?.google_spreadsheet_id) return false;
+      if (!spreadsheetId) return false;
 
-      await updateSalesTrackerHeaders(workspace.google_spreadsheet_id);
+      await updateSalesTrackerHeaders(spreadsheetId);
 
-      await appendSaleToGoogleSheet(workspace.google_spreadsheet_id, {
+      await appendSaleToGoogleSheet(spreadsheetId, {
         ...payment,
         customer_name: customer?.name || "",
         product_or_service: selectedOption?.reference || reference || "",

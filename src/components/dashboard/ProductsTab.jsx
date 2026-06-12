@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Copy, PlusCircle, Trash2 } from "lucide-react";
 import { DARK, LIME, MAX_IMAGES, inputStyle, labelStyle } from "../../constants";
 import { supabase } from "../../lib/supabase";
-import { appendStockToGoogleSheet, getGoogleAccessToken } from "../../lib/googleWorkspace";
+import {
+appendStockToGoogleSheet, getGoogleAccessToken,
+  getBusinessGoogleSpreadsheetId,
+} from "../../lib/googleWorkspace";
 import { ImageLibrary, ProductImagePicker } from "../ImageLibrary";
 import { DEFAULT_VULA_META, VULA_ITEM_TYPE_OPTIONS, buildReplySuggestion, cleanVulaDescription, currentStockValue, descriptionWithVulaMeta, extractVulaMeta, itemBehaviourForType, itemTypeConfig, separateMetaVariants, todayIsoDate, withVulaMetaVariants } from "../../vulaItems";
 
@@ -40,15 +43,11 @@ async function syncStockToGoogle(product) {
   try {
     if (!business?.id || !product?.id) return false;
 
-    const { data: workspace, error: workspaceError } = await supabase
-      .from("business_workspaces")
-      .select("google_spreadsheet_id")
-      .eq("business_id", business.id)
-      .maybeSingle();
+    const spreadsheetId = await getBusinessGoogleSpreadsheetId(supabase, business.id);
 
-    if (workspaceError || !workspace?.google_spreadsheet_id) return false;
+    if (!spreadsheetId) return false;
 
-    await appendStockToGoogleSheet(workspace.google_spreadsheet_id, product);
+    await appendStockToGoogleSheet(spreadsheetId, product);
     return true;
   } catch (syncError) {
     console.error("Google stock sync:", syncError);
