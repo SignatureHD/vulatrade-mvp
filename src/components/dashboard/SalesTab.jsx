@@ -5,6 +5,7 @@ import { supabase } from "../../lib/supabase";
 import {
 appendSaleToGoogleSheet, appendStockToGoogleSheet, updateSalesTrackerHeaders,
   getBusinessGoogleSpreadsheetId,
+  updateCustomerSummaryInGoogleSheet,
 } from "../../lib/googleWorkspace";
 
 const BRAND = "#ea4c89";
@@ -209,6 +210,31 @@ function PaymentForm({ business, customers, products = [], onSaved, initialCusto
         customer_name: customer?.name || "",
         product_or_service: selectedOption?.reference || reference || "",
       });
+
+      if (customer?.id) {
+        const { data: customerPayments } = await supabase
+          .from("payments")
+          .select("amount,created_at,status")
+          .eq("business_id", business.id)
+          .eq("customer_id", customer.id);
+
+        const spendRows = (customerPayments || []).filter((row) =>
+          row.status === "Paid" || row.status === "Deposit paid"
+        );
+
+        const totalSpend = spendRows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+
+        const lastPurchase = (customerPayments || [])
+          .map((row) => (row.created_at || "").slice(0, 10))
+          .filter(Boolean)
+          .sort()
+          .pop() || (payment.created_at || new Date().toISOString()).slice(0, 10);
+
+        await updateCustomerSummaryInGoogleSheet(spreadsheetId, customer, {
+          lastPurchase,
+          totalSpend,
+        });
+      }
 
       return true;
     } catch (syncError) {

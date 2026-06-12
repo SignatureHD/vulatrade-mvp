@@ -292,19 +292,46 @@ function currentProductStock(product) {
   return meta.stock_quantity ?? "";
 }
 
-async function appendBackfillRows(accessToken, spreadsheetId, sheetName, endColumn, rows) {
+
+async function existingSheetIds(accessToken, spreadsheetId, sheetName, idColumn) {
+  try {
+    const data = await googleFetch(
+      accessToken,
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(`${sheetName}!${idColumn}2:${idColumn}`)}`
+    );
+
+    return new Set((data.values || []).map((row) => String(row?.[0] || "").trim()).filter(Boolean));
+  } catch (error) {
+    console.warn(`Could not read existing ${sheetName} IDs:`, error);
+    return new Set();
+  }
+}
+
+async function appendBackfillRows(accessToken, spreadsheetId, sheetName, endColumn, rows, options = {}) {
   if (!rows?.length) return 0;
+
+  let rowsToAppend = rows;
+
+  if (options.idColumn && typeof options.idIndex === "number") {
+    const existingIds = await existingSheetIds(accessToken, spreadsheetId, sheetName, options.idColumn);
+    rowsToAppend = rows.filter((row) => {
+      const id = String(row?.[options.idIndex] || "").trim();
+      return id && !existingIds.has(id);
+    });
+  }
+
+  if (!rowsToAppend.length) return 0;
 
   await googleFetch(
     accessToken,
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(`${sheetName}!A:${endColumn}`)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
     {
       method:"POST",
-      body:JSON.stringify({ values:rows }),
+      body:JSON.stringify({ values:rowsToAppend }),
     }
   );
 
-  return rows.length;
+  return rowsToAppend.length;
 }
 
 async function backfillWorkspaceTrackers(accessToken, spreadsheetId, businessId) {
@@ -407,10 +434,10 @@ async function backfillWorkspaceTrackers(accessToken, spreadsheetId, businessId)
   ]);
 
   const [stockCount, expenseCount, salesCount, customerCount] = await Promise.all([
-    appendBackfillRows(accessToken, spreadsheetId, "Stock Tracker", "K", productRows),
-    appendBackfillRows(accessToken, spreadsheetId, "Expense Tracker", "K", expenseRows),
-    appendBackfillRows(accessToken, spreadsheetId, "Sales Tracker", "L", saleRows),
-    appendBackfillRows(accessToken, spreadsheetId, "Customer Tracker", "H", customerRows),
+    appendBackfillRows(accessToken, spreadsheetId, "Stock Tracker", "K", productRows, { idColumn:"K", idIndex:10 }),
+    appendBackfillRows(accessToken, spreadsheetId, "Expense Tracker", "K", expenseRows, { idColumn:"K", idIndex:10 }),
+    appendBackfillRows(accessToken, spreadsheetId, "Sales Tracker", "L", saleRows, { idColumn:"L", idIndex:11 }),
+    appendBackfillRows(accessToken, spreadsheetId, "Customer Tracker", "H", customerRows, { idColumn:"H", idIndex:7 }),
   ]);
 
   return {
@@ -562,6 +589,7 @@ export function BusinessFileTab({ business, setTab }) {
   const [googleFileStatus, setGoogleFileStatus] = useState("");
   const [googleWorkspace, setGoogleWorkspace] = useState(null);
   const [googleSetupBusy, setGoogleSetupBusy] = useState(false);
+  const [googleSyncBusy, setGoogleSyncBusy] = useState(false);
 
   useEffect(() => {
     async function loadSavedWorkspace() {
@@ -732,6 +760,41 @@ export function BusinessFileTab({ business, setTab }) {
     }
   }
 
+
+  async function handleSyncExistingGoogleRecords() {
+    if (!business?.id) {
+      setGoogleFileStatus("Create your business profile before syncing records.");
+      return;
+    }
+
+    const spreadsheetId = googleWorkspace?.spreadsheetId;
+
+    if (!spreadsheetId) {
+      setGoogleFileStatus("Connect your Google Business Workspace before syncing records.");
+      return;
+    }
+
+    setGoogleSyncBusy(true);
+    setGoogleFileStatus("Checking Google trackers for missing VulaTrade records...");
+
+    try {
+      await loadGoogleIdentityScript();
+      const accessToken = await requestGoogleAccessToken();
+      const summary = await backfillWorkspaceTrackers(accessToken, spreadsheetId, business.id);
+
+      setGoogleFileStatus(
+        summary.total > 0
+          ? `Google trackers updated. ${summary.total} missing record${summary.total === 1 ? "" : "s"} added.`
+          : "Google trackers are already up to date. No missing records found."
+      );
+    } catch (error) {
+      console.error("Manual Google backfill:", error);
+      setGoogleFileStatus(googleApiErrorMessage(error));
+    } finally {
+      setGoogleSyncBusy(false);
+    }
+  }
+
   const checklist = [
     { label:"Business profile created", done:Boolean(business?.name) },
     { label:"Public page ready", done:Boolean(business?.slug) },
@@ -827,9 +890,17 @@ export function BusinessFileTab({ business, setTab }) {
           </div>
         )}
         {googleWorkspace && (
-          <div style={{ display:"flex", gap:"10px", flexWrap:"wrap", marginTop:"12px" }}>
+          <div style={{ display:"flex", gap:"10px", flexWrap:"wrap", marginTop:"12px", alignItems:"center" }}>
             <a href={googleWorkspace.rootFolderUrl} target="_blank" rel="noreferrer" style={{ color:BRAND, fontSize:"13px", fontWeight:900, textDecoration:"none" }}>Open Drive folder</a>
             <a href={googleWorkspace.spreadsheetUrl} target="_blank" rel="noreferrer" style={{ color:BRAND, fontSize:"13px", fontWeight:900, textDecoration:"none" }}>Open tracker sheet</a>
+            <button
+              type="button"
+              disabled={googleSyncBusy}
+              onClick={handleSyncExistingGoogleRecords}
+              style={{ background:"#fff", color:BRAND, border:"1px solid #f8b8d2", borderRadius:"10px", padding:"8px 12px", fontSize:"12px", fontWeight:900, cursor:googleSyncBusy ? "not-allowed" : "pointer", opacity:googleSyncBusy ? 0.65 : 1 }}
+            >
+              {googleSyncBusy ? "Syncing..." : "Sync existing records to Google"}
+            </button>
           </div>
         )}
       </div>

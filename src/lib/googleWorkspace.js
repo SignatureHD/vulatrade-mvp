@@ -472,6 +472,49 @@ export async function getBusinessGoogleSpreadsheetId(supabaseClient, businessId)
 }
 
 
+
+export async function updateCustomerSummaryInGoogleSheet(spreadsheetId, customer, summary = {}) {
+  if (!spreadsheetId || !customer?.id) return false;
+
+  const token = await getGoogleAccessToken();
+
+  const existing = await googleFetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Customer%20Tracker!H2:H`,
+    token
+  );
+
+  const rows = existing.values || [];
+  const rowIndex = rows.findIndex((row) => row?.[0] === customer.id);
+
+  const lastPurchase = summary.lastPurchase || customer.last_purchase || "";
+  const totalSpend = summary.totalSpend ?? customer.total_spent ?? 0;
+
+  if (rowIndex >= 0) {
+    const sheetRowNumber = rowIndex + 2;
+
+    await googleFetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Customer%20Tracker!D${sheetRowNumber}:E${sheetRowNumber}?valueInputOption=USER_ENTERED`,
+      token,
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          values: [[lastPurchase, totalSpend]],
+        }),
+      }
+    );
+
+    return true;
+  }
+
+  await appendCustomerToGoogleSheet(spreadsheetId, {
+    ...customer,
+    last_purchase: lastPurchase,
+    total_spent: totalSpend,
+  });
+
+  return true;
+}
+
 export async function appendCustomerToGoogleSheet(spreadsheetId, customer) {
   if (!spreadsheetId) {
     throw new Error("Missing Google spreadsheet ID.");
