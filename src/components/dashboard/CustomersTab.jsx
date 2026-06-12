@@ -121,7 +121,7 @@ function CustomerForm({ initial = {}, onSave, onCancel, saving, businessProducts
   </div>;
 }
 
-function CustomerCard({ customer, activity, onEdit, onDelete, onLogSale, onMessage, onJourneyChange }) {
+function CustomerCard({ customer, activity, onEdit, onDelete, onAddSale, onMessage, onJourneyChange }) {
   const [expanded, setExpanded] = useState(false);
   const stage = journeyForCustomer(customer);
   const config = journeyConfig(stage);
@@ -136,12 +136,12 @@ function CustomerCard({ customer, activity, onEdit, onDelete, onLogSale, onMessa
     {expanded && <div style={{ borderTop: "1px solid #f5f5f5", padding: "14px 18px", background: "#fafafa" }}>
       {customer.notes && <div style={{ fontSize: 13, color: "#666", background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 10, padding: "10px 14px", marginBottom: 12, lineHeight: 1.6 }}>{customer.notes}</div>}
       <div style={{ marginBottom: 12 }}><div style={{ fontSize: 11, color: "#aaa", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>Move journey to</div><div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{CUSTOMER_JOURNEY.filter((item) => item.value !== stage).map((item) => <button key={item.value} onClick={() => onJourneyChange(customer, item.value)} style={{ padding: "5px 12px", borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: "pointer", border: `1.5px solid ${item.border}`, background: item.bg, color: item.color }}>{item.label}</button>)}</div></div>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}><button onClick={() => onMessage(customer)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 14px", borderRadius: 10, border: "none", background: BRAND, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}><MessageCircle size={14} /> Message</button><button onClick={() => onLogSale(customer)} style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid #e0e0e0", background: "#fff", color: "#555", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Log sale</button><button onClick={() => onEdit(customer)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 14px", borderRadius: 10, border: "1.5px solid #e0e0e0", background: "#fff", color: "#555", fontSize: 12, fontWeight: 700, cursor: "pointer" }}><Pencil size={13} /> Edit</button><button onClick={() => onEdit(customer)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 14px", borderRadius: 10, border: "1.5px solid #e0e0e0", background: "#fff", color: "#555", fontSize: 12, fontWeight: 700, cursor: "pointer" }}><StickyNote size={13} /> Add note</button><button onClick={() => onDelete(customer)} style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid #ffd0d0", background: "#fff5f5", color: "#cc3300", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Delete</button></div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}><button onClick={() => onMessage(customer)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 14px", borderRadius: 10, border: "none", background: BRAND, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer" }}><MessageCircle size={14} /> Message</button><button onClick={() => onAddSale(customer)} style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid #e0e0e0", background: "#fff", color: "#555", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Add sale</button><button onClick={() => onEdit(customer)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 14px", borderRadius: 10, border: "1.5px solid #e0e0e0", background: "#fff", color: "#555", fontSize: 12, fontWeight: 700, cursor: "pointer" }}><Pencil size={13} /> Edit</button><button onClick={() => onEdit(customer)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 14px", borderRadius: 10, border: "1.5px solid #e0e0e0", background: "#fff", color: "#555", fontSize: 12, fontWeight: 700, cursor: "pointer" }}><StickyNote size={13} /> Add note</button><button onClick={() => onDelete(customer)} style={{ padding: "8px 14px", borderRadius: 10, border: "1.5px solid #ffd0d0", background: "#fff5f5", color: "#cc3300", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Delete</button></div>
     </div>}
   </div>;
 }
 
-export function CustomersTab({ business, onMessageCustomer }) {
+export function CustomersTab({ business, onMessageCustomer, onAddSaleForCustomer }) {
   const [customers, setCustomers] = useState([]);
   const [businessProducts, setBusinessProducts] = useState([]);
   const [activityByCustomer, setActivityByCustomer] = useState({});
@@ -197,7 +197,13 @@ export function CustomersTab({ business, onMessageCustomer }) {
     {loading && <div style={{ textAlign: "center", padding: 60, color: "#aaa" }}>Loading...</div>}
     {!loading && customers.length === 0 && <div style={{ textAlign: "center", padding: "64px 24px" }}><Users size={24} color={BRAND} /><h3 style={{ fontSize: 20, fontWeight: 800, color: DARK, marginBottom: 8 }}>No customers yet</h3><p style={{ fontSize: 14, color: "#767b81", marginBottom: 32 }}>Add your first customer to start building your customer list.</p><button onClick={() => setMode("add")} style={{ backgroundColor: BRAND, color: "#fff", border: "none", borderRadius: 12, padding: "13px 20px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Add Customer</button></div>}
     {!loading && customers.length > 0 && filtered.length === 0 && <div style={{ textAlign: "center", padding: 48, color: "#aaa" }}>No customers match your search.</div>}
-    {!loading && filtered.length > 0 && <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{filtered.map((customer) => <CustomerCard key={customer.id} customer={customer} activity={activityByCustomer[customer.id]} onEdit={(item) => { setEditTarget(item); setMode("edit"); }} onDelete={handleDelete} onLogSale={setLogSaleFor} onMessage={handleMessageCustomer} onJourneyChange={handleJourneyChange} />)}</div>}
+    {!loading && filtered.length > 0 && <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{filtered.map((customer) => <CustomerCard key={customer.id} customer={customer} activity={activityByCustomer[customer.id]} onEdit={(item) => { setEditTarget(item); setMode("edit"); }} onDelete={handleDelete} onAddSale={(customer) => {
+        if (onAddSaleForCustomer) {
+          onAddSaleForCustomer(customer);
+          return;
+        }
+        setLogSaleFor(customer);
+      }} onMessage={handleMessageCustomer} onJourneyChange={handleJourneyChange} />)}</div>}
     {logSaleFor && <LogSaleModal business={business} customer={logSaleFor} products={businessProducts} onClose={() => setLogSaleFor(null)} onLogged={handleSaleLogged} />}
     {messageFor && <WhatsAppModal customer={messageFor} onClose={() => setMessageFor(null)} />}
     {toast && <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", background: DARK, color: "#fff", padding: "12px 24px", borderRadius: 999, fontSize: 13, fontWeight: 700, zIndex: 2000, boxShadow: "0 8px 32px rgba(0,0,0,0.25)", whiteSpace: "nowrap" }}>{toast}</div>}

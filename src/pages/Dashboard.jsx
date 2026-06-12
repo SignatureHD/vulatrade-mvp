@@ -192,6 +192,7 @@ export default function Dashboard({ authMode = "signin", initialTab = "Dashboard
   const [prefilledTemplate, setPrefilledTemplate] = useState(null);
   const [products, setProducts] = useState([]);
   const [logoUrl, setLogoUrl] = useState(null);
+  const [saleCustomerId, setSaleCustomerId] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
   const [notificationCounts, setNotificationCounts] = useState({ leads: 0, followUps: 0, waitingPayment: 0, bookings: 0, unpaid: 0 });
 
@@ -282,12 +283,12 @@ export default function Dashboard({ authMode = "signin", initialTab = "Dashboard
       case "Location": return <BusinessLocationTab business={business} setBusiness={setBusiness} />;
       case "Products": return <ProductsTab user={user} business={business} setGlobalProducts={setProducts} />;
       case "Page": return <PageTab business={business} products={products} logoUrl={logoUrl} />;
-      case "Customers": return <CustomersTab business={business} onMessageCustomer={(customer) => { window.history.pushState({}, "", `/messages?customerId=${encodeURIComponent(customer.id)}`); setTab("Messages"); }} />;
+      case "Customers": return <CustomersTab business={business} onMessageCustomer={(customer) => { window.history.pushState({}, "", `/messages?customerId=${encodeURIComponent(customer.id)}`); setTab("Messages"); }} onAddSaleForCustomer={(customer) => { setSaleCustomerId(customer.id); selectTab("Sales"); }} />;
       case "FollowUps": return <CustomerFollowUpsTab business={business} />;
       case "Enquiries": return <EnquiriesTab business={business} />;
       case "Messages": return <MessagesTab business={business} />;
       case "Bookings": return <BookingsTab business={business} />;
-      case "Sales": case "Money": return <ProductSalesTab business={business} products={products} />;
+      case "Sales": case "Money": return <ProductSalesTab business={business} products={products} initialCustomerId={saleCustomerId} onInitialCustomerUsed={() => setSaleCustomerId("")} />;
       case "Expenses": return <ExpensesTab business={business} />;
       case "Reviews": return <ReviewsTab business={business} />;
       case "WhatsAppStatus": return <WhatsAppStatusBuilderTab business={business} products={products} />;

@@ -78,7 +78,7 @@ function openPaymentReminder({ business, customer, payment }) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
-function PaymentForm({ business, customers, products = [], onSaved }) {
+function PaymentForm({ business, customers, products = [], onSaved, initialCustomerId = "", onInitialCustomerUsed }) {
   const options = useMemo(() => saleOptions(products), [products]);
   const [form, setForm] = useState({
     customer_id: "",
@@ -90,6 +90,17 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
     reference: "",
   });
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!initialCustomerId) return;
+
+    setForm((prev) => ({
+      ...prev,
+      customer_id: initialCustomerId,
+    }));
+
+    if (onInitialCustomerUsed) onInitialCustomerUsed();
+  }, [initialCustomerId, onInitialCustomerUsed]);
 
   function upd(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -374,7 +385,7 @@ function PaymentForm({ business, customers, products = [], onSaved }) {
   );
 }
 
-export function SalesTab({ business, products = [] }) {
+export function SalesTab({ business, products = [], initialCustomerId = "", onInitialCustomerUsed }) {
   const [payments, setPayments] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -426,7 +437,7 @@ export function SalesTab({ business, products = [] }) {
         <p style={{ fontSize:"13px", color:"#aaa" }}>Revenue, payments, deposits and unpaid sales.</p>
       </div>
 
-      {customers.length > 0 ? <PaymentForm business={business} customers={customers} products={sortedProducts} onSaved={handleSaved} /> : <div style={{ background:"#fff", border:"1px dashed #d4d7db", borderRadius:"18px", padding:"18px", marginBottom:"20px", color:"#777", fontSize:"13px", lineHeight:1.55 }}>Add a customer first, then you can record a sale against them.</div>}
+      {customers.length > 0 ? <PaymentForm business={business} customers={customers} products={sortedProducts} onSaved={handleSaved} initialCustomerId={initialCustomerId} onInitialCustomerUsed={onInitialCustomerUsed} /> : <div style={{ background:"#fff", border:"1px dashed #d4d7db", borderRadius:"18px", padding:"18px", marginBottom:"20px", color:"#777", fontSize:"13px", lineHeight:1.55 }}>Add a customer first, then you can record a sale against them.</div>}
 
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(130px, 1fr))", gap:"10px", marginBottom:"20px" }}>
         {[
