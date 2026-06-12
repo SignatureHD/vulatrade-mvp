@@ -72,6 +72,172 @@ async function googleFetch(url, token, options = {}) {
   return response.json();
 }
 
+
+const TRACKER_SHEETS = {
+  EXPENSES: { id: 0, title: "Expense Tracker", tabColor: { red: 0.9176, green: 0.298, blue: 0.5373 }, columns: 11 },
+  STOCK: { id: 1, title: "Stock Tracker", tabColor: { red: 0.1255, green: 0.1255, blue: 0.1294 }, columns: 11 },
+  SALES: { id: 2, title: "Sales Tracker", tabColor: { red: 0.9176, green: 0.298, blue: 0.5373 }, columns: 12 },
+  CUSTOMERS: { id: 3, title: "Customer Tracker", tabColor: { red: 0.9922, green: 0.9098, blue: 0.9451 }, columns: 10 },
+};
+
+const VULA_SHEET_COLORS = {
+  pink: { red: 0.9176, green: 0.298, blue: 0.5373 },
+  charcoal: { red: 0.1255, green: 0.1255, blue: 0.1294 },
+  softPink: { red: 0.9922, green: 0.9098, blue: 0.9451 },
+  borderPink: { red: 0.9725, green: 0.7216, blue: 0.8235 },
+  lightGrey: { red: 0.9333, green: 0.9333, blue: 0.9176 },
+  white: { red: 1, green: 1, blue: 1 },
+};
+
+function columnWidthRequests(sheetId, widths = []) {
+  return widths.map((pixelSize, index) => ({
+    updateDimensionProperties: {
+      range: {
+        sheetId,
+        dimension: "COLUMNS",
+        startIndex: index,
+        endIndex: index + 1,
+      },
+      properties: { pixelSize },
+      fields: "pixelSize",
+    },
+  }));
+}
+
+function formatRangeRequest(sheetId, startColumnIndex, endColumnIndex, numberFormat) {
+  return {
+    repeatCell: {
+      range: {
+        sheetId,
+        startRowIndex: 1,
+        endRowIndex: 1000,
+        startColumnIndex,
+        endColumnIndex,
+      },
+      cell: {
+        userEnteredFormat: {
+          numberFormat,
+        },
+      },
+      fields: "userEnteredFormat.numberFormat",
+    },
+  };
+}
+
+async function brandTrackerSpreadsheet(token, spreadsheetId) {
+  const sheetConfigs = Object.values(TRACKER_SHEETS);
+
+  const requests = sheetConfigs.flatMap((sheet) => [
+    {
+      updateSheetProperties: {
+        properties: {
+          sheetId: sheet.id,
+          gridProperties: { frozenRowCount: 1 },
+          tabColor: sheet.tabColor,
+        },
+        fields: "gridProperties.frozenRowCount,tabColor",
+      },
+    },
+    {
+      repeatCell: {
+        range: {
+          sheetId: sheet.id,
+          startRowIndex: 0,
+          endRowIndex: 1,
+          startColumnIndex: 0,
+          endColumnIndex: sheet.columns,
+        },
+        cell: {
+          userEnteredFormat: {
+            backgroundColor: VULA_SHEET_COLORS.charcoal,
+            horizontalAlignment: "CENTER",
+            verticalAlignment: "MIDDLE",
+            wrapStrategy: "WRAP",
+            textFormat: {
+              foregroundColor: VULA_SHEET_COLORS.white,
+              bold: true,
+              fontSize: 10,
+            },
+          },
+        },
+        fields: "userEnteredFormat(backgroundColor,horizontalAlignment,verticalAlignment,wrapStrategy,textFormat)",
+      },
+    },
+    {
+      updateDimensionProperties: {
+        range: {
+          sheetId: sheet.id,
+          dimension: "ROWS",
+          startIndex: 0,
+          endIndex: 1,
+        },
+        properties: { pixelSize: 42 },
+        fields: "pixelSize",
+      },
+    },
+    {
+      updateBorders: {
+        range: {
+          sheetId: sheet.id,
+          startRowIndex: 0,
+          endRowIndex: 1000,
+          startColumnIndex: 0,
+          endColumnIndex: sheet.columns,
+        },
+        top: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.lightGrey },
+        bottom: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.lightGrey },
+        left: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.lightGrey },
+        right: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.lightGrey },
+        innerHorizontal: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.lightGrey },
+        innerVertical: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.lightGrey },
+      },
+    },
+    {
+      addBanding: {
+        bandedRange: {
+          range: {
+            sheetId: sheet.id,
+            startRowIndex: 1,
+            endRowIndex: 1000,
+            startColumnIndex: 0,
+            endColumnIndex: sheet.columns,
+          },
+          rowProperties: {
+            firstBandColor: VULA_SHEET_COLORS.white,
+            secondBandColor: VULA_SHEET_COLORS.softPink,
+          },
+        },
+      },
+    },
+  ]);
+
+  requests.push(
+    ...columnWidthRequests(TRACKER_SHEETS.EXPENSES.id, [110, 180, 180, 140, 190, 110, 150, 190, 240, 130, 190]),
+    ...columnWidthRequests(TRACKER_SHEETS.STOCK.id, [190, 140, 100, 100, 100, 110, 120, 160, 130, 130, 190]),
+    ...columnWidthRequests(TRACKER_SHEETS.SALES.id, [110, 170, 190, 100, 110, 120, 140, 150, 160, 240, 130, 190]),
+    ...columnWidthRequests(TRACKER_SHEETS.CUSTOMERS.id, [180, 150, 140, 130, 120, 240, 130, 190, 140, 140]),
+
+    formatRangeRequest(TRACKER_SHEETS.EXPENSES.id, 0, 1, { type: "DATE", pattern: "yyyy-mm-dd" }),
+    formatRangeRequest(TRACKER_SHEETS.EXPENSES.id, 5, 6, { type: "CURRENCY", pattern: '"R"#,##0.00' }),
+
+    formatRangeRequest(TRACKER_SHEETS.STOCK.id, 2, 5, { type: "NUMBER", pattern: "#,##0" }),
+    formatRangeRequest(TRACKER_SHEETS.STOCK.id, 5, 7, { type: "CURRENCY", pattern: '"R"#,##0.00' }),
+    formatRangeRequest(TRACKER_SHEETS.STOCK.id, 8, 9, { type: "DATE", pattern: "yyyy-mm-dd" }),
+
+    formatRangeRequest(TRACKER_SHEETS.SALES.id, 0, 1, { type: "DATE", pattern: "yyyy-mm-dd" }),
+    formatRangeRequest(TRACKER_SHEETS.SALES.id, 3, 4, { type: "NUMBER", pattern: "#,##0" }),
+    formatRangeRequest(TRACKER_SHEETS.SALES.id, 4, 6, { type: "CURRENCY", pattern: '"R"#,##0.00' }),
+
+    formatRangeRequest(TRACKER_SHEETS.CUSTOMERS.id, 3, 4, { type: "DATE", pattern: "yyyy-mm-dd" }),
+    formatRangeRequest(TRACKER_SHEETS.CUSTOMERS.id, 4, 5, { type: "CURRENCY", pattern: '"R"#,##0.00' })
+  );
+
+  return googleFetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, token, {
+    method: "POST",
+    body: JSON.stringify({ requests }),
+  });
+}
+
 async function createDriveFolder(token, name, parentId = null) {
   const body = {
     name,
@@ -113,7 +279,7 @@ async function createSpreadsheet(token, name, parentId) {
         {
           updateSheetProperties: {
             properties: {
-              sheetId: 0,
+              sheetId: TRACKER_SHEETS.EXPENSES.id,
               title: "Expense Tracker",
             },
             fields: "title",
@@ -122,6 +288,7 @@ async function createSpreadsheet(token, name, parentId) {
         {
           addSheet: {
             properties: {
+              sheetId: TRACKER_SHEETS.STOCK.id,
               title: "Stock Tracker",
             },
           },
@@ -129,6 +296,7 @@ async function createSpreadsheet(token, name, parentId) {
         {
           addSheet: {
             properties: {
+              sheetId: TRACKER_SHEETS.SALES.id,
               title: "Sales Tracker",
             },
           },
@@ -136,6 +304,7 @@ async function createSpreadsheet(token, name, parentId) {
         {
           addSheet: {
             properties: {
+              sheetId: TRACKER_SHEETS.CUSTOMERS.id,
               title: "Customer Tracker",
             },
           },
@@ -216,6 +385,8 @@ async function createSpreadsheet(token, name, parentId) {
     method: "POST",
     body: JSON.stringify(headers),
   });
+
+  await brandTrackerSpreadsheet(token, spreadsheetId);
 
   return {
     id: spreadsheetId,
