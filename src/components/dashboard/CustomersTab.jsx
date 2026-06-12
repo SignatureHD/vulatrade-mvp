@@ -53,56 +53,6 @@ function WhatsAppModal({ customer, onClose }) {
   </div>;
 }
 
-function LogSaleModal({ business, customer, products = [], onClose, onLogged }) {
-  const options = useMemo(() => saleOptions(products), [products]);
-  const [saleOption, setSaleOption] = useState("");
-  const [amount, setAmount] = useState("");
-  const [status, setStatus] = useState("Paid");
-  const [method, setMethod] = useState("Cash");
-  const [reference, setReference] = useState("");
-  const [saving, setSaving] = useState(false);
-  function chooseOption(optionKey) { const option = options.find((item) => item.key === optionKey); setSaleOption(optionKey); if (option?.amount > 0) setAmount(String(option.amount)); if (option?.reference) setReference(option.reference); }
-
-  async function handleLog() {
-    const val = parseFloat(amount);
-    if (!business?.id || !customer?.id || !val) return;
-    setSaving(true);
-    const selectedOption = options.find((item) => item.key === saleOption);
-    const finalReference = reference.trim() || selectedOption?.reference || null;
-
-    if (selectedOption?.product_id && ["standard_stock", "daily_stock"].includes(selectedOption.item_type || "")) {
-      const meta = selectedOption.item_setup || {};
-      const stockKey = selectedOption.item_type === "daily_stock" ? "today_stock_quantity" : "stock_quantity";
-      const availableStock = Number(meta[stockKey] || 0);
-
-      if (availableStock <= 0) {
-        alert("This item is sold out. Add stock first or choose another item.");
-        setSaving(false);
-        return;
-      }
-    }
-
-    const { data: payment, error: paymentError } = await supabase.from("payments").insert([{ business_id: business.id, customer_id: customer.id, amount: val, status, method, reference: finalReference }]).select().single();
-    if (paymentError) { console.error("Payment insert error:", paymentError); alert("Payment could not be saved. Please try again."); setSaving(false); return; }
-    const paidAmount = status === "Unpaid" ? 0 : val;
-    const newStage = status === "Unpaid" ? "payment_pending" : "paid";
-    const { data: updatedCustomer } = await supabase.from("customers").update({ total_spent: Number(customer.total_spent || 0) + paidAmount, visit_count: Number(customer.visit_count || 0) + (status === "Unpaid" ? 0 : 1), last_contacted: new Date().toISOString(), stage: newStage, status: newStage, tags: tagsForCustomer(customer) }).eq("id", customer.id).select().single();
-    if (updatedCustomer) onLogged(updatedCustomer, payment);
-    setSaving(false);
-    onClose();
-  }
-  return <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-    <div style={{ background: "#fff", borderRadius: 24, padding: 32, width: "100%", maxWidth: 430, boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}>
-      <h3 style={{ fontSize: 18, fontWeight: 800, color: DARK, marginBottom: 4 }}>Log a sale</h3><p style={{ fontSize: 13, color: "#aaa", marginBottom: 20 }}>Payment from <strong>{customer.name}</strong></p>
-      <label style={labelStyle}>Product / service</label><select style={{ ...inputStyle, cursor: "pointer", marginBottom: 14 }} value={saleOption} onChange={(event) => chooseOption(event.target.value)}><option value="">Custom sale</option>{options.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}</select>
-      <label style={labelStyle}>Amount (R)</label><input style={{ ...inputStyle, fontSize: 28, fontWeight: 800, marginBottom: 20, textAlign: "center" }} type="number" placeholder="0" value={amount} onChange={(event) => setAmount(event.target.value)} autoFocus />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}><div><label style={labelStyle}>Status</label><select style={{ ...inputStyle, cursor: "pointer" }} value={status} onChange={(event) => setStatus(event.target.value)}>{PAYMENT_STATUSES.map((item) => <option key={item} value={item}>{item}</option>)}</select></div><div><label style={labelStyle}>Method</label><select style={{ ...inputStyle, cursor: "pointer" }} value={method} onChange={(event) => setMethod(event.target.value)}>{PAYMENT_METHODS.map((item) => <option key={item} value={item}>{item}</option>)}</select></div></div>
-      <label style={labelStyle}>Reference / note</label><input style={{ ...inputStyle, marginBottom: 20 }} placeholder="Optional" value={reference} onChange={(event) => setReference(event.target.value)} />
-      <div style={{ display: "flex", gap: 8 }}><button onClick={handleLog} disabled={!amount || saving} style={{ flex: 1, backgroundColor: amount ? BRAND : "#e0e0e0", color: amount ? "#fff" : "#aaa", border: "none", borderRadius: 12, padding: 13, fontSize: 14, fontWeight: 800, cursor: amount ? "pointer" : "not-allowed" }}>{saving ? "Saving..." : "Log sale"}</button><button onClick={onClose} style={{ padding: "13px 18px", borderRadius: 12, border: "1.5px solid #e0e0e0", background: "#fff", color: "#888", fontSize: 14, cursor: "pointer" }}>Cancel</button></div>
-    </div>
-  </div>;
-}
-
 function CustomerForm({ initial = {}, onSave, onCancel, saving, businessProducts }) {
   const [form, setForm] = useState({ name: initial.name || "", whatsapp: initial.whatsapp || "", area: initial.area || "", notes: initial.notes || "", journey: journeyForCustomer(initial), tags: tagsForCustomer(initial), interested_in: initial.interested_in || [] });
   function upd(key, value) { setForm((prev) => ({ ...prev, [key]: value })); }
@@ -152,7 +102,6 @@ export function CustomersTab({ business, onMessageCustomer, onAddSaleForCustomer
   const [mode, setMode] = useState("list");
   const [editTarget, setEditTarget] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [logSaleFor, setLogSaleFor] = useState(null);
   const [messageFor, setMessageFor] = useState(null);
   const [toast, setToast] = useState("");
   function showToast(message) { setToast(message); setTimeout(() => setToast(""), 2800); }
@@ -183,7 +132,6 @@ export function CustomersTab({ business, onMessageCustomer, onAddSaleForCustomer
   }
   async function handleDelete(customer) { if (!window.confirm(`Delete ${customer.name}?`)) return; await supabase.from("customers").delete().eq("id", customer.id); setCustomers((prev) => prev.filter((item) => item.id !== customer.id)); showToast("Customer deleted"); }
   async function handleJourneyChange(customer, newStage) { const patch = statusPatchForJourney(newStage, customer); const { data } = await supabase.from("customers").update({ ...patch, status: patch.stage }).eq("id", customer.id).select().single(); if (data) setCustomers((prev) => prev.map((item) => item.id === data.id ? data : item)); showToast(`${customer.name} moved to ${journeyConfig(newStage).label}`); }
-  function handleSaleLogged(updatedCustomer, payment) { setCustomers((prev) => prev.map((item) => item.id === updatedCustomer.id ? updatedCustomer : item)); if (payment?.customer_id) setActivityByCustomer((prev) => ({ ...prev, [payment.customer_id]: { ...(prev[payment.customer_id] || {}), lastSaleDate: (payment.created_at || new Date().toISOString()).slice(0, 10), unpaidCount: payment.status === "Unpaid" ? ((prev[payment.customer_id]?.unpaidCount || 0) + 1) : (prev[payment.customer_id]?.unpaidCount || 0) } })); showToast(`Payment ${payment?.status || "saved"} for ${updatedCustomer.name}`); }
   function handleMessageCustomer(customer) { if (onMessageCustomer) { onMessageCustomer(customer); return; } setMessageFor(customer); }
   const totalSpent = customers.reduce((sum, customer) => sum + (customer.total_spent || 0), 0);
   const countByStatus = (status) => customers.filter((customer) => journeyForCustomer(customer) === status).length;
@@ -197,14 +145,7 @@ export function CustomersTab({ business, onMessageCustomer, onAddSaleForCustomer
     {loading && <div style={{ textAlign: "center", padding: 60, color: "#aaa" }}>Loading...</div>}
     {!loading && customers.length === 0 && <div style={{ textAlign: "center", padding: "64px 24px" }}><Users size={24} color={BRAND} /><h3 style={{ fontSize: 20, fontWeight: 800, color: DARK, marginBottom: 8 }}>No customers yet</h3><p style={{ fontSize: 14, color: "#767b81", marginBottom: 32 }}>Add your first customer to start building your customer list.</p><button onClick={() => setMode("add")} style={{ backgroundColor: BRAND, color: "#fff", border: "none", borderRadius: 12, padding: "13px 20px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Add Customer</button></div>}
     {!loading && customers.length > 0 && filtered.length === 0 && <div style={{ textAlign: "center", padding: 48, color: "#aaa" }}>No customers match your search.</div>}
-    {!loading && filtered.length > 0 && <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{filtered.map((customer) => <CustomerCard key={customer.id} customer={customer} activity={activityByCustomer[customer.id]} onEdit={(item) => { setEditTarget(item); setMode("edit"); }} onDelete={handleDelete} onAddSale={(customer) => {
-        if (onAddSaleForCustomer) {
-          onAddSaleForCustomer(customer);
-          return;
-        }
-        setLogSaleFor(customer);
-      }} onMessage={handleMessageCustomer} onJourneyChange={handleJourneyChange} />)}</div>}
-    {logSaleFor && <LogSaleModal business={business} customer={logSaleFor} products={businessProducts} onClose={() => setLogSaleFor(null)} onLogged={handleSaleLogged} />}
+    {!loading && filtered.length > 0 && <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{filtered.map((customer) => <CustomerCard key={customer.id} customer={customer} activity={activityByCustomer[customer.id]} onEdit={(item) => { setEditTarget(item); setMode("edit"); }} onDelete={handleDelete} onAddSale={onAddSaleForCustomer || (() => {})} onMessage={handleMessageCustomer} onJourneyChange={handleJourneyChange} />)}</div>}
     {messageFor && <WhatsAppModal customer={messageFor} onClose={() => setMessageFor(null)} />}
     {toast && <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", background: DARK, color: "#fff", padding: "12px 24px", borderRadius: 999, fontSize: 13, fontWeight: 700, zIndex: 2000, boxShadow: "0 8px 32px rgba(0,0,0,0.25)", whiteSpace: "nowrap" }}>{toast}</div>}
   </div>;
