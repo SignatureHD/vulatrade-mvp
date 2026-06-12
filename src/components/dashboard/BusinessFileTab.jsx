@@ -308,7 +308,7 @@ function requestGoogleAccessToken() {
         else resolve(response.access_token);
       },
     });
-    tokenClient.requestAccessToken({ prompt:"consent" });
+    tokenClient.requestAccessToken({ prompt:"" });
   });
 }
 
@@ -434,7 +434,18 @@ export function BusinessFileTab({ business, setTab }) {
         });
         setGoogleFileStatus("Business Workspace already connected.");
       } else {
-        setGoogleWorkspace(null);
+        const localWorkspace = window.localStorage.getItem(`vula-google-workspace-${business.id}`);
+        if (localWorkspace) {
+          try {
+            const parsedWorkspace = JSON.parse(localWorkspace);
+            setGoogleWorkspace(parsedWorkspace);
+            setGoogleFileStatus("Business Workspace already connected on this device.");
+          } catch {
+            setGoogleWorkspace(null);
+          }
+        } else {
+          setGoogleWorkspace(null);
+        }
       }
     }
 
@@ -501,8 +512,38 @@ export function BusinessFileTab({ business, setTab }) {
         createdAt:new Date().toISOString(),
       };
       window.localStorage.setItem(`vula-google-workspace-${business.id}`, JSON.stringify(workspace));
-      setGoogleWorkspace(workspace);
-      setGoogleFileStatus("Business Workspace created. Your folders and starter tracking sheets are now in Google Drive.");
+
+      const workspacePayload = {
+        business_id: business.id,
+        google_root_folder_id: rootFolder.id,
+        google_root_folder_url: workspace.rootFolderUrl,
+        google_spreadsheet_id: spreadsheet.spreadsheetId,
+        google_spreadsheet_url: workspace.spreadsheetUrl,
+        expenses_folder_id: folders.Expenses,
+        receipts_folder_id: folders.Receipts,
+        sales_folder_id: folders.Sales,
+        stock_folder_id: folders.Stock,
+        customers_folder_id: folders.Customers,
+        reports_folder_id: folders.Reports,
+      };
+
+      const { data: existingWorkspace } = await supabase
+        .from("business_workspaces")
+        .select("id")
+        .eq("business_id", business.id)
+        .maybeSingle();
+
+      const saveResult = existingWorkspace?.id
+        ? await supabase.from("business_workspaces").update(workspacePayload).eq("id", existingWorkspace.id)
+        : await supabase.from("business_workspaces").insert([workspacePayload]);
+
+      if (saveResult.error) {
+        console.error("Save business workspace:", saveResult.error);
+        setGoogleFileStatus("Workspace created in Google Drive, but VulaTrade could not save the connection. Please tell support.");
+      } else {
+        setGoogleWorkspace(workspace);
+        setGoogleFileStatus("Business Workspace created and saved. Your folders and tracking sheets are now in Google Drive.");
+      }
     } catch (error) {
       console.error("Google workspace setup failed", error);
       setGoogleFileStatus(googleApiErrorMessage(error));
