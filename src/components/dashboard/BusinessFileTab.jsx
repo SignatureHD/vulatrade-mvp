@@ -8,24 +8,195 @@ const GOOGLE_SCOPES = "https://www.googleapis.com/auth/drive.file https://www.go
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 const WORKSPACE_FOLDERS = ["Expenses", "Receipts", "Sales", "Stock", "Customers", "Reports"];
+const VULA_SHEET_COLORS = {
+  pink: { red: 0.9176, green: 0.298, blue: 0.5373 },
+  charcoal: { red: 0.1255, green: 0.1255, blue: 0.1294 },
+  softPink: { red: 0.9922, green: 0.9098, blue: 0.9451 },
+  lightGrey: { red: 0.9333, green: 0.9333, blue: 0.9176 },
+  white: { red: 1, green: 1, blue: 1 },
+};
+
 const TRACKER_SHEETS = [
   {
     title: "Expense Tracker",
+    tabColor: VULA_SHEET_COLORS.pink,
+    widths: [110, 180, 180, 140, 190, 110, 150, 190, 240, 130, 190],
     headers: ["Date", "Supplier / Bought From", "Expense Name", "Category", "Linked Product / Service", "Amount", "Payment Method", "Receipt Link", "Notes", "Added From", "VulaTrade Expense ID"],
+    formats: [
+      { start: 0, end: 1, numberFormat: { type: "DATE", pattern: "yyyy-mm-dd" } },
+      { start: 5, end: 6, numberFormat: { type: "CURRENCY", pattern: '"R"#,##0.00' } },
+    ],
   },
   {
     title: "Stock Tracker",
+    tabColor: VULA_SHEET_COLORS.charcoal,
+    widths: [190, 140, 100, 100, 100, 110, 120, 160, 130, 130, 190],
     headers: ["Product / Stock Item", "Category", "Qty Bought", "Qty Sold", "Balance", "Cost Price", "Selling Price", "Supplier", "Last Updated", "Added From", "VulaTrade Product ID"],
+    formats: [
+      { start: 2, end: 5, numberFormat: { type: "NUMBER", pattern: "#,##0" } },
+      { start: 5, end: 7, numberFormat: { type: "CURRENCY", pattern: '"R"#,##0.00' } },
+      { start: 8, end: 9, numberFormat: { type: "DATE", pattern: "yyyy-mm-dd" } },
+    ],
   },
   {
     title: "Sales Tracker",
-    headers: ["Date", "Customer", "Product / Service", "Amount", "Payment Status", "Payment Method", "Reference", "Notes", "Added From", "VulaTrade Sale ID"],
+    tabColor: VULA_SHEET_COLORS.pink,
+    widths: [110, 170, 190, 100, 110, 120, 140, 150, 160, 240, 130, 190],
+    headers: ["Date", "Customer", "Product / Service", "Quantity", "Unit Price", "Total Amount", "Payment Status", "Payment Method", "Reference", "Notes", "Added From", "VulaTrade Sale ID"],
+    formats: [
+      { start: 0, end: 1, numberFormat: { type: "DATE", pattern: "yyyy-mm-dd" } },
+      { start: 3, end: 4, numberFormat: { type: "NUMBER", pattern: "#,##0" } },
+      { start: 4, end: 6, numberFormat: { type: "CURRENCY", pattern: '"R"#,##0.00' } },
+    ],
   },
   {
     title: "Customer Tracker",
+    tabColor: VULA_SHEET_COLORS.softPink,
+    widths: [180, 150, 140, 130, 120, 240, 130, 190],
     headers: ["Customer Name", "Cell Number", "WhatsApp Consent", "Last Purchase", "Total Spend", "Notes", "Added From", "VulaTrade Customer ID"],
+    formats: [
+      { start: 3, end: 4, numberFormat: { type: "DATE", pattern: "yyyy-mm-dd" } },
+      { start: 4, end: 5, numberFormat: { type: "CURRENCY", pattern: '"R"#,##0.00' } },
+    ],
   },
 ];
+
+
+function columnLetter(index) {
+  let letter = "";
+  let value = index + 1;
+  while (value > 0) {
+    const remainder = (value - 1) % 26;
+    letter = String.fromCharCode(65 + remainder) + letter;
+    value = Math.floor((value - 1) / 26);
+  }
+  return letter;
+}
+
+function sheetStyleRequests(sheetId, sheet) {
+  const columnCount = sheet.headers.length;
+
+  const requests = [
+    {
+      updateSheetProperties: {
+        properties: {
+          sheetId,
+          gridProperties: { frozenRowCount: 1 },
+          tabColor: sheet.tabColor,
+        },
+        fields: "gridProperties.frozenRowCount,tabColor",
+      },
+    },
+    {
+      repeatCell: {
+        range: {
+          sheetId,
+          startRowIndex: 0,
+          endRowIndex: 1,
+          startColumnIndex: 0,
+          endColumnIndex: columnCount,
+        },
+        cell: {
+          userEnteredFormat: {
+            backgroundColor: VULA_SHEET_COLORS.charcoal,
+            horizontalAlignment: "CENTER",
+            verticalAlignment: "MIDDLE",
+            wrapStrategy: "WRAP",
+            textFormat: {
+              foregroundColor: VULA_SHEET_COLORS.white,
+              bold: true,
+              fontSize: 10,
+            },
+          },
+        },
+        fields: "userEnteredFormat(backgroundColor,horizontalAlignment,verticalAlignment,wrapStrategy,textFormat)",
+      },
+    },
+    {
+      updateDimensionProperties: {
+        range: {
+          sheetId,
+          dimension: "ROWS",
+          startIndex: 0,
+          endIndex: 1,
+        },
+        properties: { pixelSize: 42 },
+        fields: "pixelSize",
+      },
+    },
+    {
+      updateBorders: {
+        range: {
+          sheetId,
+          startRowIndex: 0,
+          endRowIndex: 1000,
+          startColumnIndex: 0,
+          endColumnIndex: columnCount,
+        },
+        top: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.lightGrey },
+        bottom: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.lightGrey },
+        left: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.lightGrey },
+        right: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.lightGrey },
+        innerHorizontal: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.lightGrey },
+        innerVertical: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.lightGrey },
+      },
+    },
+    {
+      addBanding: {
+        bandedRange: {
+          range: {
+            sheetId,
+            startRowIndex: 1,
+            endRowIndex: 1000,
+            startColumnIndex: 0,
+            endColumnIndex: columnCount,
+          },
+          rowProperties: {
+            firstBandColor: VULA_SHEET_COLORS.white,
+            secondBandColor: VULA_SHEET_COLORS.softPink,
+          },
+        },
+      },
+    },
+  ];
+
+  sheet.widths.forEach((pixelSize, index) => {
+    requests.push({
+      updateDimensionProperties: {
+        range: {
+          sheetId,
+          dimension: "COLUMNS",
+          startIndex: index,
+          endIndex: index + 1,
+        },
+        properties: { pixelSize },
+        fields: "pixelSize",
+      },
+    });
+  });
+
+  sheet.formats.forEach((format) => {
+    requests.push({
+      repeatCell: {
+        range: {
+          sheetId,
+          startRowIndex: 1,
+          endRowIndex: 1000,
+          startColumnIndex: format.start,
+          endColumnIndex: format.end,
+        },
+        cell: {
+          userEnteredFormat: {
+            numberFormat: format.numberFormat,
+          },
+        },
+        fields: "userEnteredFormat.numberFormat",
+      },
+    });
+  });
+
+  return requests;
+}
 
 function averageRating(reviews) {
   const approved = reviews.filter((review) => review.approved);
@@ -114,11 +285,31 @@ async function createWorkspaceSpreadsheet(accessToken, businessName) {
     }),
   });
 
-  await Promise.all(TRACKER_SHEETS.map((sheet) => googleFetch(
-    accessToken,
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheet.spreadsheetId}/values/${encodeURIComponent(`${sheet.title}!A1:K1`)}?valueInputOption=RAW`,
-    { method:"PUT", body:JSON.stringify({ values:[sheet.headers] }) }
-  )));
+  await Promise.all(TRACKER_SHEETS.map((sheet) => {
+    const endColumn = columnLetter(sheet.headers.length - 1);
+    return googleFetch(
+      accessToken,
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheet.spreadsheetId}/values/${encodeURIComponent(`${sheet.title}!A1:${endColumn}1`)}?valueInputOption=RAW`,
+      { method:"PUT", body:JSON.stringify({ values:[sheet.headers] }) }
+    );
+  }));
+
+  const sheetIdsByTitle = Object.fromEntries(
+    (spreadsheet.sheets || []).map((sheet) => [sheet.properties.title, sheet.properties.sheetId])
+  );
+
+  const requests = TRACKER_SHEETS.flatMap((sheet) => {
+    const sheetId = sheetIdsByTitle[sheet.title];
+    if (sheetId === undefined) return [];
+    return sheetStyleRequests(sheetId, sheet);
+  });
+
+  if (requests.length > 0) {
+    await googleFetch(accessToken, `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheet.spreadsheetId}:batchUpdate`, {
+      method:"POST",
+      body:JSON.stringify({ requests }),
+    });
+  }
 
   return spreadsheet;
 }
