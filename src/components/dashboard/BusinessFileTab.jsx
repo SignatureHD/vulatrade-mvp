@@ -9,17 +9,23 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 const WORKSPACE_FOLDERS = ["Expenses", "Receipts", "Sales", "Stock", "Customers", "Reports"];
 const VULA_SHEET_COLORS = {
+  darkPink: { red: 0.851, green: 0.247, blue: 0.4824 },
   pink: { red: 0.9176, green: 0.298, blue: 0.5373 },
-  charcoal: { red: 0.1255, green: 0.1255, blue: 0.1294 },
   softPink: { red: 0.9922, green: 0.9098, blue: 0.9451 },
-  lightGrey: { red: 0.9333, green: 0.9333, blue: 0.9176 },
+  softBlue: { red: 0.9216, green: 0.9647, blue: 1 },
+  softGold: { red: 0.9922, green: 0.9569, blue: 0.8667 },
+  softGreen: { red: 0.9216, green: 0.9804, blue: 0.9333 },
+  borderPink: { red: 0.9725, green: 0.7216, blue: 0.8235 },
+  borderGrey: { red: 0.8627, green: 0.8784, blue: 0.902 },
   white: { red: 1, green: 1, blue: 1 },
+  charcoal: { red: 0.1922, green: 0.2039, blue: 0.2196 },
 };
 
 const TRACKER_SHEETS = [
   {
     title: "Expense Tracker",
     tabColor: VULA_SHEET_COLORS.pink,
+    bandColor: VULA_SHEET_COLORS.softPink,
     widths: [110, 180, 180, 140, 190, 110, 150, 190, 240, 130, 190],
     headers: ["Date", "Supplier / Bought From", "Expense Name", "Category", "Linked Product / Service", "Amount", "Payment Method", "Receipt Link", "Notes", "Added From", "VulaTrade Expense ID"],
     formats: [
@@ -29,7 +35,8 @@ const TRACKER_SHEETS = [
   },
   {
     title: "Stock Tracker",
-    tabColor: VULA_SHEET_COLORS.charcoal,
+    tabColor: VULA_SHEET_COLORS.softBlue,
+    bandColor: VULA_SHEET_COLORS.softBlue,
     widths: [190, 140, 100, 100, 100, 110, 120, 160, 130, 130, 190],
     headers: ["Product / Stock Item", "Category", "Qty Bought", "Qty Sold", "Balance", "Cost Price", "Selling Price", "Supplier", "Last Updated", "Added From", "VulaTrade Product ID"],
     formats: [
@@ -40,7 +47,8 @@ const TRACKER_SHEETS = [
   },
   {
     title: "Sales Tracker",
-    tabColor: VULA_SHEET_COLORS.pink,
+    tabColor: VULA_SHEET_COLORS.softGold,
+    bandColor: VULA_SHEET_COLORS.softGold,
     widths: [110, 170, 190, 100, 110, 120, 140, 150, 160, 240, 130, 190],
     headers: ["Date", "Customer", "Product / Service", "Quantity", "Unit Price", "Total Amount", "Payment Status", "Payment Method", "Reference", "Notes", "Added From", "VulaTrade Sale ID"],
     formats: [
@@ -51,7 +59,8 @@ const TRACKER_SHEETS = [
   },
   {
     title: "Customer Tracker",
-    tabColor: VULA_SHEET_COLORS.softPink,
+    tabColor: VULA_SHEET_COLORS.softGreen,
+    bandColor: VULA_SHEET_COLORS.softGreen,
     widths: [180, 150, 140, 130, 120, 240, 130, 190],
     headers: ["Customer Name", "Cell Number", "WhatsApp Consent", "Last Purchase", "Total Spend", "Notes", "Added From", "VulaTrade Customer ID"],
     formats: [
@@ -98,14 +107,14 @@ function sheetStyleRequests(sheetId, sheet) {
         },
         cell: {
           userEnteredFormat: {
-            backgroundColor: VULA_SHEET_COLORS.charcoal,
+            backgroundColor: VULA_SHEET_COLORS.darkPink,
             horizontalAlignment: "CENTER",
             verticalAlignment: "MIDDLE",
             wrapStrategy: "WRAP",
             textFormat: {
               foregroundColor: VULA_SHEET_COLORS.white,
               bold: true,
-              fontSize: 10,
+              fontSize: 11,
             },
           },
         },
@@ -120,8 +129,30 @@ function sheetStyleRequests(sheetId, sheet) {
           startIndex: 0,
           endIndex: 1,
         },
-        properties: { pixelSize: 42 },
+        properties: { pixelSize: 44 },
         fields: "pixelSize",
+      },
+    },
+    {
+      repeatCell: {
+        range: {
+          sheetId,
+          startRowIndex: 1,
+          endRowIndex: 1000,
+          startColumnIndex: 0,
+          endColumnIndex: columnCount,
+        },
+        cell: {
+          userEnteredFormat: {
+            verticalAlignment: "MIDDLE",
+            wrapStrategy: "WRAP",
+            textFormat: {
+              foregroundColor: VULA_SHEET_COLORS.charcoal,
+              fontSize: 10,
+            },
+          },
+        },
+        fields: "userEnteredFormat(verticalAlignment,wrapStrategy,textFormat)",
       },
     },
     {
@@ -133,12 +164,28 @@ function sheetStyleRequests(sheetId, sheet) {
           startColumnIndex: 0,
           endColumnIndex: columnCount,
         },
-        top: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.lightGrey },
-        bottom: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.lightGrey },
-        left: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.lightGrey },
-        right: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.lightGrey },
-        innerHorizontal: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.lightGrey },
-        innerVertical: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.lightGrey },
+        top: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.borderGrey },
+        bottom: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.borderGrey },
+        left: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.borderGrey },
+        right: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.borderGrey },
+        innerHorizontal: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.borderGrey },
+        innerVertical: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.borderGrey },
+      },
+    },
+    {
+      updateBorders: {
+        range: {
+          sheetId,
+          startRowIndex: 0,
+          endRowIndex: 1,
+          startColumnIndex: 0,
+          endColumnIndex: columnCount,
+        },
+        top: { style: "SOLID_THICK", width: 2, color: VULA_SHEET_COLORS.borderPink },
+        bottom: { style: "SOLID_THICK", width: 2, color: VULA_SHEET_COLORS.borderPink },
+        left: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.borderPink },
+        right: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.borderPink },
+        innerVertical: { style: "SOLID", width: 1, color: VULA_SHEET_COLORS.borderPink },
       },
     },
     {
@@ -153,7 +200,19 @@ function sheetStyleRequests(sheetId, sheet) {
           },
           rowProperties: {
             firstBandColor: VULA_SHEET_COLORS.white,
-            secondBandColor: VULA_SHEET_COLORS.softPink,
+            secondBandColor: sheet.bandColor,
+          },
+        },
+      },
+    },
+    {
+      setBasicFilter: {
+        filter: {
+          range: {
+            sheetId,
+            startRowIndex: 0,
+            startColumnIndex: 0,
+            endColumnIndex: columnCount,
           },
         },
       },
