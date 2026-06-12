@@ -257,6 +257,172 @@ function sheetStyleRequests(sheetId, sheet) {
   return requests;
 }
 
+
+function safeMeta(value) {
+  if (!value) return {};
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return {};
+  }
+}
+
+function safeDate(value) {
+  if (!value) return "";
+  return String(value).slice(0, 10);
+}
+
+function safeMoney(value) {
+  const number = Number(value || 0);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function customerPhone(customer) {
+  return customer?.phone || customer?.cellphone || customer?.whatsapp || customer?.whatsapp_number || customer?.mobile || "";
+}
+
+function customerName(customer) {
+  return customer?.name || customer?.full_name || customer?.customer_name || "";
+}
+
+function currentProductStock(product) {
+  const meta = safeMeta(product.item_setup || product.vula);
+  if (meta.item_type === "daily_stock") return meta.today_stock_quantity ?? "";
+  return meta.stock_quantity ?? "";
+}
+
+async function appendBackfillRows(accessToken, spreadsheetId, sheetName, endColumn, rows) {
+  if (!rows?.length) return 0;
+
+  await googleFetch(
+    accessToken,
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(`${sheetName}!A:${endColumn}`)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    {
+      method:"POST",
+      body:JSON.stringify({ values:rows }),
+    }
+  );
+
+  return rows.length;
+}
+
+async function backfillWorkspaceTrackers(accessToken, spreadsheetId, businessId) {
+  const [
+    { data: products },
+    { data: expenses },
+    { data: payments },
+    { data: customers },
+  ] = await Promise.all([
+    supabase.from("products").select("*").eq("business_id", businessId).order("created_at", { ascending:true }),
+    supabase.from("expenses").select("*").eq("business_id", businessId).order("created_at", { ascending:true }),
+    supabase.from("payments").select("*").eq("business_id", businessId).order("created_at", { ascending:true }),
+    supabase.from("customers").select("*").eq("business_id", businessId).order("created_at", { ascending:true }),
+  ]);
+
+  const productRows = (products || []).map((product) => {
+    const meta = safeMeta(product.item_setup || product.vula);
+    const itemType = product.item_type || meta.item_type || product.category || "";
+    const balance = currentProductStock(product);
+
+    return [
+      product.name || "",
+      itemType,
+      balance,
+      "",
+      balance,
+      "",
+      safeMoney(product.price),
+      "",
+      safeDate(product.updated_at || product.created_at || new Date().toISOString()),
+      "VulaTrade backfill",
+      product.id || "",
+    ];
+  });
+
+  const productById = Object.fromEntries((products || []).map((product) => [product.id, product]));
+  const customerById = Object.fromEntries((customers || []).map((customer) => [customer.id, customer]));
+
+  const expenseRows = (expenses || []).map((expense) => {
+    const linkedProduct = productById[expense.linked_product_id];
+
+    return [
+      safeDate(expense.expense_date || expense.date || expense.created_at),
+      expense.supplier_name || "",
+      expense.name || "",
+      expense.category || "",
+      linkedProduct?.name || "",
+      safeMoney(expense.amount),
+      expense.payment_method || expense.method || "",
+      expense.receipt_url || "",
+      expense.notes || "",
+      "VulaTrade backfill",
+      expense.id || "",
+    ];
+  });
+
+  const saleRows = (payments || []).map((payment) => {
+    const customer = customerById[payment.customer_id];
+    const quantity = Number(payment.quantity || 1);
+    const totalAmount = safeMoney(payment.amount);
+    const unitPrice = payment.unit_price ?? (quantity > 0 ? totalAmount / quantity : totalAmount);
+
+    return [
+      safeDate(payment.created_at || payment.payment_date),
+      customerName(customer),
+      payment.product_or_service || payment.reference || "",
+      quantity,
+      unitPrice,
+      totalAmount,
+      payment.status || "",
+      payment.method || payment.payment_method || "",
+      payment.reference || "",
+      payment.notes || "",
+      "VulaTrade backfill",
+      payment.id || "",
+    ];
+  });
+
+  const spendByCustomer = {};
+  const lastPurchaseByCustomer = {};
+
+  (payments || []).forEach((payment) => {
+    if (!payment.customer_id) return;
+    spendByCustomer[payment.customer_id] = (spendByCustomer[payment.customer_id] || 0) + safeMoney(payment.amount);
+    const date = safeDate(payment.created_at || payment.payment_date);
+    if (date && (!lastPurchaseByCustomer[payment.customer_id] || date > lastPurchaseByCustomer[payment.customer_id])) {
+      lastPurchaseByCustomer[payment.customer_id] = date;
+    }
+  });
+
+  const customerRows = (customers || []).map((customer) => [
+    customerName(customer),
+    customerPhone(customer),
+    customer.whatsapp_consent === true ? "Yes" : customer.whatsapp_consent === false ? "No" : "",
+    lastPurchaseByCustomer[customer.id] || "",
+    safeMoney(spendByCustomer[customer.id]),
+    customer.notes || "",
+    "VulaTrade backfill",
+    customer.id || "",
+  ]);
+
+  const [stockCount, expenseCount, salesCount, customerCount] = await Promise.all([
+    appendBackfillRows(accessToken, spreadsheetId, "Stock Tracker", "K", productRows),
+    appendBackfillRows(accessToken, spreadsheetId, "Expense Tracker", "K", expenseRows),
+    appendBackfillRows(accessToken, spreadsheetId, "Sales Tracker", "L", saleRows),
+    appendBackfillRows(accessToken, spreadsheetId, "Customer Tracker", "H", customerRows),
+  ]);
+
+  return {
+    stockCount,
+    expenseCount,
+    salesCount,
+    customerCount,
+    total: stockCount + expenseCount + salesCount + customerCount,
+  };
+}
+
+
 function averageRating(reviews) {
   const approved = reviews.filter((review) => review.approved);
   if (approved.length === 0) return "0.0";
@@ -503,6 +669,14 @@ export function BusinessFileTab({ business, setTab }) {
       const spreadsheet = await createWorkspaceSpreadsheet(accessToken, businessName);
       await moveFileToFolder(accessToken, spreadsheet.spreadsheetId, rootFolder.id);
 
+      let backfillSummary = null;
+      try {
+        setGoogleFileStatus("Filling your tracker with existing VulaTrade records...");
+        backfillSummary = await backfillWorkspaceTrackers(accessToken, spreadsheet.spreadsheetId, business.id);
+      } catch (backfillError) {
+        console.error("Google workspace backfill:", backfillError);
+      }
+
       const workspace = {
         rootFolderId:rootFolder.id,
         rootFolderUrl:`https://drive.google.com/drive/folders/${rootFolder.id}`,
@@ -515,6 +689,8 @@ export function BusinessFileTab({ business, setTab }) {
 
       const workspacePayload = {
         business_id: business.id,
+        user_id: business.user_id,
+        connection_status: "connected",
         google_root_folder_id: rootFolder.id,
         google_root_folder_url: workspace.rootFolderUrl,
         google_spreadsheet_id: spreadsheet.spreadsheetId,
@@ -542,7 +718,11 @@ export function BusinessFileTab({ business, setTab }) {
         setGoogleFileStatus("Workspace created in Google Drive, but VulaTrade could not save the connection. Please tell support.");
       } else {
         setGoogleWorkspace(workspace);
-        setGoogleFileStatus("Business Workspace created and saved. Your folders and tracking sheets are now in Google Drive.");
+        setGoogleFileStatus(
+          backfillSummary?.total > 0
+            ? `Business Workspace created and saved. ${backfillSummary.total} existing record${backfillSummary.total === 1 ? "" : "s"} added to your Google trackers.`
+            : "Business Workspace created and saved. Your folders and tracking sheets are now in Google Drive."
+        );
       }
     } catch (error) {
       console.error("Google workspace setup failed", error);

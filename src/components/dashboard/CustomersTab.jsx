@@ -4,6 +4,7 @@ import { DARK, inputStyle, labelStyle, PAYMENT_METHODS, PAYMENT_STATUSES } from 
 import { CUSTOMER_JOURNEY, DEFAULT_CUSTOMER_TAGS, journeyConfig, journeyForCustomer, statusPatchForJourney, tagsForCustomer } from "../../customerJourney";
 import { formatPhone, timeAgo, waLink } from "../../utils";
 import { supabase } from "../../lib/supabase";
+import { appendCustomerToGoogleSheet, getBusinessGoogleSpreadsheetId } from "../../lib/googleWorkspace";
 import { StatusBadge } from "../ui";
 
 const BRAND = "#ea4c89";
@@ -122,12 +123,38 @@ export function CustomersTab({ business, onMessageCustomer, onAddSaleForCustomer
       setActivityByCustomer(activity); setLoading(false);
     });
   }, [business?.id]);
+
+  async function syncCustomerToGoogle(customer) {
+    try {
+      if (!business?.id || !customer?.id) return false;
+
+      const spreadsheetId = await getBusinessGoogleSpreadsheetId(supabase, business.id);
+      if (!spreadsheetId) return false;
+
+      await appendCustomerToGoogleSheet(spreadsheetId, customer);
+      return true;
+    } catch (syncError) {
+      console.error("Google customer sync:", syncError);
+      return false;
+    }
+  }
+
   const filtered = customers.filter((customer) => { const q = search.toLowerCase(); const matchSearch = !q || customer.name?.toLowerCase().includes(q) || customer.whatsapp?.includes(q) || customer.area?.toLowerCase().includes(q); const matchStatus = filterStatus === "all" || journeyForCustomer(customer) === filterStatus; return matchSearch && matchStatus; }).sort((a, b) => sortBy === "spent" ? (b.total_spent || 0) - (a.total_spent || 0) : sortBy === "name" ? a.name.localeCompare(b.name) : new Date(b.created_at) - new Date(a.created_at));
   async function handleSave(form) {
     if (!business?.id) return; setSaving(true);
     const payload = { name: form.name.trim(), whatsapp: formatPhone(form.whatsapp), area: form.area.trim(), notes: form.notes.trim(), stage: form.journey, status: form.journey, tags: form.tags, interested_in: form.interested_in };
     if (editTarget) { const { data, error } = await supabase.from("customers").update(payload).eq("id", editTarget.id).select().single(); if (error) console.error("Update error:", error); if (data) setCustomers((prev) => prev.map((customer) => customer.id === data.id ? data : customer)); showToast("Customer updated"); }
-    else { const { data, error } = await supabase.from("customers").insert([{ ...payload, business_id: business.id }]).select().single(); if (error) console.error("Insert error:", error); if (data) setCustomers((prev) => [data, ...prev]); showToast("Customer added"); }
+    else {
+      const { data, error } = await supabase.from("customers").insert([{ ...payload, business_id: business.id }]).select().single();
+      if (error) console.error("Insert error:", error);
+      if (data) {
+        const synced = await syncCustomerToGoogle(data);
+        setCustomers((prev) => [data, ...prev]);
+        showToast(synced ? "Customer added and synced to Google Sheets." : "Customer added");
+      } else {
+        showToast("Customer added");
+      }
+    }
     setSaving(false); setMode("list"); setEditTarget(null);
   }
   async function handleDelete(customer) { if (!window.confirm(`Delete ${customer.name}?`)) return; await supabase.from("customers").delete().eq("id", customer.id); setCustomers((prev) => prev.filter((item) => item.id !== customer.id)); showToast("Customer deleted"); }

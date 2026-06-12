@@ -471,6 +471,35 @@ export async function getBusinessGoogleSpreadsheetId(supabaseClient, businessId)
   }
 }
 
+
+export async function appendCustomerToGoogleSheet(spreadsheetId, customer) {
+  if (!spreadsheetId) {
+    throw new Error("Missing Google spreadsheet ID.");
+  }
+
+  const token = await getGoogleAccessToken();
+
+  const values = [[
+    customer.name || "",
+    customer.whatsapp || customer.phone || customer.cellphone || customer.mobile || "",
+    customer.whatsapp_consent === true ? "Yes" : customer.whatsapp_consent === false ? "No" : "",
+    customer.last_purchase || "",
+    customer.total_spent || 0,
+    customer.notes || "",
+    "VulaTrade",
+    customer.id || "",
+  ]];
+
+  return googleFetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Customer%20Tracker!A:H:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    token,
+    {
+      method: "POST",
+      body: JSON.stringify({ values }),
+    }
+  );
+}
+
 export async function appendExpenseToGoogleSheet(spreadsheetId, expense) {
   if (!spreadsheetId) {
     throw new Error("Missing Google spreadsheet ID.");
