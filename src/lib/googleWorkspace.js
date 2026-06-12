@@ -5,6 +5,9 @@ const SCOPES = [
   "https://www.googleapis.com/auth/spreadsheets",
 ].join(" ");
 
+let cachedGoogleToken = null;
+let cachedGoogleTokenExpiresAt = 0;
+
 function loadGoogleIdentityScript() {
   return new Promise((resolve, reject) => {
     if (window.google?.accounts?.oauth2) {
@@ -34,6 +37,11 @@ export async function getGoogleAccessToken() {
     throw new Error("Missing VITE_GOOGLE_CLIENT_ID in .env.local");
   }
 
+  const now = Date.now();
+  if (cachedGoogleToken && cachedGoogleTokenExpiresAt > now + 60000) {
+    return cachedGoogleToken;
+  }
+
   await loadGoogleIdentityScript();
 
   return new Promise((resolve, reject) => {
@@ -42,15 +50,19 @@ export async function getGoogleAccessToken() {
       scope: SCOPES,
       callback: (response) => {
         if (response.error) {
+          cachedGoogleToken = null;
+          cachedGoogleTokenExpiresAt = 0;
           reject(new Error(response.error));
           return;
         }
 
-        resolve(response.access_token);
+        cachedGoogleToken = response.access_token;
+        cachedGoogleTokenExpiresAt = Date.now() + ((response.expires_in || 3600) * 1000);
+        resolve(cachedGoogleToken);
       },
     });
 
-    tokenClient.requestAccessToken({ prompt: "" });
+    tokenClient.requestAccessToken({ prompt: cachedGoogleToken ? "" : "" });
   });
 }
 
