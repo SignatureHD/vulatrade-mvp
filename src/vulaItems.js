@@ -68,13 +68,18 @@ export function extractVulaMeta(product = {}) {
 }
 
 export function moneyLabel(value) { const amount = Number(value || 0); return amount > 0 ? `R${amount.toLocaleString()}` : "Ask price"; }
-export function itemActionLabel(product = {}) { return itemTypeConfig(extractVulaMeta(product).item_type).buttonLabel; }
 export function currentStockValue(product = {}) { const meta = extractVulaMeta(product); if (meta.item_type === "daily_stock") return Number(meta.today_stock_quantity || 0); if (meta.item_type === "standard_stock" && meta.track_stock) return Number(meta.stock_quantity || 0); return null; }
 export function isSoldOut(product = {}) { if (product.is_sold_out === true) return true; const stock = currentStockValue(product); return stock !== null && stock <= 0; }
+export function itemActionLabel(product = {}) {
+  const meta = extractVulaMeta(product);
+  if ((meta.item_type === "standard_stock" || meta.item_type === "daily_stock") && isSoldOut(product)) return "Ask about restock";
+  return itemTypeConfig(meta.item_type).buttonLabel;
+}
 export function formatAvailability(meta = {}) { const rows = normalizeAvailability(meta.availability); const open = rows.filter((row) => row.enabled); if (!open.length) return "by arrangement"; return open.map((row) => `${row.day} ${row.start}-${row.end}`).join(", "); }
 
 export function buildItemWhatsAppMessage({ businessName, product, variant, customerName = "", customerPhone = "", neededByDate = "", preferredDate = "", preferredTime = "", notes = "" }) {
   const meta = extractVulaMeta(product); const type = meta.item_type; const itemName = variant?.name ? `${product.name} - ${variant.name}` : product.name; const price = variant?.price ?? product.price; const who = customerName ? `\nMy name is ${customerName}.` : ""; const phone = customerPhone ? `\nMy WhatsApp number is ${customerPhone}.` : ""; const noteLine = notes ? `\nNotes: ${notes}` : "";
+  if ((type === "standard_stock" || type === "daily_stock") && isSoldOut(product)) return `Hi ${businessName}, I saw ${itemName} on your VulaTrade page, but it looks sold out.\nPrice: ${moneyLabel(price)}${who}${phone}${noteLine}\nPlease let me know when it will be available again.`;
   if (type === "daily_stock") return `Hi ${businessName}, I would like to order ${itemName} today.\nPrice: ${moneyLabel(price)}${who}${phone}${noteLine}\nPlease let me know if it is still available.`;
   if (type === "service") return `Hi ${businessName}, I would like to book ${itemName}.\nPrice: ${moneyLabel(price)}${preferredDate ? `\nPreferred date: ${preferredDate}` : ""}${preferredTime ? `\nPreferred time: ${preferredTime}` : ""}${who}${phone}${noteLine}\nPlease let me know what times are available.`;
   if (type === "made_to_order") return `Hi ${businessName}, I would like to order ${itemName}.\nStarting price: ${moneyLabel(price)}${neededByDate ? `\nNeeded by: ${neededByDate}` : ""}${who}${phone}${noteLine}\nPlease send me more details.`;
