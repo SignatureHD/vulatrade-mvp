@@ -915,6 +915,13 @@ export async function syncBookingToGoogleCalendar(booking, business = {}) {
   const eventPayload = {
     summary: `${customerName} - ${serviceName}`,
     location: business?.area || "",
+    reminders: {
+      useDefault: false,
+      overrides: [
+        { method: "popup", minutes: 24 * 60 },
+        { method: "popup", minutes: 60 },
+      ],
+    },
     description: [
       `VulaTrade booking for ${businessName}`,
       "",
