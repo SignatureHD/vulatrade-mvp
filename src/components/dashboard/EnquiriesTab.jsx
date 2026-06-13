@@ -5,6 +5,7 @@ import { CUSTOMER_JOURNEY, archiveJourney, journeyConfig, normaliseJourneyStatus
 import { extractCustomerMessage, fullWhatsAppMessage, nextEnquiryAction } from "../../enquiryHelpers";
 import { extractVulaMeta, itemTypeConfig } from "../../vulaItems";
 import { supabase } from "../../lib/supabase";
+import { syncBookingToGoogleCalendar } from "../../lib/googleWorkspace";
 import { formatPhone, waLink } from "../../utils";
 
 const BRAND = "#ea4c89";
@@ -168,13 +169,47 @@ export function EnquiriesTab({ business }) {
     try {
       const customer = customerById[enquiry.customer_id] || null;
       const message = fullWhatsAppMessage(enquiry);
-      const payload = { business_id: business.id, customer_id: enquiry.customer_id || null, customer_name: enquiry.customer_name || customer?.name || "Customer", customer_whatsapp: enquiry.customer_phone || customer?.whatsapp || "", service: enquiry.product_name || product?.name || "Booking", booking_date: parseMessageField(message, "Preferred date") || today(), booking_time: parseMessageField(message, "Preferred time") || null, price: enquiry.product_price ? Number(enquiry.product_price) : null, deposit: null, notes: `Created from lead${enquiry.id ? ` ${enquiry.id}` : ""}. ${extractCustomerMessage(enquiry) || ""}`.trim(), status: "confirmed" };
-      const { error } = await supabase.from("bookings").insert([payload]);
+      const payload = {
+        business_id: business.id,
+        customer_id: enquiry.customer_id || null,
+        customer_name: enquiry.customer_name || customer?.name || "Customer",
+        customer_whatsapp: enquiry.customer_phone || customer?.whatsapp || "",
+        service: enquiry.product_name || product?.name || "Booking",
+        booking_date: parseMessageField(message, "Preferred date") || today(),
+        booking_time: parseMessageField(message, "Preferred time") || null,
+        price: enquiry.product_price ? Number(enquiry.product_price) : null,
+        deposit: null,
+        notes: `Created from lead${enquiry.id ? ` ${enquiry.id}` : ""}. ${extractCustomerMessage(enquiry) || ""}`.trim(),
+        status: "confirmed",
+      };
+
+      const { data: booking, error } = await supabase.from("bookings").insert([payload]).select().single();
       if (error) throw error;
-      await moveLead(enquiry, "booked", "Booking accepted and added to Bookings");
-    } catch (err) { setError(err.message || "Could not create booking."); }
+
+      try {
+        const calendarEvent = await syncBookingToGoogleCalendar(booking, business);
+        if (calendarEvent?.id) {
+          await supabase
+            .from("bookings")
+            .update({
+              google_calendar_event_id: calendarEvent.id,
+              google_calendar_event_url: calendarEvent.htmlLink || null,
+              google_calendar_synced_at: new Date().toISOString(),
+            })
+            .eq("id", booking.id);
+        }
+      } catch (calendarError) {
+        console.error("Google Calendar sync failed:", calendarError);
+        showToast("Booking accepted, but Google Calendar sync failed");
+      }
+
+      await moveLead(enquiry, "booked", "Booking accepted and added to Google Calendar");
+    } catch (err) {
+      setError(err.message || "Could not create booking.");
+    }
     setSavingId(null);
   }
+
   async function linkCustomer(enquiry) { const phone = formatPhone(enquiry.customer_phone || ""); if (!phone) return setError("Add the customer WhatsApp number first."); setLinkingId(enquiry.id); setError(""); try { const stage = normaliseJourneyStatus(enquiry.status); let customer = customers.find((item) => samePhone(item.whatsapp, phone)); if (!customer) { const { data, error } = await supabase.from("customers").insert([{ business_id: business.id, name: enquiry.customer_name || "WhatsApp Customer", whatsapp: phone, status: stage, stage, tags: [], interested_in: enquiry.product_name ? [enquiry.product_name] : [], last_contacted: new Date().toISOString() }]).select().single(); if (error) throw error; customer = data; setCustomers((rows) => [data, ...rows]); } else { await syncCustomer({ ...enquiry, customer_id: customer.id }, stage); } await updateEnquiry(enquiry.id, { customer_id: customer.id, customer_name: customer.name, customer_phone: customer.whatsapp, status: stage }); showToast("Customer linked"); } catch (err) { setError(err.message || "Could not link customer."); } setLinkingId(null); }
   function followUp(enquiry) { moveLead(enquiry, "followed_up", "Follow-up recorded"); const number = enquiry.customer_phone || customerById[enquiry.customer_id]?.whatsapp || ""; const message = `Hi, just following up on your enquiry about ${enquiry.product_name || "my product/service"}. Please let me know if you are still interested.`; if (number) window.open(waLink(number, message), "_blank", "noopener,noreferrer"); }
   if (!business?.id) return <div>Set up your business first. Your public page leads will appear here.</div>;

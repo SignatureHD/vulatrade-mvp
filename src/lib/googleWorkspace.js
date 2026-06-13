@@ -3,6 +3,7 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const SCOPES = [
   "https://www.googleapis.com/auth/drive.file",
   "https://www.googleapis.com/auth/spreadsheets",
+  "https://www.googleapis.com/auth/calendar.events",
 ].join(" ");
 
 let cachedGoogleToken = null;
@@ -867,3 +868,102 @@ export async function updateSalesTrackerHeaders(spreadsheetId) {
     }
   );
 }
+
+
+function bookingDateTimeParts(booking = {}) {
+  const date = booking.booking_date || "";
+  const time = booking.booking_time || "";
+  if (!date) return null;
+
+  if (!time) {
+    return {
+      start: { date },
+      end: { date },
+      allDay: true,
+    };
+  }
+
+  const cleanTime = String(time).slice(0, 5);
+  const start = new Date(`${date}T${cleanTime}:00+02:00`);
+  const durationMinutes = Number(booking.duration_minutes || booking.duration || 60) || 60;
+  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+
+  return {
+    start: {
+      dateTime: `${date}T${cleanTime}:00+02:00`,
+      timeZone: "Africa/Johannesburg",
+    },
+    end: {
+      dateTime: end.toISOString(),
+      timeZone: "Africa/Johannesburg",
+    },
+    allDay: false,
+  };
+}
+
+export async function syncBookingToGoogleCalendar(booking, business = {}) {
+  if (!booking?.booking_date) return null;
+
+  const token = await getGoogleAccessToken();
+  const dateParts = bookingDateTimeParts(booking);
+  if (!dateParts) return null;
+
+  const businessName = business?.name || "VulaTrade";
+  const customerName = booking.customer_name || "Customer";
+  const serviceName = booking.service || "Booking";
+
+  const eventPayload = {
+    summary: `${customerName} - ${serviceName}`,
+    location: business?.area || "",
+    description: [
+      `VulaTrade booking for ${businessName}`,
+      "",
+      `Customer: ${customerName}`,
+      booking.customer_whatsapp ? `WhatsApp: ${booking.customer_whatsapp}` : "",
+      booking.price ? `Price: R${Number(booking.price).toLocaleString()}` : "",
+      booking.deposit ? `Deposit: R${Number(booking.deposit).toLocaleString()}` : "",
+      booking.notes ? `Notes: ${booking.notes}` : "",
+      "",
+      "Created from VulaTrade.",
+    ].filter(Boolean).join("\n"),
+    start: dateParts.start,
+    end: dateParts.end,
+  };
+
+  const existingEventId = booking.google_calendar_event_id;
+
+  if (existingEventId) {
+    try {
+      const updated = await googleFetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(existingEventId)}`,
+        token,
+        {
+          method: "PATCH",
+          body: JSON.stringify(eventPayload),
+        }
+      );
+
+      return {
+        id: updated.id,
+        htmlLink: updated.htmlLink,
+      };
+    } catch (error) {
+      console.warn("Google Calendar update failed, creating a new event instead.", error);
+    }
+  }
+
+  const created = await googleFetch(
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    token,
+    {
+      method: "POST",
+      body: JSON.stringify(eventPayload),
+    }
+  );
+
+  return {
+    id: created.id,
+    htmlLink: created.htmlLink,
+  };
+}
+

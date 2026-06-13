@@ -3,6 +3,7 @@ import { CalendarDays, MessageCircle, Plus, Search } from "lucide-react";
 import { DARK, BOOKING_TIMES, BOOKING_STATUS_CONFIG, inputStyle, labelStyle } from "../../constants";
 import { todayStr, dateLabel } from "../../utils";
 import { supabase } from "../../lib/supabase";
+import { syncBookingToGoogleCalendar } from "../../lib/googleWorkspace";
 
 const BRAND = "#ea4c89";
 
@@ -262,20 +263,72 @@ export function BookingsTab({ business }) {
       status: "confirmed",
     };
 
-    if (editTarget) {
-      const { data } = await supabase.from("bookings").update(payload).eq("id", editTarget.id).select().single();
-      if (data) setBookings((prev) => prev.map((booking) => booking.id === data.id ? data : booking));
-      showToast("Booking updated");
-    } else {
-      const { data } = await supabase.from("bookings").insert([payload]).select().single();
-      if (data) setBookings((prev) => [...prev, data]);
-      showToast("Booking saved");
+    try {
+      if (editTarget) {
+        const { data, error } = await supabase.from("bookings").update(payload).eq("id", editTarget.id).select().single();
+        if (error) throw error;
+
+        let syncedData = data;
+        try {
+          const calendarEvent = await syncBookingToGoogleCalendar(data, business);
+          if (calendarEvent?.id) {
+            const { data: updatedBooking } = await supabase
+              .from("bookings")
+              .update({
+                google_calendar_event_id: calendarEvent.id,
+                google_calendar_event_url: calendarEvent.htmlLink || null,
+                google_calendar_synced_at: new Date().toISOString(),
+              })
+              .eq("id", data.id)
+              .select()
+              .single();
+            syncedData = updatedBooking || data;
+          }
+          showToast(calendarEvent?.id ? "Booking updated and synced to Google Calendar" : "Booking updated");
+        } catch (calendarError) {
+          console.error("Google Calendar sync failed:", calendarError);
+          showToast("Booking updated, but Google Calendar sync failed");
+        }
+
+        setBookings((prev) => prev.map((booking) => booking.id === syncedData.id ? syncedData : booking));
+      } else {
+        const { data, error } = await supabase.from("bookings").insert([payload]).select().single();
+        if (error) throw error;
+
+        let syncedData = data;
+        try {
+          const calendarEvent = await syncBookingToGoogleCalendar(data, business);
+          if (calendarEvent?.id) {
+            const { data: updatedBooking } = await supabase
+              .from("bookings")
+              .update({
+                google_calendar_event_id: calendarEvent.id,
+                google_calendar_event_url: calendarEvent.htmlLink || null,
+                google_calendar_synced_at: new Date().toISOString(),
+              })
+              .eq("id", data.id)
+              .select()
+              .single();
+            syncedData = updatedBooking || data;
+          }
+          showToast(calendarEvent?.id ? "Booking saved and synced to Google Calendar" : "Booking saved");
+        } catch (calendarError) {
+          console.error("Google Calendar sync failed:", calendarError);
+          showToast("Booking saved, but Google Calendar sync failed");
+        }
+
+        setBookings((prev) => [...prev, syncedData]);
+      }
+    } catch (error) {
+      console.error("Booking save failed:", error);
+      showToast("Booking could not be saved");
     }
 
     setSaving(false);
     setShowForm(false);
     setEditTarget(null);
   }
+
 
   async function changeStatus(booking, status) {
     const { data } = await supabase.from("bookings").update({ status }).eq("id", booking.id).select().single();
