@@ -16,7 +16,7 @@ import {
   leadTimeWarning,
   separateMetaVariants,
 } from "../vulaItems";
-import { availableTimesForDate, dateLabel, getUpcomingBookableDates } from "../bookingAvailability";
+import { availableTimesForDate, getUpcomingBookableDates } from "../bookingAvailability";
 
 const FALLBACK_ACCENT = "#ea4c89";
 const SERVICE_SETUP = { item_type: "service", duration_minutes: "45", buffer_minutes: "10" };
@@ -67,8 +67,7 @@ function mergeInterestedIn(current = [], productName = "") {
 }
 function whatsappLink(number, businessName) {
   if (!number) return "#";
-  const text = `Hi ${businessName}, I'm interested in your products/services on VulaTrade.`;
-  return waLink(number, text);
+  return waLink(number, `Hi ${businessName}, I'm interested in your products/services on VulaTrade.`);
 }
 function normaliseVariants(variants = []) {
   const clean = separateMetaVariants(Array.isArray(variants) ? variants : []).variants;
@@ -149,6 +148,9 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
   const badge = productBadge(product || {});
   const status = productStatus(product || {});
   const actionLabel = itemActionLabel(product || {});
+  const soldOut = isSoldOut(product || {});
+  const isService = meta.item_type === "service";
+  const isRestockInterest = soldOut && (meta.item_type === "standard_stock" || meta.item_type === "daily_stock");
   const [selectedVariantId, setSelectedVariantId] = useState(variants[0]?.id || "");
   const [saving, setSaving] = useState(false);
   const [customerName, setCustomerName] = useState("");
@@ -163,9 +165,9 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
   const [bookings, setBookings] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const selectedVariant = variants.find((variant) => variant.id === selectedVariantId) || null;
-  const isService = meta.item_type === "service";
   const bookableDates = useMemo(() => isService ? getUpcomingBookableDates(meta, 7, 21) : [], [isService, meta]);
   const availableTimes = useMemo(() => isService && preferredDate ? availableTimesForDate(meta, preferredDate, bookings) : [], [isService, meta, preferredDate, bookings]);
+  const serviceBlocked = isService && (!preferredDate || !preferredTime);
 
   useEffect(() => { setSelectedVariantId(variants[0]?.id || ""); }, [product?.id]);
   useEffect(() => {
@@ -187,9 +189,7 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
           .from("calendar_busy_blocks")
           .select("booking_date,booking_time,duration_minutes,status")
           .eq("business_id", business.id);
-
         if (busyError) console.warn("Google busy blocks failed", busyError.message);
-
         setBookings([...(data || []), ...(busyBlocks || [])]);
       }
       setLoadingSlots(false);
@@ -255,7 +255,9 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
     const price = selectedVariant?.price ?? product.price ?? null;
     const productName = selectedVariant?.name ? `${product.name} - ${selectedVariant.name}` : product.name;
     const warning = leadTimeWarning(product, neededByDate);
-    const customerNote = warning ? `${notes}${notes ? "\n" : ""}${warning}` : notes;
+    const restockNote = isRestockInterest ? "Customer is asking to be notified about restock / availability." : "";
+    const baseNote = warning ? `${notes}${notes ? "\n" : ""}${warning}` : notes;
+    const customerNote = [baseNote, restockNote].filter(Boolean).join("\n");
     const message = buildItemWhatsAppMessage({ businessName: business.name, product, variant: selectedVariant, customerName: name, customerPhone: phone, neededByDate, preferredDate, preferredTime, notes: customerNote });
 
     setSaving(true);
@@ -277,7 +279,7 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
           marketing_consent: marketingConsent === true,
           consent_date: contactConsent ? new Date().toISOString() : null,
           source: "public_page",
-          status: meta.item_type === "service" ? "booking_requested" : meta.item_type === "made_to_order" ? "price_sent" : "new_enquiry",
+          status: isRestockInterest ? "restock_interest" : meta.item_type === "service" ? "booking_requested" : meta.item_type === "made_to_order" ? "price_sent" : "new_enquiry",
         });
         if (error) console.warn("Lead capture failed", error.message);
       }
@@ -293,16 +295,17 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
       <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}><button type="button" onClick={onClose} aria-label="Close product details" style={{ width:34, height:34, borderRadius:"50%", border:"1px solid #eeeeea", background:"#fbfbfb", color:DARK, fontSize:20, cursor:"pointer", lineHeight:1 }}>×</button></div>
       <div style={{ display:"flex", gap:16, alignItems:"flex-start", marginBottom:18 }}><ProductImage product={product} size={96} /><div style={{ flex:1, minWidth:0 }}><div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}><span style={{ display:"inline-flex", background:`${accent}18`, border:`1px solid ${accent}40`, color:DARK, borderRadius:999, padding:"6px 9px", fontSize:11, fontWeight:950 }}>{badge}</span><span style={{ display:"inline-flex", background:"#fbfbfb", border:"1px solid #eeeeea", color:"#666", borderRadius:999, padding:"6px 9px", fontSize:11, fontWeight:850 }}>{status}</span></div><h3 style={{ margin:"0 0 8px", fontSize:26, lineHeight:1.05, fontWeight:950, color:DARK }}>{product.name}</h3>{productDescription(product) && <p style={{ margin:"0 0 12px", fontSize:14, lineHeight:1.55, color:"#666" }}>{productDescription(product)}</p>}<div style={{ display:"inline-flex", background:`${accent}18`, border:`1px solid ${accent}40`, color:DARK, borderRadius:999, padding:"8px 11px", fontSize:14, fontWeight:950 }}>{productDisplayPrice(product)}</div></div></div>
       {isService && <div style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:16, padding:12, marginBottom:14, fontSize:12, color:"#666", lineHeight:1.5 }}><strong>Usual availability:</strong> {formatAvailability(meta)}</div>}
+      {isRestockInterest && <div style={{ background:"#fff5f7", border:"1px solid #ffd7e4", borderRadius:16, padding:12, marginBottom:14, fontSize:12, color:"#9f1239", lineHeight:1.5, fontWeight:800 }}>This item is sold out, but you can still ask about restock or join the waitlist.</div>}
       {variants.length > 0 && <div style={{ marginBottom:16 }}><div style={{ fontSize:12, fontWeight:950, color:accent, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:9 }}>Choose an option</div><div style={{ display:"grid", gap:9 }}>{variants.map((variant) => { const selected = selectedVariantId === variant.id; return <button key={variant.id} type="button" onClick={() => setSelectedVariantId(variant.id)} style={{ textAlign:"left", border:`1.5px solid ${selected ? accent : "#eeeeea"}`, background:selected ? `${accent}12` : "#fbfbfb", borderRadius:16, padding:12, cursor:"pointer" }}><div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}><span style={{ fontSize:14, fontWeight:900, color:DARK }}>{variant.name}</span>{Number(variant.price) > 0 && <span style={{ fontSize:14, fontWeight:950, color:DARK }}>R{Number(variant.price).toLocaleString()}</span>}</div>{variant.description && <div style={{ fontSize:12, color:"#777", lineHeight:1.45, marginTop:4 }}>{variant.description}</div>}</button>; })}</div></div>}
       <div style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:18, padding:14, marginBottom:14 }}>
         <div style={{ fontSize:15, fontWeight:950, color:DARK, marginBottom:4 }}>{actionLabel}</div>
-        <p style={{ margin:"0 0 12px", fontSize:13, color:"#777", lineHeight:1.55 }}>{isService ? "Choose an available slot, then add your details. The Vula will still confirm the booking." : `Add your details so ${business.name} can reply to the right person. We will then open WhatsApp.`}</p>
+        <p style={{ margin:"0 0 12px", fontSize:13, color:"#777", lineHeight:1.55 }}>{isService ? "Choose an available slot, then add your details. The Vula will still confirm the booking." : isRestockInterest ? `Add your details so ${business.name} can tell you when this is available again. We will then open WhatsApp.` : `Add your details so ${business.name} can reply to the right person. We will then open WhatsApp.`}</p>
         <label style={{ display:"grid", gap:5, fontSize:12, color:"#888", fontWeight:850, marginBottom:10 }}>Your name<input value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="e.g. Sipho" style={{ border:"1px solid #eeeeea", borderRadius:12, padding:"11px 12px", fontSize:14 }} /></label>
         <label style={{ display:"grid", gap:5, fontSize:12, color:"#888", fontWeight:850, marginBottom:10 }}>Your WhatsApp number<input value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} placeholder="e.g. 071 123 4567" style={{ border:"1px solid #eeeeea", borderRadius:12, padding:"11px 12px", fontSize:14 }} /></label>
         {isService && <div style={{ marginBottom:10 }}><div style={{ fontSize:12, color:"#888", fontWeight:900, marginBottom:7 }}>Choose available date</div><div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4 }}>{bookableDates.length === 0 ? <span style={{ fontSize:12, color:"#888" }}>No public booking days set up yet.</span> : bookableDates.map((date) => <button key={date.value} type="button" onClick={() => setPreferredDate(date.value)} style={{ border:`1.5px solid ${preferredDate === date.value ? accent : "#eeeeea"}`, background:preferredDate === date.value ? `${accent}12` : "#fff", color:DARK, borderRadius:12, padding:"9px 11px", minWidth:92, fontSize:12, fontWeight:900, cursor:"pointer" }}>{date.label}</button>)}</div></div>}
         {isService && <div style={{ marginBottom:10 }}><div style={{ fontSize:12, color:"#888", fontWeight:900, marginBottom:7 }}>{loadingSlots ? "Checking booked slots..." : "Choose available time"}</div><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{preferredDate && availableTimes.length === 0 ? <span style={{ fontSize:12, color:"#9f1239", background:"#fff5f7", border:"1px solid #ffd7e4", borderRadius:12, padding:"8px 10px", fontWeight:850 }}>No open slots on this day. Please choose another day.</span> : availableTimes.map((time) => <button key={time} type="button" onClick={() => setPreferredTime(time)} style={{ border:`1.5px solid ${preferredTime === time ? accent : "#eeeeea"}`, background:preferredTime === time ? accent : "#fff", color:preferredTime === time ? accentText : DARK, borderRadius:999, padding:"9px 12px", fontSize:12, fontWeight:950, cursor:"pointer" }}>{time}</button>)}</div></div>}
         {meta.item_type === "made_to_order" && <label style={{ display:"grid", gap:5, fontSize:12, color:"#888", fontWeight:850, marginBottom:10 }}>Needed by date<input type="date" value={neededByDate} onChange={(event) => setNeededByDate(event.target.value)} style={{ border:"1px solid #eeeeea", borderRadius:12, padding:"10px 12px", fontSize:14 }} />{leadTimeWarning(product, neededByDate) && <span style={{ color:"#9f1239", fontSize:11, fontWeight:850 }}>{leadTimeWarning(product, neededByDate)}</span>}</label>}
-        <label style={{ display:"grid", gap:5, fontSize:12, color:"#888", fontWeight:850, marginBottom:10 }}>Message / notes<input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional" style={{ border:"1px solid #eeeeea", borderRadius:12, padding:"11px 12px", fontSize:14 }} /></label>
+        <label style={{ display:"grid", gap:5, fontSize:12, color:"#888", fontWeight:850, marginBottom:10 }}>Message / notes<input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={isRestockInterest ? "Optional: size, colour or how many you wanted" : "Optional"} style={{ border:"1px solid #eeeeea", borderRadius:12, padding:"11px 12px", fontSize:14 }} /></label>
         <label style={{ display:"flex", alignItems:"flex-start", gap:9, fontSize:11, color:"#666", lineHeight:1.45, background:"#fff", border:"1px solid #eeeeea", borderRadius:12, padding:"10px 11px", marginBottom:8, cursor:"pointer" }}>
           <input type="checkbox" checked={contactConsent} onChange={(event) => setContactConsent(event.target.checked)} style={{ marginTop:2 }} />
           <span>I agree that {business.name} may use my details to reply to this enquiry and contact me about this product/service by WhatsApp, phone, SMS or email where relevant.</span>
@@ -313,7 +316,7 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
         </label>
         {formError && <div style={{ color:"#9f1239", background:"#fff5f7", border:"1px solid #ffd7e4", borderRadius:12, padding:"9px 10px", marginTop:10, fontSize:12, fontWeight:800 }}>{formError}</div>}
       </div>
-      {business.whatsapp ? <button type="button" onClick={handleWhatsAppEnquiry} disabled={saving || isSoldOut(product) || (isService && (!preferredDate || !preferredTime))} style={{ width:"100%", display:"block", textAlign:"center", background:isSoldOut(product) || (isService && (!preferredDate || !preferredTime)) ? "#d8d8d4" : accent, color:isSoldOut(product) || (isService && (!preferredDate || !preferredTime)) ? "#777" : accentText, borderRadius:16, padding:"15px 18px", fontSize:15, fontWeight:950, border:"none", cursor:isSoldOut(product) || (isService && (!preferredDate || !preferredTime)) ? "not-allowed" : "pointer", boxShadow:isSoldOut(product) ? "none" : `0 12px 30px ${accent}36` }}>{saving ? "Saving lead..." : isSoldOut(product) ? "Sold out" : `Continue to WhatsApp`}</button> : <div style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:16, padding:14, fontSize:13, color:"#888", textAlign:"center" }}>WhatsApp number not available.</div>}
+      {business.whatsapp ? <button type="button" onClick={handleWhatsAppEnquiry} disabled={saving || serviceBlocked} style={{ width:"100%", display:"block", textAlign:"center", background:serviceBlocked ? "#d8d8d4" : accent, color:serviceBlocked ? "#777" : accentText, borderRadius:16, padding:"15px 18px", fontSize:15, fontWeight:950, border:"none", cursor:serviceBlocked ? "not-allowed" : "pointer", boxShadow:serviceBlocked ? "none" : `0 12px 30px ${accent}36` }}>{saving ? "Saving lead..." : isRestockInterest ? "Continue to WhatsApp" : "Continue to WhatsApp"}</button> : <div style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:16, padding:14, fontSize:13, color:"#888", textAlign:"center" }}>WhatsApp number not available.</div>}
     </div>
   </div>;
 }
