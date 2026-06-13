@@ -66,6 +66,120 @@ export async function getGoogleAccessToken() {
   });
 }
 
+
+async function polishTrackerDataRows(spreadsheetId, token) {
+  const charcoal = { red: 0.1255, green: 0.1255, blue: 0.1294 };
+  const white = { red: 1, green: 1, blue: 1 };
+
+  const sheetConfigs = [
+    { id: 0, columns: 11, dateColumns: [[0, 1]], moneyColumns: [[5, 6]] },
+    { id: 1, columns: 11, dateColumns: [[8, 9]], moneyColumns: [[5, 7]], numberColumns: [[2, 5]] },
+    { id: 2, columns: 12, dateColumns: [[0, 1]], moneyColumns: [[4, 6]], numberColumns: [[3, 4]] },
+    { id: 3, columns: 8, dateColumns: [[3, 4]], moneyColumns: [[4, 5]] },
+  ];
+
+  const requests = sheetConfigs.flatMap((sheet) => {
+    const base = [
+      {
+        repeatCell: {
+          range: {
+            sheetId: sheet.id,
+            startRowIndex: 1,
+            endRowIndex: 1000,
+            startColumnIndex: 0,
+            endColumnIndex: sheet.columns,
+          },
+          cell: {
+            userEnteredFormat: {
+              backgroundColor: white,
+              textFormat: {
+                foregroundColor: charcoal,
+                bold: false,
+              },
+              horizontalAlignment: "CENTER",
+              verticalAlignment: "MIDDLE",
+              wrapStrategy: "WRAP",
+            },
+          },
+          fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)",
+        },
+      },
+    ];
+
+    (sheet.dateColumns || []).forEach(([start, end]) => {
+      base.push({
+        repeatCell: {
+          range: {
+            sheetId: sheet.id,
+            startRowIndex: 1,
+            endRowIndex: 1000,
+            startColumnIndex: start,
+            endColumnIndex: end,
+          },
+          cell: {
+            userEnteredFormat: {
+              numberFormat: { type: "DATE", pattern: "dd/mm/yyyy" },
+            },
+          },
+          fields: "userEnteredFormat.numberFormat",
+        },
+      });
+    });
+
+    (sheet.moneyColumns || []).forEach(([start, end]) => {
+      base.push({
+        repeatCell: {
+          range: {
+            sheetId: sheet.id,
+            startRowIndex: 1,
+            endRowIndex: 1000,
+            startColumnIndex: start,
+            endColumnIndex: end,
+          },
+          cell: {
+            userEnteredFormat: {
+              numberFormat: { type: "CURRENCY", pattern: '"R"#,##0.00' },
+            },
+          },
+          fields: "userEnteredFormat.numberFormat",
+        },
+      });
+    });
+
+    (sheet.numberColumns || []).forEach(([start, end]) => {
+      base.push({
+        repeatCell: {
+          range: {
+            sheetId: sheet.id,
+            startRowIndex: 1,
+            endRowIndex: 1000,
+            startColumnIndex: start,
+            endColumnIndex: end,
+          },
+          cell: {
+            userEnteredFormat: {
+              numberFormat: { type: "NUMBER", pattern: "#,##0" },
+            },
+          },
+          fields: "userEnteredFormat.numberFormat",
+        },
+      });
+    });
+
+    return base;
+  });
+
+  await googleFetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+    token,
+    {
+      method: "POST",
+      body: JSON.stringify({ requests }),
+    }
+  );
+}
+
+
 async function googleFetch(url, token, options = {}) {
   const response = await fetch(url, {
     ...options,
@@ -503,6 +617,7 @@ export async function updateCustomerSummaryInGoogleSheet(spreadsheetId, customer
       }
     );
 
+    await polishTrackerDataRows(spreadsheetId, token);
     return true;
   }
 
@@ -512,6 +627,57 @@ export async function updateCustomerSummaryInGoogleSheet(spreadsheetId, customer
     total_spent: totalSpend,
   });
 
+  return true;
+}
+
+
+export async function upsertCustomerToGoogleSheet(spreadsheetId, customer) {
+  if (!spreadsheetId || !customer?.id) return false;
+
+  const token = await getGoogleAccessToken();
+
+  const values = [[
+    customer.name || "",
+    customer.whatsapp || customer.phone || customer.cellphone || customer.mobile || "",
+    customer.contact_consent === true || customer.whatsapp_consent === true ? "Yes" : customer.contact_consent === false || customer.whatsapp_consent === false ? "No" : "",
+    customer.last_purchase || "",
+    customer.total_spent || 0,
+    customer.notes || "",
+    "VulaTrade",
+    customer.id || "",
+  ]];
+
+  const existing = await googleFetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Customer%20Tracker!H2:H`,
+    token
+  );
+
+  const rows = existing.values || [];
+  const rowIndex = rows.findIndex((row) => row?.[0] === customer.id);
+
+  if (rowIndex >= 0) {
+    const sheetRowNumber = rowIndex + 2;
+
+    await googleFetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Customer%20Tracker!A${sheetRowNumber}:H${sheetRowNumber}?valueInputOption=USER_ENTERED`,
+      token,
+      {
+        method: "PUT",
+        body: JSON.stringify({ values }),
+      }
+    );
+  } else {
+    await googleFetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Customer%20Tracker!A:H:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+      token,
+      {
+        method: "POST",
+        body: JSON.stringify({ values }),
+      }
+    );
+  }
+
+  await polishTrackerDataRows(spreadsheetId, token);
   return true;
 }
 
@@ -525,7 +691,7 @@ export async function appendCustomerToGoogleSheet(spreadsheetId, customer) {
   const values = [[
     customer.name || "",
     customer.whatsapp || customer.phone || customer.cellphone || customer.mobile || "",
-    customer.whatsapp_consent === true ? "Yes" : customer.whatsapp_consent === false ? "No" : "",
+    customer.contact_consent === true || customer.whatsapp_consent === true ? "Yes" : customer.contact_consent === false || customer.whatsapp_consent === false ? "No" : "",
     customer.last_purchase || "",
     customer.total_spent || 0,
     customer.notes || "",
@@ -533,7 +699,7 @@ export async function appendCustomerToGoogleSheet(spreadsheetId, customer) {
     customer.id || "",
   ]];
 
-  return googleFetch(
+  const result = await googleFetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Customer%20Tracker!A:H:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
     token,
     {
@@ -541,6 +707,9 @@ export async function appendCustomerToGoogleSheet(spreadsheetId, customer) {
       body: JSON.stringify({ values }),
     }
   );
+
+  await polishTrackerDataRows(spreadsheetId, token);
+  return result;
 }
 
 export async function appendExpenseToGoogleSheet(spreadsheetId, expense) {
@@ -564,7 +733,7 @@ export async function appendExpenseToGoogleSheet(spreadsheetId, expense) {
     expense.id || "",
   ]];
 
-  return googleFetch(
+  const result = await googleFetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Expense%20Tracker!A:K:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
     token,
     {
@@ -572,6 +741,9 @@ export async function appendExpenseToGoogleSheet(spreadsheetId, expense) {
       body: JSON.stringify({ values }),
     }
   );
+
+  await polishTrackerDataRows(spreadsheetId, token);
+  return result;
 }
 
 export async function appendStockToGoogleSheet(spreadsheetId, product) {
@@ -612,7 +784,7 @@ export async function appendStockToGoogleSheet(spreadsheetId, product) {
     product.id || "",
   ]];
 
-  return googleFetch(
+  const result = await googleFetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Stock%20Tracker!A:K:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
     token,
     {
@@ -620,6 +792,9 @@ export async function appendStockToGoogleSheet(spreadsheetId, product) {
       body: JSON.stringify({ values }),
     }
   );
+
+  await polishTrackerDataRows(spreadsheetId, token);
+  return result;
 }
 
 export async function appendSaleToGoogleSheet(spreadsheetId, sale) {
@@ -648,7 +823,7 @@ export async function appendSaleToGoogleSheet(spreadsheetId, sale) {
     sale.id || "",
   ]];
 
-  return googleFetch(
+  const result = await googleFetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sales%20Tracker!A:L:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
     token,
     {
@@ -656,6 +831,9 @@ export async function appendSaleToGoogleSheet(spreadsheetId, sale) {
       body: JSON.stringify({ values }),
     }
   );
+
+  await polishTrackerDataRows(spreadsheetId, token);
+  return result;
 }
 
 export async function updateSalesTrackerHeaders(spreadsheetId) {

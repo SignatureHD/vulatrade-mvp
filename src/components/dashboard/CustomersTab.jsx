@@ -4,7 +4,10 @@ import { DARK, inputStyle, labelStyle, PAYMENT_METHODS, PAYMENT_STATUSES } from 
 import { CUSTOMER_JOURNEY, DEFAULT_CUSTOMER_TAGS, journeyConfig, journeyForCustomer, statusPatchForJourney, tagsForCustomer } from "../../customerJourney";
 import { formatPhone, timeAgo, waLink } from "../../utils";
 import { supabase } from "../../lib/supabase";
-import { appendCustomerToGoogleSheet, getBusinessGoogleSpreadsheetId } from "../../lib/googleWorkspace";
+import {
+appendCustomerToGoogleSheet, getBusinessGoogleSpreadsheetId,
+  upsertCustomerToGoogleSheet,
+} from "../../lib/googleWorkspace";
 import { StatusBadge } from "../ui";
 
 const BRAND = "#ea4c89";
@@ -55,7 +58,7 @@ function WhatsAppModal({ customer, onClose }) {
 }
 
 function CustomerForm({ initial = {}, onSave, onCancel, saving, businessProducts }) {
-  const [form, setForm] = useState({ name: initial.name || "", whatsapp: initial.whatsapp || "", area: initial.area || "", notes: initial.notes || "", journey: journeyForCustomer(initial), tags: tagsForCustomer(initial), interested_in: initial.interested_in || [] });
+  const [form, setForm] = useState({ name: initial.name || "", whatsapp: initial.whatsapp || "", whatsapp_consent: initial.whatsapp_consent === true, area: initial.area || "", notes: initial.notes || "", journey: journeyForCustomer(initial), tags: tagsForCustomer(initial), interested_in: initial.interested_in || [] });
   function upd(key, value) { setForm((prev) => ({ ...prev, [key]: value })); }
   function toggleTag(tag) { setForm((prev) => ({ ...prev, tags: prev.tags.includes(tag) ? prev.tags.filter((item) => item !== tag) : [...prev.tags, tag] })); }
   function toggleProduct(productName) { setForm((prev) => ({ ...prev, interested_in: prev.interested_in.includes(productName) ? prev.interested_in.filter((item) => item !== productName) : [...prev.interested_in, productName] })); }
@@ -65,6 +68,14 @@ function CustomerForm({ initial = {}, onSave, onCancel, saving, businessProducts
     <div><label style={labelStyle}>Smart tags</label><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{DEFAULT_CUSTOMER_TAGS.map((tag) => <button key={tag} onClick={() => toggleTag(tag)} style={{ padding: "8px 14px", borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: "pointer", border: `1.5px solid ${form.tags.includes(tag) ? "#ea4c89" : "#e0e0e0"}`, background: form.tags.includes(tag) ? "#fff5f9" : "#fff", color: form.tags.includes(tag) ? "#d93f7b" : "#888" }}>{tag}</button>)}</div></div>
     <div><label style={labelStyle}>Name *</label><input style={inputStyle} placeholder="Customer name" value={form.name} onChange={(event) => upd("name", event.target.value)} autoFocus /></div>
     <div><label style={labelStyle}>WhatsApp number</label><input style={inputStyle} placeholder="+27 82 000 0000" value={form.whatsapp} onChange={(event) => upd("whatsapp", event.target.value)} /></div>
+    <label style={{ display:"flex", alignItems:"center", gap:10, fontSize:13, fontWeight:700, color:"#555", background:"#fff5f9", border:"1px solid #f8b8d2", borderRadius:12, padding:"10px 12px", cursor:"pointer" }}>
+      <input type="checkbox" checked={form.whatsapp_consent} onChange={(event) => upd("whatsapp_consent", event.target.checked)} />
+      Customer gave contact consent
+    </label>
+    <label style={{ display:"flex", alignItems:"center", gap:10, fontSize:13, fontWeight:700, color:"#555", background:"#fff5f9", border:"1px solid #f8b8d2", borderRadius:12, padding:"10px 12px", cursor:"pointer" }}>
+      <input type="checkbox" checked={form.whatsapp_consent} onChange={(event) => upd("whatsapp_consent", event.target.checked)} />
+      Customer gave WhatsApp consent
+    </label>
     <div><label style={labelStyle}>Area / Neighbourhood</label><input style={inputStyle} placeholder="e.g. Soweto, Sandton" value={form.area} onChange={(event) => upd("area", event.target.value)} /></div>
     {businessProducts?.length > 0 && <div><label style={labelStyle}>Interested in</label><div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>{businessProducts.map((product) => { const selected = form.interested_in.includes(product.name); return <button key={product.id} onClick={() => toggleProduct(product.name)} style={{ padding: "8px 14px", borderRadius: 12, border: `1.5px solid ${selected ? BRAND : "#e0e0e0"}`, background: selected ? "#fff5f9" : "#fff", cursor: "pointer", color: selected ? "#d93f7b" : "#555", fontSize: 13, fontWeight: 700 }}>{product.name}{selected ? " ✓" : ""}</button>; })}</div></div>}
     <div><label style={labelStyle}>Notes</label><textarea style={{ ...inputStyle, minHeight: 72, resize: "vertical" }} placeholder="Preferences, follow-up notes, anything useful" value={form.notes} onChange={(event) => upd("notes", event.target.value)} /></div>
@@ -124,6 +135,7 @@ export function CustomersTab({ business, onMessageCustomer, onAddSaleForCustomer
     });
   }, [business?.id]);
 
+
   async function syncCustomerToGoogle(customer) {
     try {
       if (!business?.id || !customer?.id) return false;
@@ -131,7 +143,7 @@ export function CustomersTab({ business, onMessageCustomer, onAddSaleForCustomer
       const spreadsheetId = await getBusinessGoogleSpreadsheetId(supabase, business.id);
       if (!spreadsheetId) return false;
 
-      await appendCustomerToGoogleSheet(spreadsheetId, customer);
+      await upsertCustomerToGoogleSheet(spreadsheetId, customer);
       return true;
     } catch (syncError) {
       console.error("Google customer sync:", syncError);
@@ -141,22 +153,70 @@ export function CustomersTab({ business, onMessageCustomer, onAddSaleForCustomer
 
   const filtered = customers.filter((customer) => { const q = search.toLowerCase(); const matchSearch = !q || customer.name?.toLowerCase().includes(q) || customer.whatsapp?.includes(q) || customer.area?.toLowerCase().includes(q); const matchStatus = filterStatus === "all" || journeyForCustomer(customer) === filterStatus; return matchSearch && matchStatus; }).sort((a, b) => sortBy === "spent" ? (b.total_spent || 0) - (a.total_spent || 0) : sortBy === "name" ? a.name.localeCompare(b.name) : new Date(b.created_at) - new Date(a.created_at));
   async function handleSave(form) {
-    if (!business?.id) return; setSaving(true);
-    const payload = { name: form.name.trim(), whatsapp: formatPhone(form.whatsapp), area: form.area.trim(), notes: form.notes.trim(), stage: form.journey, status: form.journey, tags: form.tags, interested_in: form.interested_in };
-    if (editTarget) { const { data, error } = await supabase.from("customers").update(payload).eq("id", editTarget.id).select().single(); if (error) console.error("Update error:", error); if (data) setCustomers((prev) => prev.map((customer) => customer.id === data.id ? data : customer)); showToast("Customer updated"); }
-    else {
-      const { data, error } = await supabase.from("customers").insert([{ ...payload, business_id: business.id }]).select().single();
-      if (error) console.error("Insert error:", error);
-      if (data) {
-        const synced = await syncCustomerToGoogle(data);
-        setCustomers((prev) => [data, ...prev]);
-        showToast(synced ? "Customer added and synced to Google Sheets." : "Customer added");
+    if (!business?.id) return;
+
+    setSaving(true);
+
+    const consentGiven = form.whatsapp_consent === true;
+    const payload = {
+      name: form.name.trim(),
+      whatsapp: formatPhone(form.whatsapp),
+      whatsapp_consent: consentGiven,
+      contact_consent: consentGiven,
+      consent_source: consentGiven ? "dashboard" : null,
+      consent_date: consentGiven ? new Date().toISOString() : null,
+      area: form.area.trim(),
+      notes: form.notes.trim(),
+      stage: form.journey,
+      status: form.journey,
+      tags: form.tags,
+      interested_in: form.interested_in,
+    };
+
+    try {
+      if (editTarget) {
+        const { data, error } = await supabase
+          .from("customers")
+          .update(payload)
+          .eq("id", editTarget.id)
+          .select()
+          .single();
+
+        if (error) {
+          console.error("Update error:", error);
+          showToast("Customer could not be updated");
+        }
+
+        if (data) {
+          const synced = await syncCustomerToGoogle(data);
+          setCustomers((prev) => prev.map((customer) => customer.id === data.id ? data : customer));
+          showToast(synced ? "Customer updated and synced to Google Sheets." : "Customer updated");
+        }
       } else {
-        showToast("Customer added");
+        const { data, error } = await supabase
+          .from("customers")
+          .insert([{ ...payload, business_id: business.id }])
+          .select()
+          .single();
+
+        if (error) {
+          console.error("Insert error:", error);
+          showToast("Customer could not be added");
+        }
+
+        if (data) {
+          const synced = await syncCustomerToGoogle(data);
+          setCustomers((prev) => [data, ...prev]);
+          showToast(synced ? "Customer added and synced to Google Sheets." : "Customer added");
+        }
       }
+    } finally {
+      setSaving(false);
+      setMode("list");
+      setEditTarget(null);
     }
-    setSaving(false); setMode("list"); setEditTarget(null);
   }
+
   async function handleDelete(customer) { if (!window.confirm(`Delete ${customer.name}?`)) return; await supabase.from("customers").delete().eq("id", customer.id); setCustomers((prev) => prev.filter((item) => item.id !== customer.id)); showToast("Customer deleted"); }
   async function handleJourneyChange(customer, newStage) { const patch = statusPatchForJourney(newStage, customer); const { data } = await supabase.from("customers").update({ ...patch, status: patch.stage }).eq("id", customer.id).select().single(); if (data) setCustomers((prev) => prev.map((item) => item.id === data.id ? data : item)); showToast(`${customer.name} moved to ${journeyConfig(newStage).label}`); }
   function handleMessageCustomer(customer) { if (onMessageCustomer) { onMessageCustomer(customer); return; } setMessageFor(customer); }

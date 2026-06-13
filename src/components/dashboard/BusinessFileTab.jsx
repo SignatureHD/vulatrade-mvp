@@ -293,6 +293,83 @@ function currentProductStock(product) {
 }
 
 
+
+async function polishTrackerDataRowsInBusinessFile(accessToken, spreadsheetId) {
+  const charcoal = { red: 0.1255, green: 0.1255, blue: 0.1294 };
+  const white = { red: 1, green: 1, blue: 1 };
+
+  const sheetConfigs = [
+    { id: 0, columns: 11, dateColumns: [[0, 1]], moneyColumns: [[5, 6]] },
+    { id: 1, columns: 11, dateColumns: [[8, 9]], moneyColumns: [[5, 7]], numberColumns: [[2, 5]] },
+    { id: 2, columns: 12, dateColumns: [[0, 1]], moneyColumns: [[4, 6]], numberColumns: [[3, 4]] },
+    { id: 3, columns: 8, dateColumns: [[3, 4]], moneyColumns: [[4, 5]] },
+  ];
+
+  const requests = sheetConfigs.flatMap((sheet) => {
+    const base = [
+      {
+        repeatCell: {
+          range: {
+            sheetId: sheet.id,
+            startRowIndex: 1,
+            endRowIndex: 1000,
+            startColumnIndex: 0,
+            endColumnIndex: sheet.columns,
+          },
+          cell: {
+            userEnteredFormat: {
+              backgroundColor: white,
+              textFormat: { foregroundColor: charcoal, bold: false },
+              horizontalAlignment: "CENTER",
+              verticalAlignment: "MIDDLE",
+              wrapStrategy: "WRAP",
+            },
+          },
+          fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)",
+        },
+      },
+    ];
+
+    (sheet.dateColumns || []).forEach(([start, end]) => {
+      base.push({
+        repeatCell: {
+          range: { sheetId: sheet.id, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: start, endColumnIndex: end },
+          cell: { userEnteredFormat: { numberFormat: { type: "DATE", pattern: "dd/mm/yyyy" } } },
+          fields: "userEnteredFormat.numberFormat",
+        },
+      });
+    });
+
+    (sheet.moneyColumns || []).forEach(([start, end]) => {
+      base.push({
+        repeatCell: {
+          range: { sheetId: sheet.id, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: start, endColumnIndex: end },
+          cell: { userEnteredFormat: { numberFormat: { type: "CURRENCY", pattern: '"R"#,##0.00' } } },
+          fields: "userEnteredFormat.numberFormat",
+        },
+      });
+    });
+
+    (sheet.numberColumns || []).forEach(([start, end]) => {
+      base.push({
+        repeatCell: {
+          range: { sheetId: sheet.id, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: start, endColumnIndex: end },
+          cell: { userEnteredFormat: { numberFormat: { type: "NUMBER", pattern: "#,##0" } } },
+          fields: "userEnteredFormat.numberFormat",
+        },
+      });
+    });
+
+    return base;
+  });
+
+  await googleFetch(accessToken, `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+    method:"POST",
+    body:JSON.stringify({ requests }),
+  });
+}
+
+
 async function existingSheetIds(accessToken, spreadsheetId, sheetName, idColumn) {
   try {
     const data = await googleFetch(
@@ -439,6 +516,8 @@ async function backfillWorkspaceTrackers(accessToken, spreadsheetId, businessId)
     appendBackfillRows(accessToken, spreadsheetId, "Sales Tracker", "L", saleRows, { idColumn:"L", idIndex:11 }),
     appendBackfillRows(accessToken, spreadsheetId, "Customer Tracker", "H", customerRows, { idColumn:"H", idIndex:7 }),
   ]);
+
+  await polishTrackerDataRowsInBusinessFile(accessToken, spreadsheetId);
 
   return {
     stockCount,

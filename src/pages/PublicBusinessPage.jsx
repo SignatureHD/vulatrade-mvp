@@ -157,6 +157,8 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
   const [preferredTime, setPreferredTime] = useState("");
   const [neededByDate, setNeededByDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [contactConsent, setContactConsent] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [formError, setFormError] = useState("");
   const [bookings, setBookings] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -195,17 +197,41 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
 
   if (!product) return null;
 
-  async function findOrCreateCustomer({ name, phone, productName }) {
+  async function findOrCreateCustomer({ name, phone, productName, contactConsent, marketingConsent }) {
     if (!business?.id || String(business.id).startsWith("nomsa")) return null;
     const { data: existingCustomers, error: customerLoadError } = await supabase.from("customers").select("*").eq("business_id", business.id);
     if (customerLoadError) return null;
     const matchedCustomer = (existingCustomers || []).find((customer) => samePhone(customer.whatsapp, phone));
     if (matchedCustomer) {
-      const patch = { name: matchedCustomer.name || name, whatsapp: formatPhone(matchedCustomer.whatsapp || phone), interested_in: mergeInterestedIn(matchedCustomer.interested_in, productName), last_contacted: new Date().toISOString() };
+      const patch = {
+        name: matchedCustomer.name || name,
+        whatsapp: formatPhone(matchedCustomer.whatsapp || phone),
+        whatsapp_consent: contactConsent === true,
+        contact_consent: contactConsent === true,
+        marketing_consent: marketingConsent === true,
+        consent_source: "public_page",
+        consent_date: contactConsent ? new Date().toISOString() : matchedCustomer.consent_date || null,
+        interested_in: mergeInterestedIn(matchedCustomer.interested_in, productName),
+        last_contacted: new Date().toISOString(),
+      };
       const { data: updatedCustomer } = await supabase.from("customers").update(patch).eq("id", matchedCustomer.id).select().single();
       return updatedCustomer || matchedCustomer;
     }
-    const { data: newCustomer } = await supabase.from("customers").insert([{ business_id: business.id, name, whatsapp: phone, area: "", notes: `Created from public lead about ${productName}.`, status: "lead", interested_in: productName ? [productName] : [], last_contacted: new Date().toISOString() }]).select().single();
+    const { data: newCustomer } = await supabase.from("customers").insert([{
+      business_id: business.id,
+      name,
+      whatsapp: phone,
+      whatsapp_consent: contactConsent === true,
+      contact_consent: contactConsent === true,
+      marketing_consent: marketingConsent === true,
+      consent_source: "public_page",
+      consent_date: contactConsent ? new Date().toISOString() : null,
+      area: "",
+      notes: `Created from public lead about ${productName}.`,
+      status: "lead",
+      interested_in: productName ? [productName] : [],
+      last_contacted: new Date().toISOString(),
+    }]).select().single();
     return newCustomer || null;
   }
 
@@ -215,6 +241,7 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
     const phone = formatPhone(customerPhone.trim());
     if (!name) return setFormError("Please add your name before continuing.");
     if (!phone) return setFormError("Please add your WhatsApp number before continuing.");
+    if (!contactConsent) return setFormError("Please confirm that the business may contact you about this enquiry.");
     if (isService && !preferredDate) return setFormError("Please choose a booking date.");
     if (isService && !preferredTime) return setFormError("Please choose an available time.");
 
@@ -227,7 +254,7 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
     setSaving(true);
     setFormError("");
     try {
-      const customer = await findOrCreateCustomer({ name, phone, productName });
+      const customer = await findOrCreateCustomer({ name, phone, productName, contactConsent, marketingConsent });
       if (business?.id && !String(business.id).startsWith("nomsa")) {
         const { error } = await supabase.from("enquiries").insert({
           business_id: business.id,
@@ -239,6 +266,9 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
           product_price: Number(price || 0) || null,
           message,
           notes: customerNote,
+          contact_consent: contactConsent === true,
+          marketing_consent: marketingConsent === true,
+          consent_date: contactConsent ? new Date().toISOString() : null,
           source: "public_page",
           status: meta.item_type === "service" ? "booking_requested" : meta.item_type === "made_to_order" ? "price_sent" : "new_enquiry",
         });
@@ -265,7 +295,15 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
         {isService && <div style={{ marginBottom:10 }}><div style={{ fontSize:12, color:"#888", fontWeight:900, marginBottom:7 }}>Choose available date</div><div style={{ display:"flex", gap:8, overflowX:"auto", paddingBottom:4 }}>{bookableDates.length === 0 ? <span style={{ fontSize:12, color:"#888" }}>No public booking days set up yet.</span> : bookableDates.map((date) => <button key={date.value} type="button" onClick={() => setPreferredDate(date.value)} style={{ border:`1.5px solid ${preferredDate === date.value ? accent : "#eeeeea"}`, background:preferredDate === date.value ? `${accent}12` : "#fff", color:DARK, borderRadius:12, padding:"9px 11px", minWidth:92, fontSize:12, fontWeight:900, cursor:"pointer" }}>{date.label}</button>)}</div></div>}
         {isService && <div style={{ marginBottom:10 }}><div style={{ fontSize:12, color:"#888", fontWeight:900, marginBottom:7 }}>{loadingSlots ? "Checking booked slots..." : "Choose available time"}</div><div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>{preferredDate && availableTimes.length === 0 ? <span style={{ fontSize:12, color:"#9f1239", background:"#fff5f7", border:"1px solid #ffd7e4", borderRadius:12, padding:"8px 10px", fontWeight:850 }}>No open slots on this day. Please choose another day.</span> : availableTimes.map((time) => <button key={time} type="button" onClick={() => setPreferredTime(time)} style={{ border:`1.5px solid ${preferredTime === time ? accent : "#eeeeea"}`, background:preferredTime === time ? accent : "#fff", color:preferredTime === time ? accentText : DARK, borderRadius:999, padding:"9px 12px", fontSize:12, fontWeight:950, cursor:"pointer" }}>{time}</button>)}</div></div>}
         {meta.item_type === "made_to_order" && <label style={{ display:"grid", gap:5, fontSize:12, color:"#888", fontWeight:850, marginBottom:10 }}>Needed by date<input type="date" value={neededByDate} onChange={(event) => setNeededByDate(event.target.value)} style={{ border:"1px solid #eeeeea", borderRadius:12, padding:"10px 12px", fontSize:14 }} />{leadTimeWarning(product, neededByDate) && <span style={{ color:"#9f1239", fontSize:11, fontWeight:850 }}>{leadTimeWarning(product, neededByDate)}</span>}</label>}
-        <label style={{ display:"grid", gap:5, fontSize:12, color:"#888", fontWeight:850 }}>Message / notes<input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional" style={{ border:"1px solid #eeeeea", borderRadius:12, padding:"11px 12px", fontSize:14 }} /></label>
+        <label style={{ display:"grid", gap:5, fontSize:12, color:"#888", fontWeight:850, marginBottom:10 }}>Message / notes<input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional" style={{ border:"1px solid #eeeeea", borderRadius:12, padding:"11px 12px", fontSize:14 }} /></label>
+        <label style={{ display:"flex", alignItems:"flex-start", gap:9, fontSize:11, color:"#666", lineHeight:1.45, background:"#fff", border:"1px solid #eeeeea", borderRadius:12, padding:"10px 11px", marginBottom:8, cursor:"pointer" }}>
+          <input type="checkbox" checked={contactConsent} onChange={(event) => setContactConsent(event.target.checked)} style={{ marginTop:2 }} />
+          <span>I agree that {business.name} may use my details to reply to this enquiry and contact me about this product/service by WhatsApp, phone, SMS or email where relevant.</span>
+        </label>
+        <label style={{ display:"flex", alignItems:"flex-start", gap:9, fontSize:11, color:"#777", lineHeight:1.45, background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:12, padding:"10px 11px", cursor:"pointer" }}>
+          <input type="checkbox" checked={marketingConsent} onChange={(event) => setMarketingConsent(event.target.checked)} style={{ marginTop:2 }} />
+          <span>Send me occasional specials and updates from {business.name}. Optional.</span>
+        </label>
         {formError && <div style={{ color:"#9f1239", background:"#fff5f7", border:"1px solid #ffd7e4", borderRadius:12, padding:"9px 10px", marginTop:10, fontSize:12, fontWeight:800 }}>{formError}</div>}
       </div>
       {business.whatsapp ? <button type="button" onClick={handleWhatsAppEnquiry} disabled={saving || isSoldOut(product) || (isService && (!preferredDate || !preferredTime))} style={{ width:"100%", display:"block", textAlign:"center", background:isSoldOut(product) || (isService && (!preferredDate || !preferredTime)) ? "#d8d8d4" : accent, color:isSoldOut(product) || (isService && (!preferredDate || !preferredTime)) ? "#777" : accentText, borderRadius:16, padding:"15px 18px", fontSize:15, fontWeight:950, border:"none", cursor:isSoldOut(product) || (isService && (!preferredDate || !preferredTime)) ? "not-allowed" : "pointer", boxShadow:isSoldOut(product) ? "none" : `0 12px 30px ${accent}36` }}>{saving ? "Saving lead..." : isSoldOut(product) ? "Sold out" : `Continue to WhatsApp`}</button> : <div style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:16, padding:14, fontSize:13, color:"#888", textAlign:"center" }}>WhatsApp number not available.</div>}
