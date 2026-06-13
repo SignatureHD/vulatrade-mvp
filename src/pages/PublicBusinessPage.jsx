@@ -183,7 +183,14 @@ function ProductDetailModal({ product, business, accent, accentText, onClose }) 
         console.warn("Public booking slots failed", error.message);
         setBookings([]);
       } else {
-        setBookings(data || []);
+        const { data: busyBlocks, error: busyError } = await supabase
+          .from("calendar_busy_blocks")
+          .select("booking_date,booking_time,duration_minutes,status")
+          .eq("business_id", business.id);
+
+        if (busyError) console.warn("Google busy blocks failed", busyError.message);
+
+        setBookings([...(data || []), ...(busyBlocks || [])]);
       }
       setLoadingSlots(false);
     }

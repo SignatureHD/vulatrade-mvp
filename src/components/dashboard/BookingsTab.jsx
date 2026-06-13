@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { CalendarDays, MessageCircle, Plus, Search } from "lucide-react";
+import { CalendarDays, MessageCircle, Plus, RefreshCw, Search } from "lucide-react";
 import { DARK, BOOKING_TIMES, BOOKING_STATUS_CONFIG, inputStyle, labelStyle } from "../../constants";
 import { todayStr, dateLabel } from "../../utils";
 import { supabase } from "../../lib/supabase";
-import { syncBookingToGoogleCalendar } from "../../lib/googleWorkspace";
+import { syncBookingToGoogleCalendar, syncGoogleCalendarBusyBlocks } from "../../lib/googleWorkspace";
 
 const BRAND = "#ea4c89";
 
@@ -194,6 +194,7 @@ export function BookingsTab({ business }) {
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [refreshingAvailability, setRefreshingAvailability] = useState(false);
   const [filter, setFilter] = useState("today");
   const [toast, setToast] = useState("");
   const today = todayStr();
@@ -215,6 +216,20 @@ export function BookingsTab({ business }) {
   function showToast(message) {
     setToast(message);
     setTimeout(() => setToast(""), 2800);
+  }
+
+
+  async function refreshGoogleAvailability() {
+    if (!business?.id) return;
+    setRefreshingAvailability(true);
+    try {
+      const count = await syncGoogleCalendarBusyBlocks(supabase, business.id, 30);
+      showToast(`Availability refreshed from Google Calendar (${count} busy time${count === 1 ? "" : "s"})`);
+    } catch (error) {
+      console.error("Google availability refresh failed:", error);
+      showToast("Google availability refresh failed");
+    }
+    setRefreshingAvailability(false);
   }
 
   async function load() {
@@ -352,7 +367,7 @@ export function BookingsTab({ business }) {
           <h2 style={{ fontSize: "22px", fontWeight: 800, color: DARK, marginBottom: "2px" }}>Bookings</h2>
           <p style={{ fontSize: "13px", color: "#aaa" }}>{todayBookings.length} today · {upcomingBookings.length} upcoming</p>
         </div>
-        <button onClick={() => { setEditTarget(null); setShowForm(true); }} style={{ border: "none", background: BRAND, color: "#fff", borderRadius: "12px", padding: "11px 18px", fontSize: "13px", fontWeight: 900, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "7px" }}><Plus size={16} /> New Booking</button>
+        <button onClick={refreshGoogleAvailability} disabled={refreshingAvailability} style={{ border: "1px solid #f8b8d2", background: "#fff5f9", color: BRAND, borderRadius: "12px", padding: "11px 18px", fontSize: "13px", fontWeight: 900, cursor: refreshingAvailability ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center", gap: "7px", opacity: refreshingAvailability ? .65 : 1 }}><RefreshCw size={16} /> {refreshingAvailability ? "Refreshing..." : "Sync availability"}</button><button onClick={() => { setEditTarget(null); setShowForm(true); }} style={{ border: "none", background: BRAND, color: "#fff", borderRadius: "12px", padding: "11px 18px", fontSize: "13px", fontWeight: 900, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "7px" }}><Plus size={16} /> New Booking</button>
       </div>
 
       {showForm && <BookingForm business={business} customers={customers} products={products} initial={editTarget} saving={saving} onSave={saveBooking} onCancel={() => { setShowForm(false); setEditTarget(null); }} />}

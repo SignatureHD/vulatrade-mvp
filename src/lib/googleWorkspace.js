@@ -974,3 +974,109 @@ export async function syncBookingToGoogleCalendar(booking, business = {}) {
   };
 }
 
+
+
+function calendarPartLookup(date) {
+  const parts = new Intl.DateTimeFormat("en-ZA", {
+    timeZone: "Africa/Johannesburg",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+
+  return Object.fromEntries(parts.map((part) => [part.type, part.value]));
+}
+
+function eventToBusyBlock(event, businessId) {
+  const isAllDay = Boolean(event.start?.date && !event.start?.dateTime);
+  const startRaw = event.start?.dateTime || event.start?.date;
+  const endRaw = event.end?.dateTime || event.end?.date;
+  if (!startRaw || !endRaw) return null;
+
+  if (isAllDay) {
+    const date = event.start.date;
+    return {
+      business_id: businessId,
+      google_event_id: event.id || null,
+      title: event.summary || "Busy",
+      start_at: `${date}T00:00:00+02:00`,
+      end_at: `${date}T23:59:00+02:00`,
+      booking_date: date,
+      booking_time: "00:00",
+      duration_minutes: 24 * 60,
+      source: "google_calendar",
+      status: "confirmed",
+      updated_at: new Date().toISOString(),
+    };
+  }
+
+  const startDate = new Date(startRaw);
+  const endDate = new Date(endRaw);
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return null;
+
+  const startParts = calendarPartLookup(startDate);
+  const date = `${startParts.year}-${startParts.month}-${startParts.day}`;
+  const time = `${startParts.hour}:${startParts.minute}`;
+  const duration = Math.max(15, Math.round((endDate.getTime() - startDate.getTime()) / 60000));
+
+  return {
+    business_id: businessId,
+    google_event_id: event.id || null,
+    title: event.summary || "Busy",
+    start_at: startDate.toISOString(),
+    end_at: endDate.toISOString(),
+    booking_date: date,
+    booking_time: time,
+    duration_minutes: duration,
+    source: "google_calendar",
+    status: "confirmed",
+    updated_at: new Date().toISOString(),
+  };
+}
+
+export async function syncGoogleCalendarBusyBlocks(supabaseClient, businessId, days = 30) {
+  if (!supabaseClient || !businessId) return 0;
+
+  const token = await getGoogleAccessToken();
+  const timeMin = new Date();
+  const timeMax = new Date(timeMin.getTime() + (Number(days || 30) * 24 * 60 * 60 * 1000));
+
+  const params = new URLSearchParams({
+    timeMin: timeMin.toISOString(),
+    timeMax: timeMax.toISOString(),
+    singleEvents: "true",
+    orderBy: "startTime",
+    maxResults: "250",
+  });
+
+  const response = await googleFetch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params.toString()}`,
+    token
+  );
+
+  const blocks = (response.items || [])
+    .filter((event) => event.status !== "cancelled")
+    .map((event) => eventToBusyBlock(event, businessId))
+    .filter(Boolean);
+
+  const { error: deleteError } = await supabaseClient
+    .from("calendar_busy_blocks")
+    .delete()
+    .eq("business_id", businessId);
+
+  if (deleteError) throw deleteError;
+
+  if (blocks.length > 0) {
+    const { error: insertError } = await supabaseClient
+      .from("calendar_busy_blocks")
+      .insert(blocks);
+
+    if (insertError) throw insertError;
+  }
+
+  return blocks.length;
+}
+
