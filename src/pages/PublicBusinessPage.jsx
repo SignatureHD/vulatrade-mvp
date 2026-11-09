@@ -283,15 +283,23 @@ function ReviewCarousel({ reviews, accent }) {
   return <div><div className="review-slide-card" style={{ background:"#fbfbfb", border:"1px solid #eeeeea", borderRadius:18, padding:14, minHeight:96 }}><div style={{ color:"#ffb60a", fontSize:14, marginBottom:6 }}>{"★".repeat(rating)}</div><div style={{ fontSize:14, color:DARK, lineHeight:1.6, fontWeight:650 }}>{activeReview.review_text}</div><div style={{ fontSize:12, color:"#767b81", fontWeight:800, marginTop:8 }}>{activeReview.customer_name || "Customer"}</div></div>{reviews.length > 1 && <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, marginTop:12 }}>{reviews.map((review, index) => <button key={review.id || index} type="button" onClick={() => setActiveIndex(index)} style={{ width: activeIndex === index ? 18 : 7, height:7, borderRadius:999, border:"none", padding:0, cursor:"pointer", background: activeIndex === index ? accent : "#d8d8d4" }} />)}</div>}</div>;
 }
 
-export default function PublicBusinessPage({ slug }) {
-  const [business, setBusiness] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [reviews, setReviews] = useState([]);
-  const [loading, setLoading] = useState(true);
+export function publicPageFallback(slug) {
+  return slug === "nomsa-nails" ? { business: NOMSA_FALLBACK.business, products: NOMSA_FALLBACK.products, reviews: [] } : null;
+}
+
+export default function PublicBusinessPage({ slug, initialData = null }) {
+  // initialData is supplied by the server render (and passed through to the browser)
+  // so the page shows real content immediately, which is what crawlers read.
+  const seeded = initialData?.business ? initialData : null;
+  const [business, setBusiness] = useState(seeded ? seeded.business : null);
+  const [products, setProducts] = useState(seeded && Array.isArray(seeded.products) ? seeded.products : []);
+  const [reviews, setReviews] = useState(seeded && Array.isArray(seeded.reviews) ? seeded.reviews : []);
+  const [loading, setLoading] = useState(!seeded);
   const [notFound, setNotFound] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
   useEffect(() => {
+    if (seeded) return undefined;
     let cancelled = false;
     async function loadBusiness() {
       setLoading(true); setNotFound(false);

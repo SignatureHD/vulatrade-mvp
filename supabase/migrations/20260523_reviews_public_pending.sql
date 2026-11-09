@@ -1,7 +1,10 @@
 -- Allow customers to submit pending reviews from public review links.
 -- Reviews still require owner approval before they appear publicly.
 
-create policy if not exists "reviews public pending insert"
+-- Postgres has no "create policy if not exists", so drop and recreate instead.
+drop policy if exists "reviews public pending insert" on public.reviews;
+
+create policy "reviews public pending insert"
 on public.reviews
 for insert
 to anon, authenticated

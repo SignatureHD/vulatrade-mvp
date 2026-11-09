@@ -40,7 +40,7 @@ function routeFromPath(pathname) {
   return { view: "landing", authMode: "signin", initialTab: "Dashboard" };
 }
 
-export default function App() {
+export default function App({ initialPublicPage = null }) {
   const [route, setRoute] = useState(() => routeFromPath(window.location.pathname));
 
   useEffect(() => {
@@ -61,7 +61,7 @@ export default function App() {
   const reviewMatch = window.location.pathname.match(/^\/review\/([^\/]+)\/?$/);
 
   if (publicBusinessMatch) {
-    return <PublicBusinessPage slug={decodeURIComponent(publicBusinessMatch[1])} />;
+    return <PublicBusinessPage slug={decodeURIComponent(publicBusinessMatch[1])} initialData={initialPublicPage} />;
   }
 
   if (reviewMatch) {

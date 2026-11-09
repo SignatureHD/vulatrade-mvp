@@ -73,3 +73,21 @@ The next phase is wiring the app UI to Supabase:
 - Save theme/background settings
 - Create public `/b/:slug` business pages
 - Persist drag-and-drop customer status changes
+
+## Search engines and link previews (server rendering)
+
+Production runs through `server.js`, which sends real HTML to browsers and crawlers:
+
+- `/`, solution pages, Vula Academy and legal pages are rendered with titles, descriptions and preview tags
+- `/b/<slug>` business pages are rendered from Supabase (`get_public_business_page`) with the business name, offers and LocalBusiness structured data, so WhatsApp, Facebook and Google show the real business
+- Dashboard and login routes are served as the normal app and marked `noindex`
+- `/robots.txt` and `/sitemap.xml` are generated automatically
+
+Commands:
+
+```bash
+npm run build   # builds dist/client and dist/server
+npm start       # serves on $PORT (Railway sets this)
+```
+
+Railway: build command `npm run build`, start command `npm start`. If Supabase cannot be reached within 4 seconds, business pages fall back to loading in the browser as before.

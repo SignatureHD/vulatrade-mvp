@@ -42,7 +42,7 @@ const toolLinks = [
   { label: "Prepare for Growth", href: "/prepare-for-growth" },
 ];
 
-const pages = {
+export const pages = {
   businessPage: {
     eyebrow: "Business page",
     headline: "Your business page. Ready in minutes.",
